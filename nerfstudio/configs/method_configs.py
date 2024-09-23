@@ -29,6 +29,7 @@ from nerfstudio.configs.external_methods import ExternalMethodDummyTrainerConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
 from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.datamanagers.parallel_full_images_datamanager import ParallelFullImageDatamanager
 from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -605,11 +606,12 @@ method_configs["splatfacto"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            # _target=ParallelFullImageDatamanager[InputDataset],
-            dataparser=NerfstudioDataParserConfig(load_3D_points=True, downscale_factor=1),
-            # dataparser=NerfstudioDataParserConfig(load_3D_points=True),
+            _target=ParallelFullImageDatamanager[InputDataset],
+            # dataparser=NerfstudioDataParserConfig(load_3D_points=True, downscale_factor=1),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
             use_parallel_dataloader=True,
+            cache_images="disk",
         ),
         model=SplatfactoModelConfig(),
     ),

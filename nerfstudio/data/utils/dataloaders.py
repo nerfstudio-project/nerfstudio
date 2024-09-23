@@ -21,22 +21,25 @@ import concurrent.futures
 import multiprocessing
 import random
 from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Sized, Tuple, Union, cast
-from dataclasses import field
+from collections import defaultdict
+from typing import Any, Callable, Dict, List, Literal, Optional, Sized, Tuple, Union, cast
 
+import cv2
+import numpy as np
 import torch
 from rich.progress import track
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.camera_utils import fisheye624_project, fisheye624_unproject_helper
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.rich_utils import CONSOLE
-from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.model_components.ray_generators import RayGenerator
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -68,123 +71,336 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
     return new_batch
 
 
-# class CacheDataloader(DataLoader):
-#     """Collated image dataset that implements caching of default-pytorch-collatable data.
-#     Creates batches of the InputDataset return type.
+def _undistort_image(
+    camera: Cameras, distortion_params: np.ndarray, data: dict, image: np.ndarray, K: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
+    mask = None
+    if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
+        assert distortion_params[3] == 0, (
+            "We don't support the 4th Brown parameter for image undistortion, "
+            "Only k1, k2, k3, p1, p2 can be non-zero."
+        )
+        # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3)
+        # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
+        distortion_params = np.array(
+            [
+                distortion_params[0],
+                distortion_params[1],
+                distortion_params[4],
+                distortion_params[5],
+                distortion_params[2],
+                distortion_params[3],
+                0,
+                0,
+            ]
+        )
+        # because OpenCV expects the pixel coord to be top-left, we need to shift the principal point by 0.5
+        # see https://github.com/nerfstudio-project/nerfstudio/issues/3048
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
+        if np.any(distortion_params):
+            newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
+            image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
+        else:
+            newK = K
+            roi = 0, 0, image.shape[1], image.shape[0]
+        # crop the image and update the intrinsics accordingly
+        x, y, w, h = roi
+        image = image[y : y + h, x : x + w]
+        newK[0, 2] -= x
+        newK[1, 2] -= y
 
-#     Args:
-#         dataset: Dataset to sample from.
-#         num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
-#         num_times_to_repeat_images: How often to yield an image batch before resampling. -1 to never pick new images.
-#         device: Device to perform computation.
-#         collate_fn: The function we will use to collate our training data
-#     """
+        if "depth_image" in data:
+            data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
+        if "mask" in data:
+            mask = data["mask"].numpy()
+            mask = mask.astype(np.uint8) * 255
+            if np.any(distortion_params):
+                mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
+            mask = mask[y : y + h, x : x + w]
+            mask = torch.from_numpy(mask).bool()
+            if len(mask.shape) == 2:
+                mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
+        K = newK
 
-#     def __init__(
-#         self,
-#         dataset: Dataset,
-#         num_images_to_sample_from: int = -1,
-#         num_times_to_repeat_images: int = -1,
-#         device: Union[torch.device, str] = "cpu",
-#         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
-#         exclude_batch_keys_from_device: Optional[List[str]] = None,
-#         **kwargs,
-#     ):
-#         if exclude_batch_keys_from_device is None:
-#             exclude_batch_keys_from_device = ["image"]
-#         self.dataset = dataset
-#         assert isinstance(self.dataset, Sized)
+    elif camera.camera_type.item() == CameraType.FISHEYE.value:
+        K[0, 2] = K[0, 2] - 0.5
+        K[1, 2] = K[1, 2] - 0.5
+        distortion_params = np.array(
+            [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
+        )
+        newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
+            K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
+        )
+        map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+            K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
+        )
+        # and then remap:
+        image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
+        if "mask" in data:
+            mask = data["mask"].numpy()
+            mask = mask.astype(np.uint8) * 255
+            mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, newK)
+            mask = torch.from_numpy(mask).bool()
+            if len(mask.shape) == 2:
+                mask = mask[:, :, None]
+        newK[0, 2] = newK[0, 2] + 0.5
+        newK[1, 2] = newK[1, 2] + 0.5
+        K = newK
+    elif camera.camera_type.item() == CameraType.FISHEYE624.value:
+        fisheye624_params = torch.cat(
+            [camera.fx, camera.fy, camera.cx, camera.cy, torch.from_numpy(distortion_params)], dim=0
+        )
+        assert fisheye624_params.shape == (16,)
+        assert (
+            "mask" not in data
+            and camera.metadata is not None
+            and "fisheye_crop_radius" in camera.metadata
+            and isinstance(camera.metadata["fisheye_crop_radius"], float)
+        )
+        fisheye_crop_radius = camera.metadata["fisheye_crop_radius"]
 
-#         super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
-#         self.num_times_to_repeat_images = num_times_to_repeat_images
-#         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
-#         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
-#         self.device = device
-#         self.collate_fn = collate_fn
-#         self.num_workers = kwargs.get("num_workers", 0)
-#         self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
+        # Approximate the FOV of the unmasked region of the camera.
+        upper, lower, left, right = fisheye624_unproject_helper(
+            torch.tensor(
+                [
+                    [camera.cx, camera.cy - fisheye_crop_radius],
+                    [camera.cx, camera.cy + fisheye_crop_radius],
+                    [camera.cx - fisheye_crop_radius, camera.cy],
+                    [camera.cx + fisheye_crop_radius, camera.cy],
+                ],
+                dtype=torch.float32,
+            )[None],
+            params=fisheye624_params[None],
+        ).squeeze(dim=0)
+        fov_radians = torch.max(
+            torch.acos(torch.sum(upper * lower / torch.linalg.norm(upper) / torch.linalg.norm(lower))),
+            torch.acos(torch.sum(left * right / torch.linalg.norm(left) / torch.linalg.norm(right))),
+        )
 
-#         self.num_repeated = self.num_times_to_repeat_images  # starting value
-#         self.first_time = True
+        # Heuristics to determine parameters of an undistorted image.
+        undist_h = int(fisheye_crop_radius * 2)
+        undist_w = int(fisheye_crop_radius * 2)
+        undistort_focal = undist_h / (2 * torch.tan(fov_radians / 2.0))
+        undist_K = torch.eye(3)
+        undist_K[0, 0] = undistort_focal  # fx
+        undist_K[1, 1] = undistort_focal  # fy
+        undist_K[0, 2] = (undist_w - 1) / 2.0  # cx; for a 1x1 image, center should be at (0, 0).
+        undist_K[1, 2] = (undist_h - 1) / 2.0  # cy
 
-#         self.cached_collated_batch = None
-#         if self.cache_all_images:
-#             CONSOLE.print(f"Caching all {len(self.dataset)} images.")
-#             if len(self.dataset) > 500:
-#                 CONSOLE.print(
-#                     "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
-#                 )
-#             self.cached_collated_batch = self._get_collated_batch()
-#         elif self.num_times_to_repeat_images == -1:
-#             CONSOLE.print(
-#                 f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
-#             )
-#         else:
-#             CONSOLE.print(
-#                 f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
-#                 f"resampling every {self.num_times_to_repeat_images} iters."
-#             )
+        # Undistorted 2D coordinates -> rays -> reproject to distorted UV coordinates.
+        undist_uv_homog = torch.stack(
+            [
+                *torch.meshgrid(
+                    torch.arange(undist_w, dtype=torch.float32),
+                    torch.arange(undist_h, dtype=torch.float32),
+                ),
+                torch.ones((undist_w, undist_h), dtype=torch.float32),
+            ],
+            dim=-1,
+        )
+        assert undist_uv_homog.shape == (undist_w, undist_h, 3)
+        dist_uv = (
+            fisheye624_project(
+                xyz=(
+                    torch.einsum(
+                        "ij,bj->bi",
+                        torch.linalg.inv(undist_K),
+                        undist_uv_homog.reshape((undist_w * undist_h, 3)),
+                    )[None]
+                ),
+                params=fisheye624_params[None, :],
+            )
+            .reshape((undist_w, undist_h, 2))
+            .numpy()
+        )
+        map1 = dist_uv[..., 1]
+        map2 = dist_uv[..., 0]
 
-#     def __getitem__(self, idx):
-#         return self.dataset.__getitem__(idx)
+        # Use correspondence to undistort image.
+        image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
 
-#     def _get_batch_list(self):
-#         """Returns a list of batches from the dataset attribute."""
+        # Compute undistorted mask as well.
+        dist_h = camera.height.item()
+        dist_w = camera.width.item()
+        mask = np.mgrid[:dist_h, :dist_w]
+        mask[0, ...] -= dist_h // 2
+        mask[1, ...] -= dist_w // 2
+        mask = np.linalg.norm(mask, axis=0) < fisheye_crop_radius
+        mask = torch.from_numpy(
+            cv2.remap(
+                mask.astype(np.uint8) * 255,
+                map1,
+                map2,
+                interpolation=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=0,
+            )
+            / 255.0
+        ).bool()[..., None]
+        if len(mask.shape) == 2:
+            mask = mask[:, :, None]
+        assert mask.shape == (undist_h, undist_w, 1)
+        K = undist_K.numpy()
+    else:
+        raise NotImplementedError("Only perspective and fisheye cameras are supported")
+    return K, image, mask
 
-#         assert isinstance(self.dataset, Sized)
-#         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
-#         batch_list = []
-#         results = []
 
-#         num_threads = int(self.num_workers) * 4
-#         num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
-#         num_threads = max(num_threads, 1)
+def undistort_view(
+    idx: int, dataset: InputDataset, image_type: Literal["uint8", "float32"] = "float32"
+) -> Dict[str, torch.Tensor]:
+    """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
+    Note: this method does not modify the dataset's attributes at all.
 
-#         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-#             for idx in indices:
-#                 res = executor.submit(self.dataset.__getitem__, idx)
-#                 results.append(res)
+    Returns: The undistorted data (image, depth, mask, etc.) and the new linear Camera object
+    """
+    data = dataset.get_data(idx, image_type)
+    camera = dataset.cameras[idx].reshape(())
+    assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+        f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+        f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
+    )
+    if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
+        return data
+    K = camera.get_intrinsics_matrices().numpy()
+    distortion_params = camera.distortion_params.numpy()
+    image = data["image"].numpy()
+    K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+    data["image"] = torch.from_numpy(image)
+    if mask is not None:
+        data["mask"] = mask
 
-#             for res in track(results, description="Loading data batch", transient=True):
-#                 batch_list.append(res.result())
+    # create a new Camera with the rectified / undistorted intrinsics
+    new_camera = Cameras(
+        camera_to_worlds=camera.camera_to_worlds.unsqueeze(0),
+        fx=torch.Tensor([[float(K[0, 0])]]),
+        fy=torch.Tensor([[float(K[1, 1])]]),
+        cx=torch.Tensor([[float(K[0, 2])]]),
+        cy=torch.Tensor([[float(K[1, 2])]]),
+        width=torch.Tensor([[image.shape[1]]]).to(torch.int32),
+        height=torch.Tensor([[image.shape[0]]]).to(torch.int32),
+    )
+    return new_camera, data
 
-#         return batch_list
 
-#     def _get_collated_batch(self):
-#         """Returns a collated batch of images."""
-#         batch_list = self._get_batch_list()
-#         collated_batch = self.collate_fn(batch_list)
-#         collated_batch = get_dict_to_torch(
-#             collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
-#         )
-#         return collated_batch
+class CacheDataloader(DataLoader):
+    """Collated image dataset that implements caching of default-pytorch-collatable data.
+    Creates batches of the InputDataset return type.
 
-#     def __iter__(self):
-#         while True:
-#             if self.cache_all_images:
-#                 collated_batch = self.cached_collated_batch
-#             elif self.first_time or (
-#                 self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
-#             ):
-#                 # trigger a reset
-#                 self.num_repeated = 0
-#                 collated_batch = self._get_collated_batch()
-#                 # possibly save a cached item
-#                 self.cached_collated_batch = collated_batch if self.num_times_to_repeat_images != 0 else None
-#                 self.first_time = False
-#             else:
-#                 collated_batch = self.cached_collated_batch
-#                 self.num_repeated += 1
-#             yield collated_batch
+    Args:
+        dataset: Dataset to sample from.
+        num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
+        num_times_to_repeat_images: How often to yield an image batch before resampling. -1 to never pick new images.
+        device: Device to perform computation.
+        collate_fn: The function we will use to collate our training data
+    """
 
-import concurrent.futures
+    def __init__(
+        self,
+        dataset: Dataset,
+        num_images_to_sample_from: int = -1,
+        num_times_to_repeat_images: int = -1,
+        device: Union[torch.device, str] = "cpu",
+        collate_fn: Callable[[Any], Any] = nerfstudio_collate,
+        exclude_batch_keys_from_device: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        if exclude_batch_keys_from_device is None:
+            exclude_batch_keys_from_device = ["image"]
+        self.dataset = dataset
+        assert isinstance(self.dataset, Sized)
+
+        super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
+        self.num_times_to_repeat_images = num_times_to_repeat_images
+        self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
+        self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
+        self.device = device
+        self.collate_fn = collate_fn
+        self.num_workers = kwargs.get("num_workers", 0)
+        self.exclude_batch_keys_from_device = exclude_batch_keys_from_device
+
+        self.num_repeated = self.num_times_to_repeat_images  # starting value
+        self.first_time = True
+
+        self.cached_collated_batch = None
+        if self.cache_all_images:
+            CONSOLE.print(f"Caching all {len(self.dataset)} images.")
+            if len(self.dataset) > 500:
+                CONSOLE.print(
+                    "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
+                )
+            self.cached_collated_batch = self._get_collated_batch()
+        elif self.num_times_to_repeat_images == -1:
+            CONSOLE.print(
+                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
+            )
+        else:
+            CONSOLE.print(
+                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
+                f"resampling every {self.num_times_to_repeat_images} iters."
+            )
+
+    def __getitem__(self, idx):
+        return self.dataset.__getitem__(idx)
+
+    def _get_batch_list(self):
+        """Returns a list of batches from the dataset attribute."""
+
+        assert isinstance(self.dataset, Sized)
+        indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+        batch_list = []
+        results = []
+
+        num_threads = int(self.num_workers) * 4
+        num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
+        num_threads = max(num_threads, 1)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for idx in indices:
+                res = executor.submit(self.dataset.__getitem__, idx)
+                results.append(res)
+
+            for res in track(results, description="Loading data batch", transient=True):
+                batch_list.append(res.result())
+
+        return batch_list
+
+    def _get_collated_batch(self):
+        """Returns a collated batch of images."""
+        batch_list = self._get_batch_list()
+        collated_batch = self.collate_fn(batch_list)
+        collated_batch = get_dict_to_torch(
+            collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
+        )
+        return collated_batch
+
+    def __iter__(self):
+        while True:
+            if self.cache_all_images:
+                collated_batch = self.cached_collated_batch
+            elif self.first_time or (
+                self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
+            ):
+                # trigger a reset
+                self.num_repeated = 0
+                collated_batch = self._get_collated_batch()
+                # possibly save a cached item
+                self.cached_collated_batch = collated_batch if self.num_times_to_repeat_images != 0 else None
+                self.first_time = False
+            else:
+                collated_batch = self.cached_collated_batch
+                self.num_repeated += 1
+            yield collated_batch
+
+
 import math
-import multiprocessing
-import random
-from typing import Sized
+
 from torch.utils.data import Dataset
-from nerfstudio.utils.misc import get_dict_to_torch
 from tqdm.auto import tqdm
+
 
 class RayBatchStream(torch.utils.data.IterableDataset):
     """Wrapper around Pytorch's IterableDataset to generate the next batch of rays (next RayBundle) and corresponding labels
@@ -195,20 +411,20 @@ class RayBatchStream(torch.utils.data.IterableDataset):
     bottlenecked by disk read speed. To avoid Out-Of-Memory (OOM) errors, this batch of images is small and regenerated
     by resampling the worker's partition of images to maintain sampling diversity.
     """
+
     def __init__(
         self,
-        input_dataset: Dataset,
+        input_dataset: InputDataset,
         num_rays_per_batch: int = 1024,
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
         # variable_res_collate avoids np.stack'ing images, which allows it to be much faster than `nerfstudio_collate`
-        collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(variable_res_collate)), 
+        collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(variable_res_collate)),
         num_image_load_threads: int = 4,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
         load_from_disk: bool = False,
         patch_size: int = 1,
-
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
@@ -222,7 +438,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         """How many RayBundles to generate from this batch of images after sampling `num_images_to_sample_from` images."""
         self.device = device
         """If a CUDA GPU is present, self.device will be set to use that GPU."""
-        self.collate_fn = collate_fn 
+        self.collate_fn = collate_fn
         """What collate function is used to batch images to be used for pixel sampling and ray generation. """
         self.num_image_load_threads = num_image_load_threads
         """Number of threads created to read images from disk and form collated batches."""
@@ -247,9 +463,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         from nerfstudio.cameras.cameras import CameraType
 
         if self.patch_size > 1 and type(self.pixel_sampler_config) is PixelSamplerConfig:
-            return PatchPixelSamplerConfig().setup(
-                patch_size=self.patch_size, num_rays_per_batch=num_rays_per_batch
-            )
+            return PatchPixelSamplerConfig().setup(patch_size=self.patch_size, num_rays_per_batch=num_rays_per_batch)
         is_equirectangular = (dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value).all()
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
@@ -292,10 +506,10 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             for idx in indices:
                 res = executor.submit(self.input_dataset.__getitem__, idx)
                 results.append(res)
-            results = tqdm(results) # this is temporary and will be removed in the final push
+            results = tqdm(results)  # this is temporary and will be removed in the final push
             for res in results:
                 batch_list.append(res.result())
-        
+
         return batch_list
 
     def _get_collated_batch(self, indices=None):
@@ -322,31 +536,33 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         else:  # we only have a single process
             per_worker = len(self.input_dataset)
             slice_start = 0
-        dataset_indices = list(
-            range(len(self.input_dataset))
-        )
+        dataset_indices = list(range(len(self.input_dataset)))
         worker_indices = dataset_indices[
             slice_start : slice_start + per_worker
         ]  # the indices of the datapoints in the dataset this worker will load
         if self.enable_per_worker_image_caching:
             self._cached_collated_batch = self._get_collated_batch(worker_indices)
         r = random.Random(3301)
-        num_rays_per_loop = self.num_rays_per_batch # default train_num_rays_per_batch is 4096
+        num_rays_per_loop = self.num_rays_per_batch  # default train_num_rays_per_batch is 4096
         # each worker has its own pixel sampler
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
-        self.ray_generator = RayGenerator(self.input_dataset.cameras) # the generated RayBundles will be on the same device as self.input_dataset.cameras (CPU)
-            
+        self.ray_generator = RayGenerator(
+            self.input_dataset.cameras
+        )  # the generated RayBundles will be on the same device as self.input_dataset.cameras (CPU)
+
         i = 0
         while True:
             if self.enable_per_worker_image_caching:
                 collated_batch = self._cached_collated_batch
             elif i % self.num_times_to_repeat_images == 0:
                 r.shuffle(worker_indices)
-                 
-                if self.num_images_to_sample_from == -1: # if -1, the worker gets all available indices in its partition
+
+                if (
+                    self.num_images_to_sample_from == -1
+                ):  # if -1, the worker gets all available indices in its partition
                     image_indices = worker_indices
-                else: # get a total of 'num_images_to_sample_from' image indices
-                    image_indices = worker_indices[:self.num_images_to_sample_from]
+                else:  # get a total of 'num_images_to_sample_from' image indices
+                    image_indices = worker_indices[: self.num_images_to_sample_from]
 
                 collated_batch = self._get_collated_batch(image_indices)
             i += 1
@@ -358,11 +574,66 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
             and returns them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
             """
-            batch = worker_pixel_sampler.sample(collated_batch) # the pixel_sampler will sample num_rays_per_batch pixels. 
+            batch = worker_pixel_sampler.sample(
+                collated_batch
+            )  # the pixel_sampler will sample num_rays_per_batch pixels.
             # collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
             ray_indices = batch["indices"]
-            ray_bundle = self.ray_generator(ray_indices).to(self.device) # the ray_bundle is on the GPU; batch["image"] is on the CPU
+            ray_bundle = self.ray_generator(ray_indices).to(
+                self.device
+            )  # the ray_bundle is on the GPU; batch["image"] is on the CPU
             yield ray_bundle, batch
+
+
+class ImageBatchStream(torch.utils.data.IterableDataset):
+    """
+    A wrapper of InputDataset that outputs undistorted full images and cameras. This makes the
+    datamanager more lightweight since we don't have to do generate rays. Useful for full-image
+    training e.g. rasterization pipelines
+    """
+
+    def __init__(
+        self,
+        input_dataset: InputDataset,
+        cache_images_type: Literal["uint8", "float32"] = "float32",
+        sampling_seed: int = 3301,
+        device: Union[torch.device, str] = "cpu",
+    ):
+        self.input_dataset = input_dataset
+        self.cache_images_type = cache_images_type
+        self.sampling_seed = sampling_seed
+        self.device = device
+
+    def __iter__(self):
+        # print(self.input_dataset.cameras.device) prints cpu
+        dataset_indices = list(range(len(self.input_dataset)))
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:  # if we have multiple processes
+            per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
+            slice_start = worker_info.id * per_worker
+        else:  # we only have a single process
+            per_worker = len(self.input_dataset)
+            slice_start = 0
+        worker_indices = dataset_indices[
+            slice_start : slice_start + per_worker
+        ]  # the indices of the datapoints in the dataset this worker will load
+        r = random.Random(self.sampling_seed)
+        r.shuffle(worker_indices)
+        i = 0  # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
+        print("HELLO", worker_info.id)
+        while True:
+            if i >= len(
+                worker_indices
+            ):  # if we've iterated through all the worker's partition of images, we need to reshuffle
+                r.shuffle(worker_indices)
+                i = 0
+            idx = worker_indices[i]  # idx refers to the actual datapoint index this worker will retrieve
+            camera, data = undistort_view(idx, self.input_dataset, self.cache_images_type)
+            if camera.metadata is None:
+                camera.metadata = {}
+            camera.metadata["cam_idx"] = idx
+            i += 1
+            yield camera, data
 
 
 class EvalDataloader(DataLoader):

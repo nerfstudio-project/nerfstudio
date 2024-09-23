@@ -46,7 +46,7 @@ class InputDataset(Dataset):
     exclude_batch_keys_from_device: List[str] = ["image", "mask"]
     cameras: Cameras
 
-    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_images: bool = False):
+    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_compressed_images: bool = False):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
         self.scale_factor = scale_factor
@@ -55,9 +55,9 @@ class InputDataset(Dataset):
         self.cameras = deepcopy(dataparser_outputs.cameras)
         self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
         self.mask_color = dataparser_outputs.metadata.get("mask_color", None)
-        self.cache_images = cache_images
-        """If cache_images == True, cache all the image files into RAM in their compressed form (not as tensors yet)"""
-        if cache_images:
+        self.cache_compressed_images = cache_compressed_images
+        """If cache_compressed_images == True, cache all the image files into RAM in their compressed form (jpeg, png, etc. but not as pytorch tensors)"""
+        if cache_compressed_images:
             self.binary_images = []
             self.binary_masks = []
             for image_filename in self._dataparser_outputs.image_filenames:
@@ -78,7 +78,7 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image_filename = self._dataparser_outputs.image_filenames[image_idx]
-        if self.cache_images:
+        if self.cache_compressed_images:
             pil_image = Image.open(self.binary_images[image_idx])
         else:
             pil_image = Image.open(image_filename)
@@ -146,7 +146,7 @@ class InputDataset(Dataset):
 
         data = {"image_idx": image_idx, "image": image}
         if self._dataparser_outputs.mask_filenames is not None:
-            if self.cache_images:
+            if self.cache_compressed_images:
                 mask_filepath = self.binary_masks[image_idx]
             else:
                 mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]

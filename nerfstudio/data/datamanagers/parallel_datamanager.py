@@ -15,36 +15,29 @@
 """
 Parallel data manager that generates training data in multiple python processes.
 """
+
 from __future__ import annotations
 
-import concurrent.futures
-import queue
-import time
-from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
 import torch
-from pathos.helpers import mp
-from rich.progress import track
 from torch.nn import Parameter
 
-from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     TDataset,
     VanillaDataManagerConfig,
-    VanillaDataManager,
     variable_res_collate,
 )
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import RayBatchStream, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.utils.data_utils import identity_collate
-from nerfstudio.model_components.ray_generators import RayGenerator
+from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, RayBatchStream
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -111,15 +104,15 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
     def dataset_type(self) -> Type[TDataset]:
         """Returns the dataset type passed as the generic argument"""
         default: Type[TDataset] = cast(TDataset, TDataset.__default__)  # type: ignore
-        orig_class: Type[VanillaDataManager] = get_orig_class(self, default=None)  # type: ignore
-        if type(self) is VanillaDataManager and orig_class is None:
+        orig_class: Type[ParallelDataManager] = get_orig_class(self, default=None)  # type: ignore
+        if type(self) is ParallelDataManager and orig_class is None:
             return default
-        if orig_class is not None and get_origin(orig_class) is VanillaDataManager:
+        if orig_class is not None and get_origin(orig_class) is ParallelDataManager:
             return get_args(orig_class)[0]
 
         # For inherited classes, we need to find the correct type to instantiate
         for base in getattr(self, "__orig_bases__", []):
-            if get_origin(base) is VanillaDataManager:
+            if get_origin(base) is ParallelDataManager:
                 for value in get_args(base):
                     if isinstance(value, ForwardRef):
                         if value.__forward_evaluated__:
@@ -146,7 +139,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-
     def setup_train(self):
         self.train_raybatchstream = RayBatchStream(
             input_dataset=self.train_dataset,
@@ -154,8 +146,8 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
             num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
             device=self.device,
-            collate_fn = variable_res_collate,
-            load_from_disk = self.config.load_from_disk,
+            collate_fn=variable_res_collate,
+            load_from_disk=self.config.load_from_disk,
         )
         self.train_ray_dataloader = torch.utils.data.DataLoader(
             self.train_raybatchstream,
@@ -163,10 +155,10 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             num_workers=self.config.dataloader_num_workers,
             prefetch_factor=self.config.prefetch_factor,
             shuffle=False,
-            collate_fn=identity_collate, # Our dataset handles batching / collation of rays
+            collate_fn=identity_collate,  # Our dataset handles batching / collation of rays
         )
         self.iter_train_raybundles = iter(self.train_ray_dataloader)
-    
+
     def setup_eval(self):
         self.eval_raybatchstream = RayBatchStream(
             input_dataset=self.eval_dataset,
@@ -174,8 +166,8 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
             num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
             device=self.device,
-            collate_fn = variable_res_collate,
-            load_from_disk = True,
+            collate_fn=variable_res_collate,
+            load_from_disk=True,
         )
         self.eval_ray_dataloader = torch.utils.data.DataLoader(
             self.eval_raybatchstream,
@@ -183,7 +175,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             num_workers=self.config.dataloader_num_workers,
             prefetch_factor=self.config.prefetch_factor,
             shuffle=False,
-            collate_fn=identity_collate, # Our dataset handles batching / collation of rays
+            collate_fn=identity_collate,  # Our dataset handles batching / collation of rays
         )
         self.iter_eval_raybundles = iter(self.eval_ray_dataloader)
         self.image_eval_dataloader = RandIndicesEvalDataloader(

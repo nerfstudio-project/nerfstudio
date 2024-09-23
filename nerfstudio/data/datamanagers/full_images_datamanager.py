@@ -75,12 +75,29 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
     use_parallel_dataloader: bool = cache_images == "disk"
     """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
-    dataloader_num_workers: int = 4
+    load_from_disk: bool = False
+    """If True, conserves RAM memory by loading images from disk.
+    If False, caches all the images as tensors to RAM and loads from RAM."""
+    dataloader_num_workers: int = 0
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 2
+    prefetch_factor: int = None
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
+    cache_compressed_images: bool = False
+    """If True, cache raw image files as byte strings to RAM."""
+
+    def __post_init__(self):
+        if self.load_from_disk:
+            self.prefetch_factor = 2 if self.use_parallel_dataloader else None
+
+        if self.use_parallel_dataloader:
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                pass
+            self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
+
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
     """
@@ -139,10 +156,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_unseen_cameras = self.sample_train_cameras()
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
-
-        if self.config.use_parallel_dataloader:
-            import torch.multiprocessing as mp
-            mp.set_start_method("spawn")
 
         super().__init__()
 
@@ -206,6 +219,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             dataset = self.eval_dataset
         else:
             assert_never(split)
+
         def undistort_idx(idx: int) -> Dict[str, torch.Tensor]:
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
@@ -321,10 +335,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 batch_size=1,
                 num_workers=self.config.dataloader_num_workers,
                 collate_fn=identity_collate,
-                # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work? 
+                # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work?
             )
             self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-            
+
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         if self.config.use_parallel_dataloader:
@@ -386,7 +400,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data = self.cached_train[image_idx]
         data["image"] = data["image"].to(self.device)
 
-        assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
+        assert lDuden(self.train_cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.train_cameras[image_idx : image_idx + 1].to(self.device)
         if camera.metadata is None:
             camera.metadata = {}
@@ -430,7 +444,7 @@ def _undistort_image(
             "We don't support the 4th Brown parameter for image undistortion, "
             "Only k1, k2, k3, p1, p2 can be non-zero."
         )
-        # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3) 
+        # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3)
         # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
             [
@@ -599,41 +613,43 @@ def _undistort_image(
     return K, image, mask
 
 
-def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
-    """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
-    Note: this method does not modify the dataset's attributes at all.
+# def undistort_view(idx: int, dataset: TDataset, image_type: Literal["uint8", "float32"] = "float32") -> Dict[str, torch.Tensor]:
+#     """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
+#     Note: this method does not modify the dataset's attributes at all.
 
-    Returns: The undistorted data (image, depth, mask, etc.) and the new linear Camera object
-    """
-    data = dataset.get_data(idx, image_type)
-    camera = dataset.cameras[idx].reshape(())
-    assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
-        f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
-        f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
-    )
-    if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
-        return data
-    K = camera.get_intrinsics_matrices().numpy()
-    distortion_params = camera.distortion_params.numpy()
-    image = data["image"].numpy()
-    K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
-    data["image"] = torch.from_numpy(image)
-    if mask is not None:
-        data["mask"] = mask
-    
-    # create a new Camera with the rectified / undistorted intrinsics
-    new_camera = Cameras(
-        camera_to_worlds=camera.camera_to_worlds.unsqueeze(0),
-        fx=torch.Tensor([[float(K[0, 0])]]),
-        fy=torch.Tensor([[float(K[1, 1])]]),
-        cx=torch.Tensor([[float(K[0, 2])]]),
-        cy=torch.Tensor([[float(K[1, 2])]]),
-        width=torch.Tensor([[image.shape[1]]]).to(torch.int32),
-        height=torch.Tensor([[image.shape[0]]]).to(torch.int32),
-    )
-    return data, new_camera
+#     Returns: The undistorted data (image, depth, mask, etc.) and the new linear Camera object
+#     """
+#     data = dataset.get_data(idx, image_type)
+#     camera = dataset.cameras[idx].reshape(())
+#     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
+#         f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
+#         f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
+#     )
+#     if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
+#         return data
+#     K = camera.get_intrinsics_matrices().numpy()
+#     distortion_params = camera.distortion_params.numpy()
+#     image = data["image"].numpy()
+#     K, image, mask = _undistort_image(camera, distortion_params, data, image, K)
+#     data["image"] = torch.from_numpy(image)
+#     if mask is not None:
+#         data["mask"] = mask
+
+#     # create a new Camera with the rectified / undistorted intrinsics
+#     new_camera = Cameras(
+#         camera_to_worlds=camera.camera_to_worlds.unsqueeze(0),
+#         fx=torch.Tensor([[float(K[0, 0])]]),
+#         fy=torch.Tensor([[float(K[1, 1])]]),
+#         cx=torch.Tensor([[float(K[0, 2])]]),
+#         cy=torch.Tensor([[float(K[1, 2])]]),
+#         width=torch.Tensor([[image.shape[1]]]).to(torch.int32),
+#         height=torch.Tensor([[image.shape[0]]]).to(torch.int32),
+#     )
+#     return data, new_camera
 
 import math
+
+
 class ImageBatchStream(torch.utils.data.IterableDataset):
     """
     A wrapper of InputDataset that outputs undistorted full images and cameras. This makes the
@@ -653,14 +669,12 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         # print(self.input_dataset.cameras.device) prints cpu
-        dataset_indices = list(
-            range(len(self.input_dataset))
-        )
+        dataset_indices = list(range(len(self.input_dataset)))
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:  # if we have multiple processes
             per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
             slice_start = worker_info.id * per_worker
-        else: # we only have a single process
+        else:  # we only have a single process
             per_worker = len(self.input_dataset)
             slice_start = 0
         worker_indices = dataset_indices[
@@ -668,18 +682,21 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         ]  # the indices of the datapoints in the dataset this worker will load
         r = random.Random(self.config.train_cameras_sampling_seed)
         r.shuffle(worker_indices)
-        i = 0 # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
+        i = 0  # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
         while True:
-            if i >= len(worker_indices): # if we've iterated through all the worker's partition of images, we need to reshuffle
+            if i >= len(
+                worker_indices
+            ):  # if we've iterated through all the worker's partition of images, we need to reshuffle
                 r.shuffle(worker_indices)
                 i = 0
-            idx = worker_indices[i] # idx refers to the actual datapoint index this worker will retrieve
+            idx = worker_indices[i]  # idx refers to the actual datapoint index this worker will retrieve
             data, camera = undistort_view(idx, self.input_dataset, self.config.cache_images_type)
             if camera.metadata is None:
                 camera.metadata = {}
             camera.metadata["cam_idx"] = idx
             i += 1
             yield camera, data
+
 
 # class ParallelFullImageDatamanager(FullImageDatamanager, Generic[TDataset]):
 #     def __init__(
@@ -701,7 +718,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
 #             local_rank=local_rank,
 #             **kwargs
 #         )
- 
+
 #     def setup_train(self):
 #         self.train_imagebatch_stream = ImageBatchStream(
 #             input_dataset=self.train_dataset,
@@ -713,7 +730,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
 #             batch_size=1,
 #             num_workers=self.config.dataloader_num_workers,
 #             collate_fn=identity_collate,
-#             # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work? 
+#             # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work?
 #         )
 #         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
@@ -740,9 +757,8 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
 #         self.train_count += 1
 #         camera, data = next(self.iter_train_image_dataloader)[0]
 #         return camera, data
-    
+
 #     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
 #         self.eval_count += 1
 #         camera, data = next(self.iter_train_image_dataloader)[0]
 #         return camera, data
-    
