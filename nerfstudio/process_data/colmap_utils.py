@@ -26,7 +26,7 @@ import numpy as np
 import requests
 import torch
 from packaging.version import Version
-from rich.progress import track
+from rich.progress import track, Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -428,46 +428,61 @@ def colmap_to_json(
         out = parse_colmap_camera_params(cam_id_to_camera[1])
 
     frames = []
-    for im_id, im_data in im_id_to_image.items():
-        # NB: COLMAP uses Eigen / scalar-first quaternions
-        # * https://colmap.github.io/format.html
-        # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
-        # the `rotation_matrix()` handles that format for us.
+    total_images = len(im_id_to_image)
 
-        # TODO(1480) BEGIN use pycolmap API
-        # rotation = im_data.rotation_matrix()
-        rotation = qvec2rotmat(im_data.qvec)
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(show_speed=False),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeRemainingColumn(),
+    )
 
-        translation = im_data.tvec.reshape(3, 1)
-        w2c = np.concatenate([rotation, translation], 1)
-        w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
-        c2w = np.linalg.inv(w2c)
-        # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
-        c2w[0:3, 1:3] *= -1
-        if not keep_original_world_coordinate:
-            c2w = c2w[np.array([0, 2, 1, 3]), :]
-            c2w[2, :] *= -1
+    with progress:
+        task = progress.add_task("[green]Processing images...", total=total_images)
 
-        name = im_data.name
-        if image_rename_map is not None:
-            name = image_rename_map[name]
-        name = Path(f"./images/{name}")
+        for im_id, im_data in im_id_to_image.items():
+            # NB: COLMAP uses Eigen / scalar-first quaternions
+            # * https://colmap.github.io/format.html
+            # * https://github.com/colmap/colmap/blob/bf3e19140f491c3042bfd85b7192ef7d249808ec/src/base/pose.cc#L75
+            # the `rotation_matrix()` handles that format for us.
 
-        frame = {
-            "file_path": name.as_posix(),
-            "transform_matrix": c2w.tolist(),
-            "colmap_im_id": im_id,
-        }
-        if camera_mask_path is not None:
-            frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
-        if image_id_to_depth_path is not None:
-            depth_path = image_id_to_depth_path[im_id]
-            frame["depth_file_path"] = str(depth_path.relative_to(depth_path.parent.parent))
+            # TODO(1480) BEGIN use pycolmap API
+            # rotation = im_data.rotation_matrix()
+            rotation = qvec2rotmat(im_data.qvec)
 
-        if not use_single_camera_mode:  # add the camera parameters for this frame
-            frame.update(parse_colmap_camera_params(cam_id_to_camera[im_data.camera_id]))
+            translation = im_data.tvec.reshape(3, 1)
+            w2c = np.concatenate([rotation, translation], 1)
+            w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
+            c2w = np.linalg.inv(w2c)
+            # Convert from COLMAP's camera coordinate system (OpenCV) to ours (OpenGL)
+            c2w[0:3, 1:3] *= -1
+            if not keep_original_world_coordinate:
+                c2w = c2w[np.array([0, 2, 1, 3]), :]
+                c2w[2, :] *= -1
 
-        frames.append(frame)
+            name = im_data.name
+            if image_rename_map is not None:
+                name = image_rename_map[name]
+            name = Path(f"./images/{name}")
+
+            frame = {
+                "file_path": name.as_posix(),
+                "transform_matrix": c2w.tolist(),
+                "colmap_im_id": im_id,
+            }
+            if camera_mask_path is not None:
+                frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
+            if image_id_to_depth_path is not None:
+                depth_path = image_id_to_depth_path[im_id]
+                frame["depth_file_path"] = str(depth_path.relative_to(depth_path.parent.parent))
+
+            if not use_single_camera_mode:  # add the camera parameters for this frame
+                frame.update(parse_colmap_camera_params(cam_id_to_camera[im_data.camera_id]))
+
+            frames.append(frame)
+            
+            progress.update(task, advance=1)
 
     out["frames"] = frames
 
@@ -693,22 +708,34 @@ def create_ply_from_colmap(
 
     # Load point colours
     points3D_rgb = torch.from_numpy(np.array([p.rgb for p in colmap_points.values()], dtype=np.uint8))
+    total_points = len(points3D)
+    
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(show_speed=False),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeRemainingColumn(),
+    )
+    
+    with progress:
+        task = progress.add_task("[green]Writing PLY file...", total=total_points)
+        
+        with open(output_dir / filename, "w") as f:
+            # Header
+            f.write("ply\n")
+            f.write("format ascii 1.0\n")
+            f.write(f"element vertex {len(points3D)}\n")
+            f.write("property float x\n")
+            f.write("property float y\n")
+            f.write("property float z\n")
+            f.write("property uint8 red\n")
+            f.write("property uint8 green\n")
+            f.write("property uint8 blue\n")
+            f.write("end_header\n")
 
-    # write ply
-    with open(output_dir / filename, "w") as f:
-        # Header
-        f.write("ply\n")
-        f.write("format ascii 1.0\n")
-        f.write(f"element vertex {len(points3D)}\n")
-        f.write("property float x\n")
-        f.write("property float y\n")
-        f.write("property float z\n")
-        f.write("property uint8 red\n")
-        f.write("property uint8 green\n")
-        f.write("property uint8 blue\n")
-        f.write("end_header\n")
-
-        for coord, color in zip(points3D, points3D_rgb):
-            x, y, z = coord
-            r, g, b = color
-            f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
+            for coord, color in zip(points3D, points3D_rgb):
+                x, y, z = coord
+                r, g, b = color
+                f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
+                progress.update(task, advance=1)
