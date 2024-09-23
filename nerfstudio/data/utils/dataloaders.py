@@ -425,6 +425,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         exclude_batch_keys_from_device: Optional[List[str]] = None,
         load_from_disk: bool = False,
         patch_size: int = 1,
+        custom_ray_processor: Optional[Callable[[RayBundle, Dict], Tuple[RayBundle, Dict]]] = None,
     ):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
@@ -447,16 +448,17 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         For instance, if you would like to conserve GPU memory, don't move the image tensors to the GPU, 
         which comes at a cost of total training time. The default value is ['image']."""
         self.load_from_disk = load_from_disk
+        """If True, conserves RAM memory by loading images from disk.
+        If False, each worker caches all the images in its dataset partition as tensors to RAM and loads from RAM."""
         self.patch_size = patch_size
         """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-        self.enable_per_worker_image_caching = load_from_disk == False
-        """If True, each worker's will cache its entire partition of the image dataset as image tensors in RAM."""
         self._cached_collated_batch = None
         """Each worker has a self._cached_collated_batch contains a collated batch of images cached in RAM for a specific worker that's ready for pixel sampling."""
         self.pixel_sampler_config: PixelSamplerConfig = PixelSamplerConfig()
         """Specifies the pixel sampler config used to sample pixels from images. Each worker will have its own pixel sampler"""
         self.ray_generator: RayGenerator = None
         """Each worker will have its own ray generator, so this is set to None for now."""
+        self.custom_ray_processor = custom_ray_processor
 
     def _get_pixel_sampler(self, dataset: Dataset, num_rays_per_batch: int) -> PixelSampler:
         """copied from VanillaDataManager."""
@@ -492,11 +494,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         batch_list = []
         results = []
 
-        num_threads = (
-            int(self.num_image_load_threads)
-            if not self.enable_per_worker_image_caching
-            else 4 * int(self.num_image_load_threads)
-        )
+        num_threads = int(self.num_image_load_threads) if self.load_from_disk else 4 * int(self.num_image_load_threads)
         num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
         num_threads = max(num_threads, 1)
 
@@ -537,31 +535,31 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             per_worker = len(self.input_dataset)
             slice_start = 0
         dataset_indices = list(range(len(self.input_dataset)))
-        worker_indices = dataset_indices[
-            slice_start : slice_start + per_worker
-        ]  # the indices of the datapoints in the dataset this worker will load
-        if self.enable_per_worker_image_caching:
+        # the indices of the datapoints in the dataset this worker will load
+        worker_indices = dataset_indices[slice_start : slice_start + per_worker]
+        if not self.load_from_disk:
             self._cached_collated_batch = self._get_collated_batch(worker_indices)
         r = random.Random(3301)
         num_rays_per_loop = self.num_rays_per_batch  # default train_num_rays_per_batch is 4096
+
         # each worker has its own pixel sampler
         worker_pixel_sampler = self._get_pixel_sampler(self.input_dataset, num_rays_per_loop)
-        self.ray_generator = RayGenerator(
-            self.input_dataset.cameras
-        )  # the generated RayBundles will be on the same device as self.input_dataset.cameras (CPU)
+
+        # the generated RayBundles will be on the same device as self.input_dataset.cameras (CPU)
+        self.ray_generator = RayGenerator(self.input_dataset.cameras)
 
         i = 0
         while True:
-            if self.enable_per_worker_image_caching:
+            if not self.load_from_disk:
                 collated_batch = self._cached_collated_batch
             elif i % self.num_times_to_repeat_images == 0:
                 r.shuffle(worker_indices)
 
-                if (
-                    self.num_images_to_sample_from == -1
-                ):  # if -1, the worker gets all available indices in its partition
+                if self.num_images_to_sample_from == -1:
+                    # if -1, the worker gets all available indices in its partition
                     image_indices = worker_indices
-                else:  # get a total of 'num_images_to_sample_from' image indices
+                else:
+                    # get a total of 'num_images_to_sample_from' image indices
                     image_indices = worker_indices[: self.num_images_to_sample_from]
 
                 collated_batch = self._get_collated_batch(image_indices)
@@ -574,14 +572,14 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
             and returns them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
             """
-            batch = worker_pixel_sampler.sample(
-                collated_batch
-            )  # the pixel_sampler will sample num_rays_per_batch pixels.
+            batch = worker_pixel_sampler.sample(collated_batch)  # type: ignore
             # collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
             ray_indices = batch["indices"]
-            ray_bundle = self.ray_generator(ray_indices).to(
-                self.device
-            )  # the ray_bundle is on the GPU; batch["image"] is on the CPU
+            # the ray_bundle is on the GPU; batch["image"] is on the CPU, here we move it to the GPU
+            ray_bundle = self.ray_generator(ray_indices).to(self.device)
+            if self.custom_ray_processor:
+                ray_bundle, batch = self.custom_ray_processor(ray_bundle, batch)
+
             yield ray_bundle, batch
 
 

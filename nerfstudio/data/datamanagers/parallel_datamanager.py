@@ -221,3 +221,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             A list of dictionaries containing the data manager's param groups.
         """
         return {}
+
+    def custom_ray_processor(self, ray_bundle: RayBundle, batch: Dict) -> Tuple[RayBundle, Dict]:
+        """An API to add latents, metadata, or other further customization to the RayBundle dataloading process that is parallelized"""
+        return ray_bundle, batch
