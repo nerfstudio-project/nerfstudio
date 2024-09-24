@@ -165,11 +165,11 @@ def generate_point_cloud(
 
             if crop_obb is not None:
                 mask = crop_obb.within(point)
-            point = point[mask]
-            rgb = rgb[mask]
-            view_direction = view_direction[mask]
-            if normal is not None:
-                normal = normal[mask]
+                point = point[mask]
+                rgb = rgb[mask]
+                view_direction = view_direction[mask]
+                if normal is not None:
+                    normal = normal[mask]
 
             points.append(point)
             rgbs.append(rgb)
