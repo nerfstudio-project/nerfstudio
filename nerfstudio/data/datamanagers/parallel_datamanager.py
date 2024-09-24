@@ -37,13 +37,13 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.utils.data_utils import identity_collate
-from nerfstudio.data.utils.dataloaders import RandIndicesEvalDataloader, RayBatchStream
+from nerfstudio.data.utils.dataloaders import FixedIndicesEvalDataloader, RandIndicesEvalDataloader, RayBatchStream
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
 class ParallelDataManager(DataManager, Generic[TDataset]):
-    """Data manager implementation for parallel dataloading
+    """Data manager implementation for parallel dataloading.
 
     Args:
         config: the DataManagerConfig used to instantiate class
@@ -179,6 +179,12 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         )
         self.iter_eval_raybundles = iter(self.eval_ray_dataloader)
         self.image_eval_dataloader = RandIndicesEvalDataloader(
+            input_dataset=self.eval_dataset,
+            device=self.device,
+            num_workers=self.world_size * 4,
+        )
+        # this is used for ns-eval
+        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,
