@@ -66,25 +66,6 @@ def _set_random_seed(seed) -> None:
     torch.manual_seed(seed)
 
 
-def copy_directory(src: Path, dst: Path):
-    """
-    Copies the contents of the source directory to the destination directory.
-
-    Args:
-        src (Path): The source directory path.
-        dst (Path): The destination directory path.
-    """
-    try:
-        shutil.copytree(src, dst)
-        print(f"Directory copied from {src} to {dst}.")
-    except FileExistsError:
-        print(f"Error: Destination directory '{dst}' already exists.")
-    except FileNotFoundError:
-        print(f"Error: Source directory '{src}' not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-
 class Splitter:
     def __init__(self, data_dir: Path, rows: int, cols: int):
         """
@@ -254,7 +235,7 @@ class Splitter:
                     # Prune images that are insignificant (appear less frequently relative to points)
                     images_to_remove = [
                         image_id for image_id, freq in cell_image_freqs[(row, col)].items()
-                        if freq / cell_num_points < 0.001
+                        if freq / cell_num_points < 0.004
                     ]
                     for image_id in images_to_remove:
                         del cell_images[(row, col)][image_id]
@@ -431,60 +412,119 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-def main(method: str, data: Path, output_dir: Path = "outputs", project_name: str = "nerfstudio-project", rows: int = 16, cols: int = 16) -> None:
-    """Main function."""
-    # Check if the data path is valid
+def main(
+    method: str,
+    data: Path,
+    output_dir: Path = Path("outputs"),  # Changed default to Path object
+    project_name: str = "large-nerfstudio-project",
+    rows: int = 16,
+    cols: int = 16
+) -> None:
+    """
+    Main function to split the scene into cells, copy relevant images, generate configurations,
+    and launch the training process for each cell.
+
+    Args:
+        method (str): The training method to use (e.g., "splatfacto").
+        data (Path): Path to the data directory containing COLMAP outputs and images.
+        output_dir (Path, optional): Directory to store output configurations and results.
+                                     Defaults to "outputs".
+        project_name (str, optional): Name of the NeRF project. Defaults to "large-nerfstudio-project".
+        rows (int, optional): Number of rows to split the scene into. Defaults to 16.
+        cols (int, optional): Number of columns to split the scene into. Defaults to 16.
+    """
+    # Validate the provided data path by checking the existence of required subdirectories
     if not ((data / "colmap" / "sparse" / "0").is_dir() and (data / "images").is_dir()):
         print(f"Error: The provided data path '{data}' is not a valid directory.")
         return
 
+    # Print configuration details for user confirmation
     print(f"Method name: {method}")
     print(f"Valid data path: {data}")
     print(f"Rows: {rows}, Cols: {cols}")
 
+    # Initialize the Splitter to divide the scene into cells
     splitter = Splitter(data, rows, cols)
+
+    # Split the scene and retrieve valid cells along with their associated image paths
     valid_cells, image_paths_by_cell = splitter.split_scene()
 
-    if valid_cells is not None:
+    # Confirm successful splitting
+    if valid_cells:
         print("Splitting was done successfully")
 
+    # Iterate over each valid cell to process it
     for row, col in valid_cells:
-        # Define scene directory path
+        # Define the directory path for the current cell's scene
         scene_dir = splitter.data_dir / "exports" / f"{row}-{col}"
 
-        # Create the images folder in the scene directory
+        # Create the images subdirectory within the scene directory
         images_dir = scene_dir / "images"
         images_dir.mkdir(parents=True, exist_ok=True)
 
-        # Get the list of image paths for the current cell
-        image_paths = image_paths_by_cell[(row, col)]
+        # Retrieve the list of image names associated with the current cell
+        image_paths = image_paths_by_cell.get((row, col), [])
 
-        # Copy only the images listed in image_paths to the new scene directory
+        # Copy only the relevant images to the scene's images directory
         for image_name in image_paths:
             src_image_path = splitter.data_dir / "images" / image_name
             dest_image_path = images_dir / image_name
-            shutil.copy2(src_image_path, dest_image_path)
+            try:
+                shutil.copy2(src_image_path, dest_image_path)
+            except FileNotFoundError:
+                print(f"Warning: Image '{image_name}' not found in '{splitter.data_dir / 'images'}'. Skipping...")
 
-        # Generate config
+        # Define the output path for the project
+        proj_output_path = output_dir / project_name
+        proj_output_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate command-line arguments based on the selected method
         if method == "splatfacto":
-            arguments = f"splatfacto --output-dir={output_dir} --experiment-name={row}-{col} --project-name={project_name} --pipeline.model.cull-scale-thresh=1000 --viewer.quit-on-train-completion=True colmap --data={scene_dir} --center-method=none --orientation-method=none --auto-scale-poses=False"
+            arguments = (
+                f"splatfacto --output-dir={proj_output_path} "
+                f"--experiment-name={row}-{col} "
+                f"--project-name={project_name} "
+                f"--vis=tensorboard "
+                f"--pipeline.model.cull-scale-thresh=1000 "
+                f"--viewer.quit-on-train-completion=True "
+                f"colmap --data={scene_dir} "
+                f"--center-method=none "
+                f"--orientation-method=none "
+                f"--auto-scale-poses=False"
+            )
         else:
-            arguments = f"{method} --output-dir={output_dir} --experiment-name={row}-{col} --project-name={project_name} --viewer.quit-on-train-completion=True colmap --data={scene_dir} --center-method=none --orientation-method=none --auto-scale-poses=False"
+            arguments = (
+                f"{method} --output-dir={proj_output_path} "
+                f"--experiment-name={row}-{col} "
+                f"--project-name={project_name} "
+                f"--vis=tensorboard "
+                f"--viewer.quit-on-train-completion=True "
+                f"colmap --data={scene_dir} "
+                f"--center-method=none "
+                f"--orientation-method=none "
+                f"--auto-scale-poses=False"
+            )
 
-        args_list = shlex.split(arguments)  # Split the arguments string into a list of arguments
+        # Split the arguments string into a list for tyro.cli
+        args_list = shlex.split(arguments)
 
+        # Parse the arguments into a configuration object using tyro
         config = tyro.cli(
             AnnotatedBaseConfigUnion,
             args=args_list,
             description=convert_markup_to_ansi(__doc__),
         )
 
+        # Set a timestamp in the configuration for tracking
         config.set_timestamp()
 
-        # Print and save config
+        # Display the configuration details in the terminal
         config.print_to_terminal()
+
+        # Save the configuration to a file for future reference
         config.save_config()
 
+        # Launch the training process using the generated configuration
         launch(
             main_func=train_loop,
             num_devices_per_machine=config.machine.num_devices,
@@ -495,6 +535,7 @@ def main(method: str, data: Path, output_dir: Path = "outputs", project_name: st
             config=config,
         )
 
+        # Clean up by removing the copied images directory after training
         shutil.rmtree(images_dir)
 
 
