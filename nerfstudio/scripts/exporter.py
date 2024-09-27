@@ -73,8 +73,13 @@ def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pip
         directions = torch.ones_like(origins)
         pixel_area = torch.ones_like(origins[..., :1])
         camera_indices = torch.zeros_like(origins[..., :1])
+        metadata = {"directions_norm": torch.linalg.vector_norm(directions, dim=-1, keepdim=True)}
         ray_bundle = RayBundle(
-            origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area,
+            camera_indices=camera_indices,
+            metadata=metadata,
         )
         outputs = pipeline.model(ray_bundle)
         if normal_output_name not in outputs:
@@ -485,6 +490,9 @@ class ExportGaussianSplat(Exporter):
     """Rotation of the oriented bounding box. Expressed as RPY Euler angles in radians"""
     obb_scale: Optional[Tuple[float, float, float]] = None
     """Scale of the oriented bounding box along each axis."""
+    ply_color_mode: Literal["sh_coeffs", "rgb"] = "sh_coeffs"
+    """If "rgb", export colors as red/green/blue fields. Otherwise, export colors as
+    spherical harmonics coefficients."""
 
     @staticmethod
     def write_ply(
@@ -504,7 +512,7 @@ class ExportGaussianSplat(Exporter):
         """
 
         # Ensure count matches the length of all tensors
-        if not all(len(tensor) == count for tensor in map_to_tensors.values()):
+        if not all(tensor.size == count for tensor in map_to_tensors.values()):
             raise ValueError("Count does not match the length of all tensors")
 
         # Type check for numpy arrays of type float or uint8 and non-empty
@@ -544,7 +552,7 @@ class ExportGaussianSplat(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config, test_mode="inference")
 
         assert isinstance(pipeline.model, SplatfactoModel)
 
@@ -552,7 +560,6 @@ class ExportGaussianSplat(Exporter):
 
         filename = self.output_dir / "splat.ply"
 
-        count = 0
         map_to_tensors = OrderedDict()
 
         with torch.no_grad():
@@ -566,19 +573,28 @@ class ExportGaussianSplat(Exporter):
             map_to_tensors["ny"] = np.zeros(n, dtype=np.float32)
             map_to_tensors["nz"] = np.zeros(n, dtype=np.float32)
 
-            if model.config.sh_degree > 0:
+            if self.ply_color_mode == "rgb":
+                colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
+                colors = (colors * 255).astype(np.uint8)
+                map_to_tensors["red"] = colors[:, 0]
+                map_to_tensors["green"] = colors[:, 1]
+                map_to_tensors["blue"] = colors[:, 2]
+            elif self.ply_color_mode == "sh_coeffs":
                 shs_0 = model.shs_0.contiguous().cpu().numpy()
                 for i in range(shs_0.shape[1]):
                     map_to_tensors[f"f_dc_{i}"] = shs_0[:, i, None]
 
-                # transpose(1, 2) was needed to match the sh order in Inria version
-                shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
-                shs_rest = shs_rest.reshape((n, -1))
-                for i in range(shs_rest.shape[-1]):
-                    map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
-            else:
-                colors = torch.clamp(model.colors.clone(), 0.0, 1.0).data.cpu().numpy()
-                map_to_tensors["colors"] = (colors * 255).astype(np.uint8)
+            if model.config.sh_degree > 0:
+                if self.ply_color_mode == "rgb":
+                    CONSOLE.print(
+                        "Warning: model has higher level of spherical harmonics, ignoring them and only export rgb."
+                    )
+                elif self.ply_color_mode == "sh_coeffs":
+                    # transpose(1, 2) was needed to match the sh order in Inria version
+                    shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
+                    shs_rest = shs_rest.reshape((n, -1))
+                    for i in range(shs_rest.shape[-1]):
+                        map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
@@ -609,9 +625,17 @@ class ExportGaussianSplat(Exporter):
             n_after = np.sum(select)
             if n_after < n_before:
                 CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
+        nan_count = np.sum(select) - n
+
+        # filter gaussians that have opacities < 1/255, because they are skipped in cuda rasterization
+        low_opacity_gaussians = (map_to_tensors["opacity"]).squeeze(axis=-1) < -5.5373  # logit(1/255)
+        lowopa_count = np.sum(low_opacity_gaussians)
+        select[low_opacity_gaussians] = 0
 
         if np.sum(select) < n:
-            CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
+            CONSOLE.print(
+                f"{nan_count} Gaussians have NaN/Inf and {lowopa_count} have low opacity, only export {np.sum(select)}/{n}"
+            )
             for k, t in map_to_tensors.items():
                 map_to_tensors[k] = map_to_tensors[k][select]
             count = np.sum(select)

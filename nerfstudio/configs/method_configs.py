@@ -637,6 +637,12 @@ method_configs["splatfacto"] = TrainerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=2e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
+        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
@@ -657,8 +663,7 @@ method_configs["splatfacto-big"] = TrainerConfig(
         ),
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
-            continue_cull_post_densification=False,
-            densify_grad_thresh=0.0006,
+            densify_grad_thresh=0.0005,
         ),
     ),
     optimizers={
@@ -690,6 +695,12 @@ method_configs["splatfacto-big"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
                 lr_final=5e-7, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
+            ),
+        },
+        "bilateral_grid": {
+            "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(
+                lr_final=1e-4, max_steps=30000, warmup_steps=1000, lr_pre_warmup=0
             ),
         },
     },
