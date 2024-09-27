@@ -148,6 +148,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             device=self.device,
             collate_fn=variable_res_collate,
             load_from_disk=self.config.load_from_disk,
+            custom_ray_processor=self.custom_ray_processor,
         )
         self.train_ray_dataloader = torch.utils.data.DataLoader(
             self.train_raybatchstream,
@@ -168,6 +169,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             device=self.device,
             collate_fn=variable_res_collate,
             load_from_disk=True,
+            custom_ray_processor=self.custom_ray_processor,
         )
         self.eval_ray_dataloader = torch.utils.data.DataLoader(
             self.eval_raybatchstream,

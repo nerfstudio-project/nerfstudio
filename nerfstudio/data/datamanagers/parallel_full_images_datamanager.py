@@ -175,6 +175,7 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
             cache_images_type=self.config.cache_images_type,
             sampling_seed=self.config.train_cameras_sampling_seed,
             device=self.device,
+            custom_view_processor=self.custom_view_processor,
         )
         self.train_image_dataloader = torch.utils.data.DataLoader(
             self.train_imagebatch_stream,
@@ -191,6 +192,7 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
             cache_images_type=self.config.cache_images_type,
             sampling_seed=self.config.train_cameras_sampling_seed,
             device=self.device,
+            custom_view_processor=self.custom_view_processor,
         )
         self.eval_image_dataloader = torch.utils.data.DataLoader(
             self.eval_imagebatch_stream,
@@ -235,3 +237,7 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         return undistort_view(image_idx, self.eval_dataset, self.config.cache_images_type)
+
+    def custom_view_processor(self, camera, image):
+        """An API to add latents, metadata, or other further customization an camera-and-image view dataloading process that is parallelized"""
+        return camera, image

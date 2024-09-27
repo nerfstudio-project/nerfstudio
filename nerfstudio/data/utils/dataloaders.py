@@ -251,7 +251,7 @@ def _undistort_image(
 
 def undistort_view(
     idx: int, dataset: InputDataset, image_type: Literal["uint8", "float32"] = "float32"
-) -> Dict[str, torch.Tensor]:
+) -> Tuple[Cameras, Dict]:
     """Undistorts an image to one taken by a linear (pinhole) camera model and returns a new Camera with these updated intrinsics
     Note: this method does not modify the dataset's attributes at all.
 
@@ -596,6 +596,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         cache_images_type: Literal["uint8", "float32"] = "float32",
         sampling_seed: int = 3301,
         device: Union[torch.device, str] = "cpu",
+        custom_view_processor: Optional[Callable[[Cameras, Dict], Tuple[Cameras, Dict]]] = None,
     ):
         self.input_dataset = input_dataset
         self.cache_images_type = cache_images_type
@@ -630,6 +631,11 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
             if camera.metadata is None:
                 camera.metadata = {}
             camera.metadata["cam_idx"] = idx
+
+            # Apply custom processing if provided
+            if self.custom_view_processor:
+                camera, data = self.custom_view_processor(camera, data)
+
             i += 1
             yield camera, data
 
