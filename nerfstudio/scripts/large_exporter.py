@@ -19,7 +19,9 @@ ns-large-export
 
 from __future__ import annotations
 
-import shutil
+import sys
+
+import joblib
 import typing
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -210,42 +212,6 @@ class ExportGaussianSplat(Exporter):
         return map_to_tensors
 
 
-def load_cells(filepath: Path):
-    """
-    Loads cell boundaries from the cell_boundaries.txt file generated during ns-large-train.
-
-    :param filepath: Path to the cell_boundaries.txt file.
-    :return: dict
-        A dictionary where the keys are (row, col) tuples and the values are dictionaries with 'min' and 'max' keys
-        containing the boundary points.
-    """
-    cell_boundaries = {}
-
-    with open(filepath, 'r') as file:
-        while True:
-            line = file.readline().strip()
-            if not line:
-                break
-
-            # Parse the row and column
-            row, col = map(int, line.split())
-
-            # Parse the boundary points (min and max)
-            min_line = file.readline().strip()
-            max_line = file.readline().strip()
-
-            min_x, min_z = map(float, min_line.split())
-            max_x, max_z = map(float, max_line.split())
-
-            # Store the boundary information in the dictionary
-            cell_boundaries[(row, col)] = {
-                'min': [min_x, min_z],
-                'max': [max_x, max_z]
-            }
-
-    return cell_boundaries
-
-
 class Merger:
     def __init__(self, cells: dict, raw_splats: dict):
         """
@@ -272,8 +238,8 @@ class Merger:
             remaining = np.zeros(count, dtype=bool)
             for index in range(count):
                 # Note that the Y and Z coordinates are interchanged from the COLMAP world coordinate system to nerfstudio's
-                is_x_in_boundary = cell["min"][0] <= splats_map["x"][index] <= cell["max"][0]
-                is_y_in_boundary = cell["min"][1] <= splats_map["y"][index] <= cell["max"][1]
+                is_x_in_boundary = cell[0][0] <= splats_map["x"][index] <= cell[1][0]
+                is_y_in_boundary = cell[0][1] <= splats_map["y"][index] <= cell[1][1]
                 if is_x_in_boundary and is_y_in_boundary:
                     remaining[index] = True
 
@@ -312,25 +278,6 @@ class Merger:
         return merged_splats
 
 
-def copy_directory(src: Path, dst: Path):
-    """
-    Copies the contents of the source directory to the destination directory.
-
-    Args:
-        src (Path): The source directory path.
-        dst (Path): The destination directory path.
-    """
-    try:
-        shutil.copytree(src, dst)
-        print(f"Directory copied from {src} to {dst}.")
-    except FileExistsError:
-        print(f"Error: Destination directory '{dst}' already exists.")
-    except FileNotFoundError:
-        print(f"Error: Source directory '{src}' not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-
 def main(data_dir: Path, train_dir: Path, output_dir: Path = Path("outputs"), project_name: str = "large-nerfstudio-project"):
     """
     Main function to merge the split 3D Gaussian Splatting results of a large scale scene
@@ -345,31 +292,38 @@ def main(data_dir: Path, train_dir: Path, output_dir: Path = Path("outputs"), pr
     """
     # Check if the data path is valid
     if not (data_dir.is_dir() and train_dir.is_dir()):
-        print("Error: The provided data and/or train path are not valid directories.")
+        CONSOLE.log("Error: The provided data and/or train path are not valid directories.")
         return
 
     # Get cell boundaries
-    cells_path = data_dir / "exports" / "cell_boundaries.txt"
-    cells = load_cells(cells_path)
+    cells = joblib.load(data_dir / "exports" / "cells")
 
     # Export split GS results and load into raw splats dict
     raw_splats = {}
     for row, col in cells.keys():
-        # Copy the raw images of the full scene to the cell's COLMAP directory
-        raw_images_path = data_dir / "images"
-        cell_images_path = data_dir / "exports" / f"{row}-{col}" / "images"
-        copy_directory(raw_images_path, cell_images_path)
-
         # Extract config path
-        config_path = (next((train_dir / f"{row}-{col}" / "splatfacto").iterdir())) / "config.yml"
+        scene_dir = train_dir / f"{row}-{col}" / "splatfacto"
+
+        # Get latest training result based on timestamp
+        latest_timestamp = scene_dir / "0"
+        for timestamp in scene_dir.iterdir():
+            if not timestamp.is_dir():
+                continue
+            if str(timestamp) > str(latest_timestamp):
+                latest_timestamp = timestamp
+
+        # Check
+        if latest_timestamp == scene_dir / "0":
+            CONSOLE.log("TIMESTAMP ERROR!")
+            sys.exit(1)
+
+        # Define config path
+        config_path = latest_timestamp / "config.yml"
 
         # Export split scene and add it to raw splats
         exporter = ExportGaussianSplat(load_config=config_path)
         splat = exporter.export()
         raw_splats[(row, col)] = splat
-
-        # Clean up by removing the copied images directory after training
-        shutil.rmtree(cell_images_path)
 
     # Initialize Merger class
     merger = Merger(cells, raw_splats)
@@ -383,7 +337,6 @@ def main(data_dir: Path, train_dir: Path, output_dir: Path = Path("outputs"), pr
     # Export full scene
     CONSOLE.log("Exporting full scene to PLY format...")
     exporter = ExportGaussianSplat(output_dir=output_dir)
-    print(merged_splats["x"].shape[0])
     exporter.write_ply(count=merged_splats["x"].shape[0], map_to_tensors=merged_splats, filename=project_name)
 
 

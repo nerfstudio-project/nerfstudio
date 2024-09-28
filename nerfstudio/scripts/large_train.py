@@ -19,11 +19,15 @@ ns-large-train
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from collections import defaultdict
 
 import shutil
 import shlex
+import joblib
+
+from rich.prompt import Confirm
 
 import random
 import socket
@@ -221,55 +225,52 @@ class Splitter:
         exports_dir = self.data_dir / "exports"
         Path(exports_dir).mkdir(parents=True, exist_ok=True)
 
-        valid_cells = []  # List to store coordinates of valid cells
+        valid_cells = {}  # List to store coordinates of valid cells
         image_paths_by_cells = {}  # Dictionary to map each valid cell to its image paths
 
-        # Open the cell boundaries file to record the boundaries of each valid cell
-        with open(exports_dir / "cell_boundaries.txt", 'w') as boundary_file:
-            # Iterate over each cell to determine its validity
-            for row in range(self.rows):
-                for col in range(self.cols):
-                    cell_num_images = len(cell_images[(row, col)])  # Number of images in the cell
-                    cell_num_points = len(cell_points[(row, col)])  # Number of points in the cell
+        # Iterate over each cell to determine its validity
+        for row in range(self.rows):
+            for col in range(self.cols):
+                cell_num_images = len(cell_images[(row, col)])  # Number of images in the cell
+                cell_num_points = len(cell_points[(row, col)])  # Number of points in the cell
 
-                    # Prune images that are insignificant (appear less frequently relative to points)
-                    images_to_remove = [
-                        image_id for image_id, freq in cell_image_freqs[(row, col)].items()
-                        if freq / cell_num_points < 0.004
-                    ]
-                    for image_id in images_to_remove:
-                        del cell_images[(row, col)][image_id]
+                # Prune images that are insignificant (appear less frequently relative to points)
+                images_to_remove = [
+                    image_id for image_id, freq in cell_image_freqs[(row, col)].items()
+                    if freq / cell_num_points < 0.005
+                ]
+                for image_id in images_to_remove:
+                    del cell_images[(row, col)][image_id]
 
-                    # Skip cells that are empty or irrelevant based on image-to-point ratio and minimum points
-                    if not cell_images[(row, col)]:
-                        continue
-                    elif cell_num_images / cell_num_points > 0.5 or cell_num_points < 10:
-                        continue
+                # Skip cells that are empty or irrelevant based on image-to-point ratio and minimum points
+                if not cell_images[(row, col)]:
+                    continue
+                elif cell_num_images / cell_num_points > 0.5 or cell_num_points < 10:
+                    continue
 
-                    # Export the COLMAP scene data for the valid cell
-                    self.export_colmap_scene(
-                        cell_images[(row, col)],
-                        cell_points[(row, col)],
-                        f"{row}-{col}"
-                    )
+                # Export the COLMAP scene data for the valid cell
+                self.export_colmap_scene(
+                    cell_images[(row, col)],
+                    cell_points[(row, col)],
+                    f"{row}-{col}"
+                )
 
-                    # Record the cell's coordinates as valid
-                    valid_cells.append((row, col))
+                # Retrieve the cell's boundary points
+                cell = self.cells[row][col]
+                min_point = cell['min']
+                max_point = cell['max']
 
-                    # Record the list of image names for the valid cell
-                    image_paths_by_cells[(row, col)] = [
-                        image.name for image in cell_images[(row, col)].values()
-                    ]
+                # Add boundaries to valid cells dictionary
+                valid_cells[(row, col)] = (min_point, max_point)
 
-                    # Retrieve the cell's boundary points
-                    cell = self.cells[row][col]
-                    min_point = cell['min']
-                    max_point = cell['max']
+                # Record the list of image names for the valid cell
+                image_paths_by_cells[(row, col)] = [
+                    image.name for image in cell_images[(row, col)].values()
+                ]
 
-                    # Write the cell's boundaries to the boundaries file
-                    boundary_file.write(f"{row} {col}\n")
-                    boundary_file.write(f"{min_point[0]} {min_point[1]}\n")
-                    boundary_file.write(f"{max_point[0]} {max_point[1]}\n")
+        # Save valid cells and image paths by cells dictionaries
+        joblib.dump(valid_cells, (exports_dir / "cells"))
+        joblib.dump(image_paths_by_cells, (exports_dir / "image_paths_by_cell"))
 
         # Return the list of valid cells and their corresponding image paths
         return valid_cells, image_paths_by_cells
@@ -379,6 +380,7 @@ def launch(
         except KeyboardInterrupt:
             # print the stack trace
             CONSOLE.print(traceback.format_exc())
+            sys.exit(0)
         finally:
             profiler.flush_profiler(config.logging)
     elif world_size > 1:
@@ -408,6 +410,7 @@ def launch(
                     process.terminate()
                 process.join()
                 CONSOLE.log(f"Process {i} finished.")
+            sys.exit(0)
         finally:
             profiler.flush_profiler(config.logging)
 
@@ -417,8 +420,8 @@ def main(
     data: Path,
     output_dir: Path = Path("outputs"),  # Changed default to Path object
     project_name: str = "large-nerfstudio-project",
-    rows: int = 16,
-    cols: int = 16
+    rows: int = 32,
+    cols: int = 32
 ) -> None:
     """
     Main function to split the scene into cells, copy relevant images, generate configurations,
@@ -435,28 +438,56 @@ def main(
     """
     # Validate the provided data path by checking the existence of required subdirectories
     if not ((data / "colmap" / "sparse" / "0").is_dir() and (data / "images").is_dir()):
-        print(f"Error: The provided data path '{data}' is not a valid directory.")
+        CONSOLE.log(f"Error: The provided data path '{data}' is not a valid directory.")
         return
 
     # Print configuration details for user confirmation
-    print(f"Method name: {method}")
-    print(f"Valid data path: {data}")
-    print(f"Rows: {rows}, Cols: {cols}")
+    CONSOLE.log(f"Method name: {method}")
+    CONSOLE.log(f"Valid data path: {data}")
+    CONSOLE.log(f"Rows: {rows}, Cols: {cols}")
 
-    # Initialize the Splitter to divide the scene into cells
-    splitter = Splitter(data, rows, cols)
+    # Define exports directory
+    exports_dir = (data / "exports")
 
-    # Split the scene and retrieve valid cells along with their associated image paths
-    valid_cells, image_paths_by_cell = splitter.split_scene()
+    # Check for checkpoints
+    checkpoint = False
+    if (exports_dir).is_dir():
+        CONSOLE.log("Splitting results detected")
+        checkpoint = Confirm.ask("Would you like to begin training with current splitting results?")
 
-    # Confirm successful splitting
-    if valid_cells:
-        print("Splitting was done successfully")
+    if not checkpoint:
+        CONSOLE.log("Splitting begin")
+
+        # Initialize the Splitter to divide the scene into cells
+        splitter = Splitter(data, rows, cols)
+
+        # Split the scene and retrieve valid cells along with their associated image paths
+        cells, image_paths_by_cell = splitter.split_scene()
+
+        # Confirm successful splitting
+        if cells:
+            CONSOLE.log("Splitting was done successfully")
+
+        # Initialize trained dictionary for checkpoint records
+        trained = {}
+    else:
+        # Load cells, image paths by cell and trained cells dictionary
+        cells = joblib.load((exports_dir / "cells"))
+        image_paths_by_cell = joblib.load((exports_dir / "image_paths_by_cell"))
+        trained = joblib.load((exports_dir / "trained"))
 
     # Iterate over each valid cell to process it
-    for row, col in valid_cells:
+    for row, col in cells.keys():
+        # Check if already trained
+        cell_trained = trained.get((row, col))
+        if cell_trained is None:
+            trained[(row, col)] = False
+            joblib.dump(trained, (exports_dir / "trained"))
+        elif cell_trained is True:
+            continue
+
         # Define the directory path for the current cell's scene
-        scene_dir = splitter.data_dir / "exports" / f"{row}-{col}"
+        scene_dir = data / "exports" / f"{row}-{col}"
 
         # Create the images subdirectory within the scene directory
         images_dir = scene_dir / "images"
@@ -467,12 +498,12 @@ def main(
 
         # Copy only the relevant images to the scene's images directory
         for image_name in image_paths:
-            src_image_path = splitter.data_dir / "images" / image_name
+            src_image_path = data / "images" / image_name
             dest_image_path = images_dir / image_name
             try:
                 shutil.copy2(src_image_path, dest_image_path)
             except FileNotFoundError:
-                print(f"Warning: Image '{image_name}' not found in '{splitter.data_dir / 'images'}'. Skipping...")
+                CONSOLE.log(f"Warning: Image '{image_name}' not found in '{data / 'images'}'. Skipping...")
 
         # Define the output path for the project
         proj_output_path = output_dir / project_name
@@ -535,8 +566,11 @@ def main(
             config=config,
         )
 
-        # Clean up by removing the copied images directory after training
-        shutil.rmtree(images_dir)
+        # Mark cell as trained
+        trained[(row, col)] = True
+
+        # Save training progress
+        joblib.dump(trained, (exports_dir / "trained"))
 
 
 def entrypoint():
