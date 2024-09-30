@@ -420,6 +420,10 @@ class PatchPixelSamplerConfig(PixelSamplerConfig):
     patch_size: int = 32
     """Side length of patch. This must be consistent in the method
     config in order for samples to be reshaped into patches correctly."""
+    rejection_sample_mask: bool = True
+    """Whether or not to use rejection sampling when sampling images with masks"""
+    max_num_iterations: int = 100
+    """If rejection sampling masks, the maximum number of times to sample"""
 
 
 class PatchPixelSampler(PixelSampler):
@@ -458,9 +462,20 @@ class PatchPixelSampler(PixelSampler):
             sub_bs = batch_size // (self.config.patch_size**2)
             half_patch_size = int(self.config.patch_size / 2)
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=half_patch_size)
-            nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=sub_bs)
-            indices = nonzero_indices[chosen_indices]
+
+            if self.config.rejection_sample_mask:
+                indices = self.rejection_sample_mask(
+                    mask=m,
+                    num_samples=sub_bs,
+                    num_images=num_images,
+                    image_height=image_height,
+                    image_width=image_width,
+                    device=device,
+                )
+            else:
+                nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
+                chosen_indices = random.sample(range(len(nonzero_indices)), k=sub_bs)
+                indices = nonzero_indices[chosen_indices]
 
             indices = (
                 indices.view(sub_bs, 1, 1, 3)
