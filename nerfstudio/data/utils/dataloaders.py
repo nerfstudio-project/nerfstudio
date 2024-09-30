@@ -602,6 +602,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         self.cache_images_type = cache_images_type
         self.sampling_seed = sampling_seed
         self.device = device
+        self.custom_view_processor = custom_view_processor
 
     def __iter__(self):
         # print(self.input_dataset.cameras.device) prints cpu
@@ -619,7 +620,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         r = random.Random(self.sampling_seed)
         r.shuffle(worker_indices)
         i = 0  # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
-        print("HELLO", worker_info.id)
+
         while True:
             if i >= len(
                 worker_indices
