@@ -59,7 +59,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics
     """
     cache_images: Literal["cpu", "gpu", "disk"] = "gpu"
-    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device. If "disk", keeps images on disk. """
+    """Whether to cache images as pytorch tensors in memory. If "cpu", caches on cpu. If "gpu", caches on device. If "disk", keeps images on disk. """
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
     max_thread_workers: Optional[int] = None
@@ -74,7 +74,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
-    use_parallel_dataloader: bool = cache_images == "disk"
+    use_parallel_dataloader: bool = False
     """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
     load_from_disk: bool = False
     """If True, conserves RAM memory by loading images from disk.
