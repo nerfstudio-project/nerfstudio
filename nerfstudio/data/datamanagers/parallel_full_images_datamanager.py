@@ -182,7 +182,7 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
             batch_size=1,
             num_workers=self.config.dataloader_num_workers,
             collate_fn=identity_collate,
-            # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work?
+            # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
@@ -197,9 +197,8 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
         self.eval_image_dataloader = torch.utils.data.DataLoader(
             self.eval_imagebatch_stream,
             batch_size=1,
-            num_workers=self.config.dataloader_num_workers,
+            num_workers=0,
             collate_fn=identity_collate,
-            # pin_memory_device=self.device,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
 
@@ -238,6 +237,6 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         return undistort_view(image_idx, self.eval_dataset, self.config.cache_images_type)
 
-    def custom_view_processor(self, camera, image):
+    def custom_view_processor(self, camera: Cameras, data: Dict) -> Tuple[Cameras, Dict]:
         """An API to add latents, metadata, or other further customization an camera-and-image view dataloading process that is parallelized"""
-        return camera, image
+        return camera, data

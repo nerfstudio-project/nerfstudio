@@ -174,8 +174,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.eval_ray_dataloader = torch.utils.data.DataLoader(
             self.eval_raybatchstream,
             batch_size=1,
-            num_workers=self.config.dataloader_num_workers,
-            prefetch_factor=self.config.prefetch_factor,
+            num_workers=0,
             shuffle=False,
             collate_fn=identity_collate,  # Our dataset handles batching / collation of rays
         )
