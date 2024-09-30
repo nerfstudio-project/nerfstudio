@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" This file contains the render state machine, which is responsible for deciding when to render the image """
+"""This file contains the render state machine, which is responsible for deciding when to render the image"""
+
 from __future__ import annotations
 
 import contextlib

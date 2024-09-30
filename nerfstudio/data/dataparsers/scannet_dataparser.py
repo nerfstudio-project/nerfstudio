@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Data parser for ScanNet dataset"""
+
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -42,11 +43,12 @@ class ScanNetDataParserConfig(DataParserConfig):
         ├── depth/
         ├── intrinsic/
         ├── pose/
+        |── ply/
     """
 
     _target: Type = field(default_factory=lambda: ScanNet)
     """target class to instantiate"""
-    data: Path = Path("data/scannet/scene0423_02")
+    data: Path = Path("./nvsmask3d/data/scene_example")
     """Path to ScanNet folder with densely extracted scenes."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
@@ -60,6 +62,12 @@ class ScanNetDataParserConfig(DataParserConfig):
     """The fraction of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    load_3D_points: bool = True
+    """Whether to load the 3D points from the .ply"""
+    point_cloud_color: bool = True
+    """read point cloud colors from .ply files or not """
+    ply_file_path: Path = data / (data.name + ".ply")
+    """path to the .ply file containing the 3D points"""
 
 
 @dataclass
@@ -158,15 +166,70 @@ class ScanNet(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        metadata = {
+            "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+            "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+        }
+
+        if self.config.load_3D_points:
+            point_color = self.config.point_cloud_color
+            ply_file_path = self.config.ply_file_path
+            point_cloud_data = self._load_3D_points(ply_file_path, transform_matrix, scale_factor, point_color)
+            if point_cloud_data is not None:
+                metadata.update(point_cloud_data)
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
-            metadata={
-                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
-                "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
-            },
+            metadata=metadata,
         )
         return dataparser_outputs
+
+    def _load_3D_points(
+        self, ply_file_path: Path, transform_matrix: torch.Tensor, scale_factor: float, points_color: bool
+    ) -> dict:
+        """Loads point clouds positions and colors from .ply
+
+        Args:
+            ply_file_path: Path to .ply file
+            transform_matrix: Matrix to transform world coordinates
+            scale_factor: How much to scale the camera origins by.
+            points_color: Whether to load the point cloud colors or not
+
+        Returns:
+            A dictionary of points: points3D_xyz and colors: points3D_rgb
+            or
+            A dictionary of points: points3D_xyz if points_color is False
+        """
+        import open3d as o3d  # Importing open3d is slow, so we only do it if we need it.
+
+        pcd = o3d.io.read_point_cloud(str(ply_file_path))
+
+        # if no points found don't read in an initial point cloud
+        if len(pcd.points) == 0:
+            return {}
+
+        points3D = torch.from_numpy(np.asarray(pcd.points, dtype=np.float32))
+        points3D = (
+            torch.cat(
+                (
+                    points3D,
+                    torch.ones_like(points3D[..., :1]),
+                ),
+                -1,
+            )
+            @ transform_matrix.T
+        )
+        points3D *= scale_factor
+        out = {
+            "points3D_xyz": points3D,
+        }
+
+        if points_color:
+            points3D_rgb = torch.from_numpy((np.asarray(pcd.colors) * 255).astype(np.uint8))
+            out["points3D_rgb"] = points3D_rgb
+
+        return out

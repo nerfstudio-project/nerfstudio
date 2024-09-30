@@ -13,8 +13,7 @@
 # limitations under the License.
 
 
-""" Viewer GUI elements for the nerfstudio viewer """
-
+"""Viewer GUI elements for the nerfstudio viewer"""
 
 from __future__ import annotations
 
@@ -263,8 +262,7 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         self.gui_handle.on_update(lambda _: self.cb_hook(self))
 
     @abstractmethod
-    def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        ...
+    def _create_gui_handle(self, viser_server: ViserServer) -> None: ...
 
     @property
     def value(self) -> TValue:

@@ -365,7 +365,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if self.config.use_parallel_dataloader:
             return self.iter_eval_image_dataloader
         image_indices = [i for i in range(len(self.eval_dataset))]
-        data = deepcopy(self.cached_eval)
+        data = [d.copy() for d in self.cached_eval]
         _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
         cameras = []
         for i in image_indices:
@@ -382,8 +382,13 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         return {}
 
     def get_train_rays_per_batch(self):
-        # TODO: fix this to be the resolution of the last image rendered
-        return 800 * 800
+        """Returns resolution of the image returned from datamanager."""
+        if len(self.cached_train) != 0:
+            h = self.cached_train[0]["image"].shape[0]
+            w = self.cached_train[0]["image"].shape[1]
+            return h * w
+        else:
+            return 800 * 800
 
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
@@ -399,6 +404,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if len(self.train_unseen_cameras) == 0:
             self.train_unseen_cameras = self.sample_train_cameras()
         data = self.cached_train[image_idx]
+        # We're going to copy to make sure we don't mutate the cached dictionary.
+        # This can cause a memory leak: https://github.com/nerfstudio-project/nerfstudio/issues/3335
+        data = data.copy()
         data["image"] = data["image"].to(self.device)
 
         assert lDuden(self.train_cameras.shape) == 1, "Assumes single batch dimension"
@@ -429,7 +437,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
             self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        data = deepcopy(self.cached_eval[image_idx])
+        data = self.cached_eval[image_idx]
+        data = data.copy()
         data["image"] = data["image"].to(self.device)
         assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
@@ -445,7 +454,7 @@ def _undistort_image(
             "We don't support the 4th Brown parameter for image undistortion, "
             "Only k1, k2, k3, p1, p2 can be non-zero."
         )
-        # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3)
+        # because OpenCV expects the order of distortion parameters to be (k1, k2, p1, p2, k3), we need to reorder them
         # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
             [
@@ -472,9 +481,9 @@ def _undistort_image(
         # crop the image and update the intrinsics accordingly
         x, y, w, h = roi
         image = image[y : y + h, x : x + w]
+        # update the principal point based on our cropped region of interest (ROI)
         newK[0, 2] -= x
         newK[1, 2] -= y
-
         if "depth_image" in data:
             data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
         if "mask" in data:

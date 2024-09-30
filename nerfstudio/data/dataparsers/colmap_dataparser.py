@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Data parser for nerfstudio datasets. """
+"""Data parser for nerfstudio datasets."""
 
 from __future__ import annotations
 
@@ -276,6 +276,12 @@ class ColmapDataParser(DataParser):
             cy.append(float(frame["cy"]))
             height.append(int(frame["h"]))
             width.append(int(frame["w"]))
+            if any([k in frame and float(frame[k]) != 0.0 for k in ["k4", "k5", "k6"]]):
+                raise ValueError(
+                    "K4/K5/K6 is non-zero! Note that Nerfstudio camera model's K4 has different meaning than colmap "
+                    "OPENCV camera model K4. Nerfstudio's K4 is the 4-th order of radial distortion coefficient, while "
+                    "colmap/OPENCV's K4 is 4-th coefficient in fractional radial distortion model."
+                )
             distort.append(
                 camera_utils.get_distortion_params(
                     k1=float(frame["k1"]) if "k1" in frame else 0.0,
@@ -478,12 +484,13 @@ class ColmapDataParser(DataParser):
         with status(msg="[bold yellow]Downscaling images...", spinner="growVertical"):
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
-            filepath = next(iter(paths))
-            img = Image.open(filepath)
-            w, h = img.size
-            w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
             for path in paths:
+                # Compute image-wise rescaled width/height.
+                img = Image.open(path)
+                w, h = img.size
+                w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
+                # Downscale images using ffmpeg.
                 nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
                 path_out = get_fname(path)
                 path_out.parent.mkdir(parents=True, exist_ok=True)
