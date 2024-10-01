@@ -39,10 +39,9 @@ from typing import (
     get_args,
     get_origin,
 )
-import time
+
 import torch
 import tyro
-from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
@@ -56,14 +55,8 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import (
-    # CacheDataloader,
-    RayBatchStream,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
+from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper, get_orig_class
@@ -116,7 +109,7 @@ class DataManagerConfig(InstantiateConfig):
     """Process images on GPU for speed at the expense of memory, if True."""
 
 
-class DataManager(nn.Module):
+class DataManager:
     """Generic data manager's abstract class
 
     This version of the data manager is designed be a monolithic way to load data and latents,
@@ -370,23 +363,27 @@ class VanillaDataManagerConfig(DataManagerConfig):
                 "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
             )
             warnings.warn("above message coming from", FutureWarning, stacklevel=3)
-        
+
         """
         These heuristics allow the CPU dataloading bottleneck to equal the GPU bottleneck when training, but can be adjusted
         Note: decreasing train_num_images_to_sample_from and increasing train_num_times_to_repeat_images alleviates CPU bottleneck.
         """
         if self.load_from_disk:
-            self.train_num_images_to_sample_from = 50 if self.train_num_images_to_sample_from == -1 else self.train_num_images_to_sample_from
-            self.train_num_times_to_repeat_images = 10 if self.train_num_times_to_repeat_images == -1 else self.train_num_times_to_repeat_images
+            self.train_num_images_to_sample_from = (
+                50 if self.train_num_images_to_sample_from == -1 else self.train_num_images_to_sample_from
+            )
+            self.train_num_times_to_repeat_images = (
+                10 if self.train_num_times_to_repeat_images == -1 else self.train_num_times_to_repeat_images
+            )
             self.prefetch_factor = self.train_num_times_to_repeat_images if self.use_parallel_dataloader else None
-            
+
         if self.use_parallel_dataloader:
             try:
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
                 pass
             self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
-        
+
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
 
