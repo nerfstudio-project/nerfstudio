@@ -73,8 +73,13 @@ def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pip
         directions = torch.ones_like(origins)
         pixel_area = torch.ones_like(origins[..., :1])
         camera_indices = torch.zeros_like(origins[..., :1])
+        metadata = {"directions_norm": torch.linalg.vector_norm(directions, dim=-1, keepdim=True)}
         ray_bundle = RayBundle(
-            origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area,
+            camera_indices=camera_indices,
+            metadata=metadata,
         )
         outputs = pipeline.model(ray_bundle)
         if normal_output_name not in outputs:
@@ -551,7 +556,7 @@ class ExportGaussianSplat(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _, _ = eval_setup(self.load_config)
+        _, pipeline, _, _ = eval_setup(self.load_config, test_mode="inference")
 
         assert isinstance(pipeline.model, SplatfactoModel)
 
@@ -659,9 +664,17 @@ class ExportGaussianSplat(Exporter):
             n_after = np.sum(select)
             if n_after < n_before:
                 CONSOLE.print(f"{n_before - n_after} NaN/Inf elements in {k}")
+        nan_count = np.sum(select) - n
+
+        # filter gaussians that have opacities < 1/255, because they are skipped in cuda rasterization
+        low_opacity_gaussians = (map_to_tensors["opacity"]).squeeze(axis=-1) < -5.5373  # logit(1/255)
+        lowopa_count = np.sum(low_opacity_gaussians)
+        select[low_opacity_gaussians] = 0
 
         if np.sum(select) < n:
-            CONSOLE.print(f"values have NaN/Inf in map_to_tensors, only export {np.sum(select)}/{n}")
+            CONSOLE.print(
+                f"{nan_count} Gaussians have NaN/Inf and {lowopa_count} have low opacity, only export {np.sum(select)}/{n}"
+            )
             for k, t in map_to_tensors.items():
                 map_to_tensors[k] = map_to_tensors[k][select]
             count = np.sum(select)

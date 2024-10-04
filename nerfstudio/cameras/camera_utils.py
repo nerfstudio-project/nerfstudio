@@ -577,7 +577,8 @@ def auto_orient_and_center_poses(
         oriented_poses = transform @ poses
 
         if oriented_poses.mean(dim=0)[2, 1] < 0:
-            oriented_poses[:, 1:3] = -1 * oriented_poses[:, 1:3]
+            oriented_poses[1:3, :] = -1 * oriented_poses[1:3, :]
+            transform[1:3, :] = -1 * transform[1:3, :]
     elif method in ("up", "vertical"):
         up = torch.mean(poses[:, :3, 1], dim=0)
         up = up / torch.linalg.norm(up)
