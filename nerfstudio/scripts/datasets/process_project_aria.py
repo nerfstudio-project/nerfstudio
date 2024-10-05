@@ -203,7 +203,7 @@ class ProcessProjectAria:
     """Path to the output directory."""
     max_frames: int = 350
     """Number of frames to process."""
-    max_output_size: int = 1440
+    max_output_size: int = 1408
     """Size of output images. We use the same for width/height."""
 
     def main(self) -> None:
