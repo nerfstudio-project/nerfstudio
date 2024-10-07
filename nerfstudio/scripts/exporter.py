@@ -218,6 +218,11 @@ class ExportTSDFMesh(Exporter):
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
     target_num_faces: Optional[int] = 50000
     """Target number of faces for the mesh to texture."""
+    refine_mesh_using_initial_aabb_estimate: bool = False
+    """Refine the mesh using the initial AABB estimate."""
+    refinement_epsilon: float = 1e-2
+    """Refinement epsilon for the mesh. This is the distance in meters that the refined AABB/OBB will be expanded by
+    in each direction."""
 
     def main(self) -> None:
         """Export mesh"""
@@ -238,6 +243,8 @@ class ExportTSDFMesh(Exporter):
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            refine_mesh_using_initial_aabb_estimate=self.refine_mesh_using_initial_aabb_estimate,
+            refinement_epsilon=self.refinement_epsilon,
         )
 
         # possibly
