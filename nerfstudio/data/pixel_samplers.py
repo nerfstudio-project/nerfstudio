@@ -308,6 +308,7 @@ class PixelSampler:
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
+        indices = indices.to(batch["image_idx"].device)
         indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
         if keep_full_image:
