@@ -491,6 +491,8 @@ class ExportGaussianSplat(Exporter):
     Export 3D Gaussian Splatting model to a .ply
     """
 
+    output_filename: str = "splat.ply"
+    """Name of the output file."""
     obb_center: Optional[Tuple[float, float, float]] = None
     """Center of the oriented bounding box."""
     obb_rotation: Optional[Tuple[float, float, float]] = None
@@ -565,7 +567,7 @@ class ExportGaussianSplat(Exporter):
 
         model: SplatfactoModel = pipeline.model
 
-        filename = self.output_dir / "splat.ply"
+        filename = self.output_dir / self.output_filename
 
         map_to_tensors = OrderedDict()
 
