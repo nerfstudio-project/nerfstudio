@@ -127,24 +127,24 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             )
 
         # Create mask
-        mask_path = process_data_utils.save_mask(
+        camera_mask_path = process_data_utils.save_mask(
             image_dir=self.image_dir,
             num_downscales=self.num_downscales,
             crop_factor=(0.0, 0.0, 0.0, 0.0),
             percent_radius=self.percent_radius_crop,
         )
-        if mask_path is not None:
-            summary_log.append(f"Saved mask to {mask_path}")
+        if camera_mask_path is not None:
+            summary_log.append(f"Saved mask to {camera_mask_path}")
 
         # Run Colmap
         if not self.skip_colmap:
-            self._run_colmap(mask_path)
+            self._run_colmap(camera_mask_path)
 
         # Export depth maps
         image_id_to_depth_path, log_tmp = self._export_depth()
         summary_log += log_tmp
 
-        summary_log += self._save_transforms(num_extracted_frames, image_id_to_depth_path, mask_path)
+        summary_log += self._save_transforms(num_extracted_frames, image_id_to_depth_path, camera_mask_path)
 
         CONSOLE.log("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 

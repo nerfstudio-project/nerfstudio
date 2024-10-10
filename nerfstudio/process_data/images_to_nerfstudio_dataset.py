@@ -15,6 +15,7 @@
 """Processes an image sequence to a nerfstudio compatible dataset."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
@@ -32,6 +33,9 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
 
     percent_radius_crop: float = 1.0
     """Create circle crop mask. The radius is the percent of the image diagonal."""
+
+    mask_path: Optional[Path] = None
+    """Path to a mask directory."""
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
@@ -60,6 +64,7 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             self.camera_type = "perspective"
 
         summary_log = []
+        mask_path = None
 
         # Copy and downscale images
         if not self.skip_image_processing:
@@ -97,14 +102,22 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
             summary_log.append(f"Starting with {num_frames} images")
 
             # # Create mask
-            mask_path = process_data_utils.save_mask(
+            camera_mask_path = process_data_utils.save_mask(
                 image_dir=self.image_dir,
                 num_downscales=self.num_downscales,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
                 percent_radius=self.percent_radius_crop,
             )
-            if mask_path is not None:
+            if camera_mask_path is not None:
                 summary_log.append("Saved mask(s)")
+
+            if self.mask_path:
+                mask_path = process_data_utils.process_mask_images(
+                    output_dir=self.output_dir,
+                    mask_path=self.mask_path,
+                    image_rename_map=image_rename_map,
+                    num_downscales=self.num_downscales,
+                )
         else:
             num_frames = len(process_data_utils.list_images(self.data))
             if num_frames == 0:
@@ -114,7 +127,10 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         # Run COLMAP
         if not self.skip_colmap:
             require_cameras_exist = True
-            self._run_colmap()
+            if mask_path is not None:
+                self._run_colmap(mask_path=mask_path)
+            else:
+                self._run_colmap()
             # Colmap uses renamed images
             image_rename_map = None
 
@@ -125,12 +141,22 @@ class ImagesToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         if require_cameras_exist and not (self.absolute_colmap_model_path / "cameras.bin").exists():
             raise RuntimeError(f"Could not find existing COLMAP results ({self.colmap_model_path / 'cameras.bin'}).")
 
-        summary_log += self._save_transforms(
-            num_frames,
-            image_id_to_depth_path,
-            None,
-            image_rename_map,
-        )
+        if mask_path is not None:
+            summary_log += self._save_transforms(
+                num_frames,
+                image_id_to_depth_path,
+                mask_path,
+                None,
+                image_rename_map,
+            )
+        else:
+            summary_log += self._save_transforms(
+                num_frames,
+                image_id_to_depth_path,
+                None,
+                None,
+                image_rename_map,
+            )
 
         CONSOLE.log("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
