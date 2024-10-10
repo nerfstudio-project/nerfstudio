@@ -33,6 +33,7 @@ from torch.utils.data import Dataset
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
+from nerfstudio.utils.misc import set_pil_image_size_limit
 
 
 class InputDataset(Dataset):
@@ -66,7 +67,8 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image_filename = self._dataparser_outputs.image_filenames[image_idx]
-        pil_image = Image.open(image_filename)
+        with set_pil_image_size_limit(None):
+            pil_image = Image.open(image_filename)
         if self.scale_factor != 1.0:
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
