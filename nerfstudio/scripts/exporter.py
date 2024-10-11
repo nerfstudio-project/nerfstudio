@@ -521,7 +521,7 @@ class ExportGaussianSplat(Exporter):
             # Write PLY header
             ply_file.write(b"ply\n")
             ply_file.write(b"format binary_little_endian 1.0\n")
-
+            ply_file.write(b"comment Written by Nerstudio\n")
             ply_file.write(f"element vertex {count}\n".encode())
 
             # Write properties, in order due to OrderedDict
