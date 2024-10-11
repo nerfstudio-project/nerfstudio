@@ -24,6 +24,7 @@ import sys
 import typing
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from importlib.metadata import version
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, cast
 
@@ -47,8 +48,6 @@ from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
-
-from importlib.metadata import version
 
 
 @dataclass
