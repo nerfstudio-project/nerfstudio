@@ -48,6 +48,8 @@ from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
 
+from importlib.metadata import version
+
 
 @dataclass
 class Exporter:
@@ -534,10 +536,11 @@ class ExportGaussianSplat(Exporter):
             raise ValueError("All tensors must be numpy arrays of float or uint8 type and not empty")
 
         with open(filename, "wb") as ply_file:
+            nerfstudio_version = version("nerfstudio")
             # Write PLY header
             ply_file.write(b"ply\n")
             ply_file.write(b"format binary_little_endian 1.0\n")
-            ply_file.write(b"comment Written by Nerstudio\n")
+            ply_file.write(f"comment Written by Nerstudio {nerfstudio_version}\n".encode())
             ply_file.write(f"element vertex {count}\n".encode())
 
             # Write properties, in order due to OrderedDict
