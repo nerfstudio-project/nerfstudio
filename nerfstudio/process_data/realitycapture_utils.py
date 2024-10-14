@@ -24,6 +24,7 @@ import numpy as np
 from PIL import Image
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -71,7 +72,8 @@ def realitycapture_to_json(
             continue
 
         frame = {}
-        img = np.array(Image.open(output_dir / image_filename_map[basename]))
+        with set_pil_image_size_limit(None):
+            img = np.array(Image.open(output_dir / image_filename_map[basename]))
         height, width, _ = img.shape
         frame["h"] = int(height)
         frame["w"] = int(width)
