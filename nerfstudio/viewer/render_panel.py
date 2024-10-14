@@ -1130,8 +1130,13 @@ def populate_render_tab(
                 }
 
         # now write the json file
-        json_outfile = datapath / "camera_paths" / f"{render_name_text.value}.json"
-        json_outfile.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            json_outfile = datapath / "camera_paths" / f"{render_name_text.value}.json"
+            json_outfile.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            # write to the output dir if fail
+            json_outfile = config_path.parent / "camera_paths" / f"{render_name_text.value}.json"
+            json_outfile.parent.mkdir(parents=True, exist_ok=True)
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
         # now show the command
