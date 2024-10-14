@@ -56,15 +56,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
-    eval_num_images_to_sample_from: int = -1
-    """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = -1
-    """When not evaluating on all images, number of iterations before picking
-    new images. If -1, never pick new images."""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["cpu", "gpu"] = "gpu"
-    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
+    cache_images: Literal["cpu", "gpu", "disk"] = "gpu"
+    """Whether to cache images as pytorch tensors in memory. If "cpu", caches on cpu. If "gpu", caches on device. If "disk", keeps images on disk. """
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
     max_thread_workers: Optional[int] = None
@@ -79,6 +72,30 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
+    use_parallel_dataloader: bool = False
+    """Supports datasets that do not fit in system RAM and allows parallelization of the dataloading process with multiple workers."""
+    load_from_disk: bool = False
+    """If True, conserves RAM memory by loading images from disk.
+    If False, caches all the images as tensors to RAM and loads from RAM."""
+    dataloader_num_workers: int = 0
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes collating, pixel sampling, unprojecting, ray generation etc."""
+    prefetch_factor: int = None
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
+    cache_compressed_images: bool = False
+    """If True, cache raw image files as byte strings to RAM."""
+
+    def __post_init__(self):
+        if self.load_from_disk:
+            self.prefetch_factor = 4 if self.use_parallel_dataloader else None
+
+        if self.use_parallel_dataloader:
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                pass
+            self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
