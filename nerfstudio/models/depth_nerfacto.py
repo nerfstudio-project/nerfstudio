@@ -49,7 +49,8 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     sigma_decay_rate: float = 0.99985
     """Rate of exponential decay."""
     depth_loss_type: DepthLossType = DepthLossType.DS_NERF
-    """Depth loss type."""
+    """Depth loss type. Note that `PairPixelSampler` has to be used for `DepthLossType.SPARSENERF_RANKING`
+    to work as expected."""
 
 
 class DepthNerfactoModel(NerfactoModel):
