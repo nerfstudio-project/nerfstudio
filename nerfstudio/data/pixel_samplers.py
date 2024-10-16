@@ -78,6 +78,61 @@ class PixelSampler:
         """
         self.num_rays_per_batch = num_rays_per_batch
 
+    def rejection_sample_mask(
+        self,
+        mask: Tensor,
+        num_samples: int,
+        num_images: int,
+        image_height: int,
+        image_width: int,
+        device: Union[torch.device, str],
+    ) -> Int[Tensor, "batch_size 3"]:
+        """
+        Samples pixels within a mask using rejection sampling.
+
+        Args:
+            mask: mask of possible pixels in an image to sample from.
+            num_samples: number of samples.
+            num_images: number of images to sample over.
+            image_height: the height of the image.
+            image_width: the width of the image.
+            device: device that the samples should be on.
+        """
+        indices = (
+            torch.rand((num_samples, 3), device=device)
+            * torch.tensor([num_images, image_height, image_width], device=device)
+        ).long()
+
+        num_valid = 0
+        for _ in range(self.config.max_num_iterations):
+            c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
+            chosen_indices_validity = mask.squeeze()[c, y, x].bool()
+            num_valid = int(torch.sum(chosen_indices_validity).item())
+            if num_valid == num_samples:
+                break
+            else:
+                replacement_indices = (
+                    torch.rand((num_samples - num_valid, 3), device=device)
+                    * torch.tensor([num_images, image_height, image_width], device=device)
+                ).long()
+                indices[~chosen_indices_validity] = replacement_indices
+
+        if num_valid != num_samples:
+            warnings.warn(
+                """
+                Masked sampling failed, mask is either empty or mostly empty.
+                Reverting behavior to non-rejection sampling. Consider setting
+                pipeline.datamanager.pixel-sampler.rejection-sample-mask to False
+                or increasing pipeline.datamanager.pixel-sampler.max-num-iterations
+                """
+            )
+            self.config.rejection_sample_mask = False
+            nonzero_indices = torch.nonzero(mask.squeeze(), as_tuple=False).to(device)
+            chosen_indices = random.sample(range(len(nonzero_indices)), k=num_samples)
+            indices = nonzero_indices[chosen_indices]
+
+        return indices
+
     def sample_method(
         self,
         batch_size: int,
@@ -95,44 +150,25 @@ class PixelSampler:
             num_images: number of images to sample over
             mask: mask of possible pixels in an image to sample from.
         """
-        indices = (
-            torch.rand((batch_size, 3), device=device)
-            * torch.tensor([num_images, image_height, image_width], device=device)
-        ).long()
-
         if isinstance(mask, torch.Tensor) and not self.config.ignore_mask:
             if self.config.rejection_sample_mask:
-                num_valid = 0
-                for _ in range(self.config.max_num_iterations):
-                    c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-                    chosen_indices_validity = mask[..., 0][c, y, x].bool()
-                    num_valid = int(torch.sum(chosen_indices_validity).item())
-                    if num_valid == batch_size:
-                        break
-                    else:
-                        replacement_indices = (
-                            torch.rand((batch_size - num_valid, 3), device=device)
-                            * torch.tensor([num_images, image_height, image_width], device=device)
-                        ).long()
-                        indices[~chosen_indices_validity] = replacement_indices
-
-                if num_valid != batch_size:
-                    warnings.warn(
-                        """
-                        Masked sampling failed, mask is either empty or mostly empty.
-                        Reverting behavior to non-rejection sampling. Consider setting
-                        pipeline.datamanager.pixel-sampler.rejection-sample-mask to False
-                        or increasing pipeline.datamanager.pixel-sampler.max-num-iterations
-                        """
-                    )
-                    self.config.rejection_sample_mask = False
-                    nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
-                    chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
-                    indices = nonzero_indices[chosen_indices]
+                indices = self.rejection_sample_mask(
+                    mask=mask,
+                    num_samples=batch_size,
+                    num_images=num_images,
+                    image_height=image_height,
+                    image_width=image_width,
+                    device=device,
+                )
             else:
                 nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
                 chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
                 indices = nonzero_indices[chosen_indices]
+        else:
+            indices = (
+                torch.rand((batch_size, 3), device=device)
+                * torch.tensor([num_images, image_height, image_width], device=device)
+            ).long()
 
         return indices
 
@@ -384,6 +420,10 @@ class PatchPixelSamplerConfig(PixelSamplerConfig):
     patch_size: int = 32
     """Side length of patch. This must be consistent in the method
     config in order for samples to be reshaped into patches correctly."""
+    rejection_sample_mask: bool = True
+    """Whether or not to use rejection sampling when sampling images with masks"""
+    max_num_iterations: int = 100
+    """If rejection sampling masks, the maximum number of times to sample"""
 
 
 class PatchPixelSampler(PixelSampler):
@@ -422,9 +462,20 @@ class PatchPixelSampler(PixelSampler):
             sub_bs = batch_size // (self.config.patch_size**2)
             half_patch_size = int(self.config.patch_size / 2)
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=half_patch_size)
-            nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=sub_bs)
-            indices = nonzero_indices[chosen_indices]
+
+            if self.config.rejection_sample_mask:
+                indices = self.rejection_sample_mask(
+                    mask=m,
+                    num_samples=sub_bs,
+                    num_images=num_images,
+                    image_height=image_height,
+                    image_width=image_width,
+                    device=device,
+                )
+            else:
+                nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
+                chosen_indices = random.sample(range(len(nonzero_indices)), k=sub_bs)
+                indices = nonzero_indices[chosen_indices]
 
             indices = (
                 indices.view(sub_bs, 1, 1, 3)
@@ -473,6 +524,10 @@ class PairPixelSamplerConfig(PixelSamplerConfig):
     """Target class to instantiate."""
     radius: int = 2
     """max distance between pairs of pixels."""
+    rejection_sample_mask: bool = True
+    """Whether or not to use rejection sampling when sampling images with masks"""
+    max_num_iterations: int = 100
+    """If rejection sampling masks, the maximum number of times to sample"""
 
 
 class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
@@ -508,9 +563,20 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
 
         if isinstance(mask, Tensor) and not self.config.ignore_mask:
             m = erode_mask(mask.permute(0, 3, 1, 2).float(), pixel_radius=self.radius)
-            nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
-            indices = nonzero_indices[chosen_indices]
+
+            if self.config.rejection_sample_mask:
+                indices = self.rejection_sample_mask(
+                    mask=m,
+                    num_samples=rays_to_sample,
+                    num_images=num_images,
+                    image_height=image_height,
+                    image_width=image_width,
+                    device=device,
+                )
+            else:
+                nonzero_indices = torch.nonzero(m[:, 0], as_tuple=False).to(device)
+                chosen_indices = random.sample(range(len(nonzero_indices)), k=rays_to_sample)
+                indices = nonzero_indices[chosen_indices]
         else:
             s = (rays_to_sample, 1)
             ns = torch.randint(0, num_images, s, dtype=torch.long, device=device)

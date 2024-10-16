@@ -103,8 +103,10 @@ class Viewer:
         self.output_type_changed = True
         self.output_split_type_changed = True
         self.step = 0
-        self.train_btn_state: Literal["training", "paused", "completed"] = "training"
-        self._prev_train_state: Literal["training", "paused", "completed"] = "training"
+        self.train_btn_state: Literal["training", "paused", "completed"] = (
+            "training" if self.trainer is None else self.trainer.training_state
+        )
+        self._prev_train_state: Literal["training", "paused", "completed"] = self.train_btn_state
         self.last_move_time = 0
         # track the camera index that last being clicked
         self.current_camera_idx = 0
@@ -174,7 +176,11 @@ class Viewer:
         )
         self.resume_train.on_click(lambda _: self.toggle_pause_button())
         self.resume_train.on_click(lambda han: self._toggle_training_state(han))
-        self.resume_train.visible = False
+        if self.train_btn_state == "training":
+            self.resume_train.visible = False
+        else:
+            self.pause_train.visible = False
+
         # Add buttons to toggle training image visibility
         self.hide_images = self.viser_server.gui.add_button(
             label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF, color=None

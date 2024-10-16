@@ -86,6 +86,8 @@ class TrainerConfig(ExperimentConfig):
     """Optionally log gradients during training"""
     gradient_accumulation_steps: Dict[str, int] = field(default_factory=lambda: {})
     """Number of steps to accumulate gradients over. Contains a mapping of {param_group:num}"""
+    start_paused: bool = False
+    """Whether to start the training in a paused state."""
 
 
 class Trainer:
@@ -121,7 +123,9 @@ class Trainer:
             self.device += f":{local_rank}"
         self.mixed_precision: bool = self.config.mixed_precision
         self.use_grad_scaler: bool = self.mixed_precision or self.config.use_grad_scaler
-        self.training_state: Literal["training", "paused", "completed"] = "training"
+        self.training_state: Literal["training", "paused", "completed"] = (
+            "paused" if self.config.start_paused else "training"
+        )
         self.gradient_accumulation_steps: DefaultDict = defaultdict(lambda: 1)
         self.gradient_accumulation_steps.update(self.config.gradient_accumulation_steps)
 
@@ -296,7 +300,8 @@ class Trainer:
 
                 # Do not perform evaluation if there are no validation images
                 if self.pipeline.datamanager.eval_dataset:
-                    self.eval_iteration(step)
+                    with self.train_lock:
+                        self.eval_iteration(step)
 
                 if step_check(step, self.config.steps_per_save):
                     self.save_checkpoint(step)
@@ -361,7 +366,7 @@ class Trainer:
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
             train_dataset=self.pipeline.datamanager.train_dataset,
-            train_state="training",
+            train_state=self.training_state,
             eval_dataset=self.pipeline.datamanager.eval_dataset,
         )
 

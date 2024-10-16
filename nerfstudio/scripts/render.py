@@ -197,6 +197,9 @@ def _render_trajectory_video(
                         outputs = pipeline.model.get_outputs_for_camera(
                             cameras[camera_idx : camera_idx + 1], obb_box=obb_box
                         )
+                        if rendered_output_names is not None and "rgba" in rendered_output_names:
+                            rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
+                            outputs["rgba"] = rgba
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
@@ -221,6 +224,8 @@ def _render_trajectory_video(
                             .cpu()
                             .numpy()
                         )
+                    elif rendered_output_name == "rgba":
+                        output_image = output_image.detach().cpu().numpy()
                     else:
                         output_image = (
                             colormaps.apply_colormap(
@@ -790,6 +795,9 @@ class DatasetRender(BaseRender):
                 for camera_idx, (camera, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera(camera)
+                        if self.rendered_output_names is not None and "rgba" in self.rendered_output_names:
+                            rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
+                            outputs["rgba"] = rgba
 
                     gt_batch = batch.copy()
                     gt_batch["rgb"] = gt_batch.pop("image")
@@ -841,11 +849,12 @@ class DatasetRender(BaseRender):
                                 output_image = gt_batch[output_name]
                             else:
                                 output_image = outputs[output_name]
-                        del output_name
 
                         # Map to color spaces / numpy
                         if is_raw:
                             output_image = output_image.cpu().numpy()
+                        elif output_name == "rgba":
+                            output_image = output_image.detach().cpu().numpy()
                         elif is_depth:
                             output_image = (
                                 colormaps.apply_depth_colormap(
