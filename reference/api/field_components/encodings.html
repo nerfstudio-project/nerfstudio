@@ -1,0 +1,1103 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Encodings" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/reference/api/field_components/encodings.html" />
+  
+<meta property="og:description" content="Encoding functions" />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Encodings" />
+  <link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" /><link rel="next" title="Embeddings" href="embeddings.html" /><link rel="prev" title="Field Modules" href="index.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Encodings - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/scripts/furo.js"></script>
+    <script src="../../../_static/clipboard.min.js"></script>
+    <script src="../../../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../../../_static/design-tabs.js"></script>
+    <script src="../../../_static/require.min.js"></script>
+    <script src="../../../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../../../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../../../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../../../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">API</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../fields.html">Fields</a></li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">Field Modules</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="encodings">
+<span id="id1"></span><h1>Encodings<a class="headerlink" href="#encodings" title="Permalink to this heading">#</a></h1>
+<p>Encoding functions</p>
+<span class="target" id="module-nerfstudio.field_components.encodings"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.Encoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">Encoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#Encoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.Encoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">FieldComponent</span></code></p>
+<p>Encode an input tensor. Intended to be subclassed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_dim</strong> – Input dimension of tensor</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.Encoding.forward">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#Encoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.Encoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.Encoding.get_tcnn_encoding_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_tcnn_encoding_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#Encoding.get_tcnn_encoding_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.Encoding.get_tcnn_encoding_config" title="Permalink to this definition">#</a></dt>
+<dd><p>Get the encoding configuration for tcnn if implemented</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.FFEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">FFEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'M</span> <span class="pre">N'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_frequencies</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_freq_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_freq_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#FFEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.FFEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Fourier Feature encoding. Supports integrated encodings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dim</strong> – Input dimension of tensor</p></li>
+<li><p><strong>basis</strong> – Basis matrix from which to construct the Fourier features.</p></li>
+<li><p><strong>num_frequencies</strong> – Number of encoded frequencies per axis</p></li>
+<li><p><strong>min_freq_exp</strong> – Minimum frequency exponent</p></li>
+<li><p><strong>max_freq_exp</strong> – Maximum frequency exponent</p></li>
+<li><p><strong>include_input</strong> – Append the input coordinate to the encoding</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.FFEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#FFEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.FFEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><dl class="simple">
+<dt>Calculates FF encoding. If covariances are provided the encodings will be integrated as proposed</dt><dd><p>in mip-NeRF.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_tensor</strong> – For best performance, the input tensor should be between 0 and 1.</p></li>
+<li><p><strong>covs</strong> – Covariances of input points.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Output values will be between -1 and 1</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.FFEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#FFEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.FFEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">HashEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_levels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_res</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">19</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_per_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hash_init_scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implementation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'tcnn'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'torch'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'tcnn'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interpolation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'Nearest'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'Linear'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'Smoothstep'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Hash encoding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_levels</strong> – Number of feature grids.</p></li>
+<li><p><strong>min_res</strong> – Resolution of smallest feature grid.</p></li>
+<li><p><strong>max_res</strong> – Resolution of largest feature grid.</p></li>
+<li><p><strong>log2_hashmap_size</strong> – Size of hash map is 2^log2_hashmap_size.</p></li>
+<li><p><strong>features_per_level</strong> – Number of features per level.</p></li>
+<li><p><strong>hash_init_scale</strong> – Value to initialize hash grid.</p></li>
+<li><p><strong>implementation</strong> – Implementation of hash encoding. Fallback to torch if tcnn not available.</p></li>
+<li><p><strong>interpolation</strong> – Interpolation override for tcnn hashgrid. Not supported for torch unless linear.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding.build_nn_modules">
+<span class="sig-name descname"><span class="pre">build_nn_modules</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding.build_nn_modules"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding.build_nn_modules" title="Permalink to this definition">#</a></dt>
+<dd><p>Initialize the torch version of the hash encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding.get_tcnn_encoding_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_tcnn_encoding_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_levels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_per_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_res</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">growth_factor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interpolation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding.get_tcnn_encoding_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding.get_tcnn_encoding_config" title="Permalink to this definition">#</a></dt>
+<dd><p>Get the encoding configuration for tcnn if implemented</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding.hash_fn">
+<span class="sig-name descname"><span class="pre">hash_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Int</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">num_levels</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">num_levels'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding.hash_fn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding.hash_fn" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns hash tensor using method described in Instant-NGP</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – Tensor to be hashed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.HashEncoding.pytorch_fwd">
+<span class="sig-name descname"><span class="pre">pytorch_fwd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#HashEncoding.pytorch_fwd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.HashEncoding.pytorch_fwd" title="Permalink to this definition">#</a></dt>
+<dd><p>Forward pass using pytorch. Significantly slower than TCNN implementation.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.Identity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">Identity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#Identity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.Identity" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Identity encoding (Does not modify input)</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.Identity.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#Identity.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.Identity.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.Identity.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#Identity.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.Identity.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.KPlanesEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">KPlanesEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(128,</span> <span class="pre">128,</span> <span class="pre">128)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'sum'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'product'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'product'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#KPlanesEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.KPlanesEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Learned K-Planes encoding</p>
+<p>A plane encoding supporting both 3D and 4D coordinates. With 3D coordinates this is similar to
+<a class="reference internal" href="#nerfstudio.field_components.encodings.TriplaneEncoding" title="nerfstudio.field_components.encodings.TriplaneEncoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">TriplaneEncoding</span></code></a>. With 4D coordinates, the encoding at point <code class="docutils literal notranslate"><span class="pre">[i,j,k,q]</span></code> is
+a n-dimensional vector computed as the elementwise product of 6 n-dimensional vectors at
+<code class="docutils literal notranslate"><span class="pre">planes[i,j]</span></code>, <code class="docutils literal notranslate"><span class="pre">planes[i,k]</span></code>, <code class="docutils literal notranslate"><span class="pre">planes[i,q]</span></code>, <code class="docutils literal notranslate"><span class="pre">planes[j,k]</span></code>, <code class="docutils literal notranslate"><span class="pre">planes[j,q]</span></code>,
+<code class="docutils literal notranslate"><span class="pre">planes[k,q]</span></code>.</p>
+<p>Unlike <a class="reference internal" href="#nerfstudio.field_components.encodings.TriplaneEncoding" title="nerfstudio.field_components.encodings.TriplaneEncoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">TriplaneEncoding</span></code></a> this class supports different resolution along each axis.</p>
+<p>This will return a tensor of shape (bs:…, num_components)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolution</strong> – Resolution of the grid. Can be a sequence of 3 or 4 integers.</p></li>
+<li><p><strong>num_components</strong> – The number of scalar planes to use (ie: output feature size)</p></li>
+<li><p><strong>init_a</strong> – The lower-bound of the uniform distribution used to initialize the spatial planes</p></li>
+<li><p><strong>init_b</strong> – The upper-bound of the uniform distribution used to initialize the spatial planes</p></li>
+<li><p><strong>reduce</strong> – Whether to use the element-wise product of the planes or the sum</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.KPlanesEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#KPlanesEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.KPlanesEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Sample features from this encoder. Expects <code class="docutils literal notranslate"><span class="pre">in_tensor</span></code> to be in range [-1, 1]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.KPlanesEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#KPlanesEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.KPlanesEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.NeRFEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">NeRFEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_frequencies</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_freq_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_freq_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implementation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'tcnn'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'torch'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'torch'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#NeRFEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.NeRFEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Multi-scale sinusoidal encodings. Support <code class="docutils literal notranslate"><span class="pre">integrated</span> <span class="pre">positional</span> <span class="pre">encodings</span></code> if covariances are provided.
+Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dim</strong> – Input dimension of tensor</p></li>
+<li><p><strong>num_frequencies</strong> – Number of encoded frequencies per axis</p></li>
+<li><p><strong>min_freq_exp</strong> – Minimum frequency exponent</p></li>
+<li><p><strong>max_freq_exp</strong> – Maximum frequency exponent</p></li>
+<li><p><strong>include_input</strong> – Append the input coordinate to the encoding</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.NeRFEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#NeRFEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.NeRFEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.NeRFEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#NeRFEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.NeRFEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.NeRFEncoding.get_tcnn_encoding_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_tcnn_encoding_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_frequencies</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#NeRFEncoding.get_tcnn_encoding_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.NeRFEncoding.get_tcnn_encoding_config" title="Permalink to this definition">#</a></dt>
+<dd><p>Get the encoding configuration for tcnn if implemented</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.NeRFEncoding.pytorch_fwd">
+<span class="sig-name descname"><span class="pre">pytorch_fwd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#NeRFEncoding.pytorch_fwd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.NeRFEncoding.pytorch_fwd" title="Permalink to this definition">#</a></dt>
+<dd><dl class="simple">
+<dt>Calculates NeRF encoding. If covariances are provided the encodings will be integrated as proposed</dt><dd><p>in mip-NeRF.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_tensor</strong> – For best performance, the input tensor should be between 0 and 1.</p></li>
+<li><p><strong>covs</strong> – Covariances of input points.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Output values will be between -1 and 1</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.PolyhedronFFEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">PolyhedronFFEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_frequencies</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_freq_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_freq_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basis_shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'octahedron'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'icosahedron'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'octahedron'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basis_subdivisions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#PolyhedronFFEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.PolyhedronFFEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.FFEncoding" title="nerfstudio.field_components.encodings.FFEncoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">FFEncoding</span></code></a></p>
+<p>Fourier Feature encoding using polyhedron basis as proposed by mip-NeRF360. Supports integrated encodings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_frequencies</strong> – Number of encoded frequencies per axis</p></li>
+<li><p><strong>min_freq_exp</strong> – Minimum frequency exponent</p></li>
+<li><p><strong>max_freq_exp</strong> – Maximum frequency exponent</p></li>
+<li><p><strong>basis_shape</strong> – Shape of polyhedron basis. Either “octahedron” or “icosahedron”</p></li>
+<li><p><strong>basis_subdivisions</strong> – Number of times to tesselate the polyhedron.</p></li>
+<li><p><strong>include_input</strong> – Append the input coordinate to the encoding</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.RFFEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">RFFEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_frequencies</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#RFFEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.RFFEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.FFEncoding" title="nerfstudio.field_components.encodings.FFEncoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">FFEncoding</span></code></a></p>
+<p>Random Fourier Feature encoding. Supports integrated encodings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dim</strong> – Input dimension of tensor</p></li>
+<li><p><strong>num_frequencies</strong> – Number of encoding frequencies</p></li>
+<li><p><strong>scale</strong> – Std of Gaussian to sample frequencies. Must be greater than zero</p></li>
+<li><p><strong>include_input</strong> – Append the input coordinate to the encoding</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.SHEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">SHEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">levels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implementation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'tcnn'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'torch'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'torch'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#SHEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.SHEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Spherical harmonic encoding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>levels</strong> – Number of spherical harmonic levels to encode.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.SHEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#SHEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.SHEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.SHEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#SHEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.SHEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.SHEncoding.get_tcnn_encoding_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_tcnn_encoding_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">levels</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#SHEncoding.get_tcnn_encoding_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.SHEncoding.get_tcnn_encoding_config" title="Permalink to this definition">#</a></dt>
+<dd><p>Get the encoding configuration for tcnn if implemented</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.SHEncoding.pytorch_fwd">
+<span class="sig-name descname"><span class="pre">pytorch_fwd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#SHEncoding.pytorch_fwd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.SHEncoding.pytorch_fwd" title="Permalink to this definition">#</a></dt>
+<dd><p>Forward pass using pytorch. Significantly slower than TCNN implementation.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.ScalingAndOffset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">ScalingAndOffset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#ScalingAndOffset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.ScalingAndOffset" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Simple scaling and offset to input</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dim</strong> – Input dimension of tensor</p></li>
+<li><p><strong>scaling</strong> – Scaling applied to tensor.</p></li>
+<li><p><strong>offset</strong> – Offset applied to tensor.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.ScalingAndOffset.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#ScalingAndOffset.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.ScalingAndOffset.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.ScalingAndOffset.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#ScalingAndOffset.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.ScalingAndOffset.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorCPEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">TensorCPEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">24</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorCPEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorCPEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Learned CANDECOMP/PARFAC (CP) decomposition encoding used in TensoRF</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolution</strong> – Resolution of grid.</p></li>
+<li><p><strong>num_components</strong> – Number of components per dimension.</p></li>
+<li><p><strong>init_scale</strong> – Initialization scale.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorCPEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorCPEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorCPEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Call forward and returns and processed tensor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – the input tensor to process</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorCPEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorCPEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorCPEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorCPEncoding.upsample_grid">
+<span class="sig-name descname"><span class="pre">upsample_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorCPEncoding.upsample_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorCPEncoding.upsample_grid" title="Permalink to this definition">#</a></dt>
+<dd><p>Upsamples underyling feature grid</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>resolution</strong> – Target resolution.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorVMEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">TensorVMEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">24</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorVMEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorVMEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Learned vector-matrix encoding proposed by TensoRF</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolution</strong> – Resolution of grid.</p></li>
+<li><p><strong>num_components</strong> – Number of components per dimension.</p></li>
+<li><p><strong>init_scale</strong> – Initialization scale.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorVMEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">input_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">output_dim'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorVMEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorVMEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Compute encoding for each position in in_positions</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_tensor</strong> – position inside bounds in range [-1,1],</p>
+</dd>
+</dl>
+<p>Returns: Encoded position</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorVMEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorVMEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorVMEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TensorVMEncoding.upsample_grid">
+<span class="sig-name descname"><span class="pre">upsample_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TensorVMEncoding.upsample_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TensorVMEncoding.upsample_grid" title="Permalink to this definition">#</a></dt>
+<dd><p>Upsamples underlying feature grid</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>resolution</strong> – Target resolution.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TriplaneEncoding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.field_components.encodings.</span></span><span class="sig-name descname"><span class="pre">TriplaneEncoding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'sum'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'product'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'sum'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TriplaneEncoding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TriplaneEncoding" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><code class="xref py py-class docutils literal notranslate"><span class="pre">Encoding</span></code></a></p>
+<p>Learned triplane encoding</p>
+<p>The encoding at [i,j,k] is an n dimensional vector corresponding to the element-wise product of the
+three n dimensional vectors at plane_coeff[i,j], plane_coeff[i,k], and plane_coeff[j,k].</p>
+<p>This allows for marginally more expressivity than the TensorVMEncoding, and each component is self standing
+and symmetrical, unlike with VM decomposition where we needed one component with a vector along all the x, y, z
+directions for symmetry.</p>
+<p>This can be thought of as 3 planes of features perpendicular to the x, y, and z axes, respectively and intersecting
+at the origin, and the encoding being the element-wise product of the element at the projection of [i, j, k] on
+these planes.</p>
+<p>The use for this is in representing a tensor decomp of a 4D embedding tensor: (x, y, z, feature_size)</p>
+<p>This will return a tensor of shape (bs:…, num_components)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolution</strong> – Resolution of grid.</p></li>
+<li><p><strong>num_components</strong> – The number of scalar triplanes to use (ie: output feature size)</p></li>
+<li><p><strong>init_scale</strong> – The scale of the initial values of the planes</p></li>
+<li><p><strong>product</strong> – Whether to use the element-wise product of the planes or the sum</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TriplaneEncoding.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">num_components</span> <span class="pre">featuresize'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TriplaneEncoding.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TriplaneEncoding.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Sample features from this encoder. Expects in_tensor to be in range [0, resolution]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TriplaneEncoding.get_out_dim">
+<span class="sig-name descname"><span class="pre">get_out_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TriplaneEncoding.get_out_dim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TriplaneEncoding.get_out_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Calculates output dimension of encoding.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.field_components.encodings.TriplaneEncoding.upsample_grid">
+<span class="sig-name descname"><span class="pre">upsample_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/field_components/encodings.html#TriplaneEncoding.upsample_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.field_components.encodings.TriplaneEncoding.upsample_grid" title="Permalink to this definition">#</a></dt>
+<dd><p>Upsamples underlying feature grid</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>resolution</strong> – Target resolution.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="embeddings.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Embeddings</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Field Modules</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Encodings</a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding"><code class="docutils literal notranslate"><span class="pre">Encoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding.forward"><code class="docutils literal notranslate"><span class="pre">Encoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.Encoding.get_tcnn_encoding_config"><code class="docutils literal notranslate"><span class="pre">Encoding.get_tcnn_encoding_config()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.FFEncoding"><code class="docutils literal notranslate"><span class="pre">FFEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.FFEncoding.forward"><code class="docutils literal notranslate"><span class="pre">FFEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.FFEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">FFEncoding.get_out_dim()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding"><code class="docutils literal notranslate"><span class="pre">HashEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding.build_nn_modules"><code class="docutils literal notranslate"><span class="pre">HashEncoding.build_nn_modules()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding.forward"><code class="docutils literal notranslate"><span class="pre">HashEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">HashEncoding.get_out_dim()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding.get_tcnn_encoding_config"><code class="docutils literal notranslate"><span class="pre">HashEncoding.get_tcnn_encoding_config()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding.hash_fn"><code class="docutils literal notranslate"><span class="pre">HashEncoding.hash_fn()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.HashEncoding.pytorch_fwd"><code class="docutils literal notranslate"><span class="pre">HashEncoding.pytorch_fwd()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.Identity"><code class="docutils literal notranslate"><span class="pre">Identity</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.Identity.forward"><code class="docutils literal notranslate"><span class="pre">Identity.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.Identity.get_out_dim"><code class="docutils literal notranslate"><span class="pre">Identity.get_out_dim()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.KPlanesEncoding"><code class="docutils literal notranslate"><span class="pre">KPlanesEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.KPlanesEncoding.forward"><code class="docutils literal notranslate"><span class="pre">KPlanesEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.KPlanesEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">KPlanesEncoding.get_out_dim()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.NeRFEncoding"><code class="docutils literal notranslate"><span class="pre">NeRFEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.NeRFEncoding.forward"><code class="docutils literal notranslate"><span class="pre">NeRFEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.NeRFEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">NeRFEncoding.get_out_dim()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.NeRFEncoding.get_tcnn_encoding_config"><code class="docutils literal notranslate"><span class="pre">NeRFEncoding.get_tcnn_encoding_config()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.NeRFEncoding.pytorch_fwd"><code class="docutils literal notranslate"><span class="pre">NeRFEncoding.pytorch_fwd()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.PolyhedronFFEncoding"><code class="docutils literal notranslate"><span class="pre">PolyhedronFFEncoding</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.RFFEncoding"><code class="docutils literal notranslate"><span class="pre">RFFEncoding</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.SHEncoding"><code class="docutils literal notranslate"><span class="pre">SHEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.SHEncoding.forward"><code class="docutils literal notranslate"><span class="pre">SHEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.SHEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">SHEncoding.get_out_dim()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.SHEncoding.get_tcnn_encoding_config"><code class="docutils literal notranslate"><span class="pre">SHEncoding.get_tcnn_encoding_config()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.SHEncoding.pytorch_fwd"><code class="docutils literal notranslate"><span class="pre">SHEncoding.pytorch_fwd()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.ScalingAndOffset"><code class="docutils literal notranslate"><span class="pre">ScalingAndOffset</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.ScalingAndOffset.forward"><code class="docutils literal notranslate"><span class="pre">ScalingAndOffset.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.ScalingAndOffset.get_out_dim"><code class="docutils literal notranslate"><span class="pre">ScalingAndOffset.get_out_dim()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorCPEncoding"><code class="docutils literal notranslate"><span class="pre">TensorCPEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorCPEncoding.forward"><code class="docutils literal notranslate"><span class="pre">TensorCPEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorCPEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">TensorCPEncoding.get_out_dim()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorCPEncoding.upsample_grid"><code class="docutils literal notranslate"><span class="pre">TensorCPEncoding.upsample_grid()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorVMEncoding"><code class="docutils literal notranslate"><span class="pre">TensorVMEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorVMEncoding.forward"><code class="docutils literal notranslate"><span class="pre">TensorVMEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorVMEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">TensorVMEncoding.get_out_dim()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TensorVMEncoding.upsample_grid"><code class="docutils literal notranslate"><span class="pre">TensorVMEncoding.upsample_grid()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TriplaneEncoding"><code class="docutils literal notranslate"><span class="pre">TriplaneEncoding</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TriplaneEncoding.forward"><code class="docutils literal notranslate"><span class="pre">TriplaneEncoding.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TriplaneEncoding.get_out_dim"><code class="docutils literal notranslate"><span class="pre">TriplaneEncoding.get_out_dim()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.field_components.encodings.TriplaneEncoding.upsample_grid"><code class="docutils literal notranslate"><span class="pre">TriplaneEncoding.upsample_grid()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>

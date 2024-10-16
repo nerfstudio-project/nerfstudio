@@ -1,0 +1,1266 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Fields" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/reference/api/fields.html" />
+  
+<meta property="og:description" content="Base: Base class for the graphs. Density: Proposal network field. Nerfacto: Field for compound nerf model, adds scene contraction and image embeddings to instant ngp Nerf-W: Fields for nerf-w SDF: ..." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Fields" />
+  <link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Field Modules" href="field_components/index.html" /><link rel="prev" title="Utils" href="data/utils.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Fields - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/scripts/furo.js"></script>
+    <script src="../../_static/clipboard.min.js"></script>
+    <script src="../../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../../_static/design-tabs.js"></script>
+    <script src="../../_static/require.min.js"></script>
+    <script src="../../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">API</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="fields">
+<span id="id1"></span><h1>Fields<a class="headerlink" href="#fields" title="Permalink to this heading">#</a></h1>
+<section id="base">
+<h2>Base<a class="headerlink" href="#base" title="Permalink to this heading">#</a></h2>
+<p>Base class for the graphs.</p>
+<span class="target" id="module-nerfstudio.fields.base_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.Field">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.base_field.</span></span><span class="sig-name descname"><span class="pre">Field</span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#Field"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.Field" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Base class for fields.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.Field.density_fn">
+<span class="sig-name descname"><span class="pre">density_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">positions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">times</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#Field.density_fn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.Field.density_fn" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns only the density. Used primarily with the density grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>positions</strong> – the origin of the samples/frustums</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.Field.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_normals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#Field.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.Field.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Evaluates the field at points along the ray.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples to evaluate field on.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.Field.get_density">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Shaped</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">num_features'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#Field.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.Field.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities. Returns a tensor of densities and a tensor of features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples locations to compute density.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.Field.get_normals">
+<span class="sig-name descname"><span class="pre">get_normals</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#Field.get_normals"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.Field.get_normals" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns a tensor of normals.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>density</strong> – Tensor of densities.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.Field.get_outputs">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#Field.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.Field.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the colors. Returns output field values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples locations to compute outputs.</p></li>
+<li><p><strong>density_embedding</strong> – Density embeddings to condition on.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.FieldConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.base_field.</span></span><span class="sig-name descname"><span class="pre">FieldConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">~typing.Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#FieldConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.FieldConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="config.html#nerfstudio.configs.base_config.InstantiateConfig" title="nerfstudio.configs.base_config.InstantiateConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">InstantiateConfig</span></code></a></p>
+<p>Configuration for field instantiation</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="nerfstudio.fields.base_field.get_normalized_directions">
+<span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.base_field.</span></span><span class="sig-name descname"><span class="pre">get_normalized_directions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*bs</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/base_field.html#get_normalized_directions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.base_field.get_normalized_directions" title="Permalink to this definition">#</a></dt>
+<dd><p>SH encoding must be in the range [0, 1]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>directions</strong> – batch of directions</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="density">
+<h2>Density<a class="headerlink" href="#density" title="Permalink to this heading">#</a></h2>
+<p>Proposal network field.</p>
+<span class="target" id="module-nerfstudio.fields.density_fields"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.density_fields.HashMLPDensityField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.density_fields.</span></span><span class="sig-name descname"><span class="pre">HashMLPDensityField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aabb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_distortion</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/spatial_distortions.html#nerfstudio.field_components.spatial_distortions.SpatialDistortion" title="nerfstudio.field_components.spatial_distortions.SpatialDistortion"><span class="pre">SpatialDistortion</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_linear</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_levels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_res</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">18</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_per_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">average_init_density</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implementation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'tcnn'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'torch'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'tcnn'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/density_fields.html#HashMLPDensityField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.density_fields.HashMLPDensityField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>A lightweight density field module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>aabb</strong> – parameters of scene aabb bounds</p></li>
+<li><p><strong>num_layers</strong> – number of hidden layers</p></li>
+<li><p><strong>hidden_dim</strong> – dimension of hidden layers</p></li>
+<li><p><strong>spatial_distortion</strong> – spatial distortion module</p></li>
+<li><p><strong>use_linear</strong> – whether to skip the MLP and use a single linear layer instead</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.density_fields.HashMLPDensityField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/density_fields.html#HashMLPDensityField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.density_fields.HashMLPDensityField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities. Returns a tensor of densities and a tensor of features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples locations to compute density.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.density_fields.HashMLPDensityField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/density_fields.html#HashMLPDensityField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.density_fields.HashMLPDensityField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the colors. Returns output field values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples locations to compute outputs.</p></li>
+<li><p><strong>density_embedding</strong> – Density embeddings to condition on.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="nerfacto">
+<h2>Nerfacto<a class="headerlink" href="#nerfacto" title="Permalink to this heading">#</a></h2>
+<p>Field for compound nerf model, adds scene contraction and image embeddings to instant ngp</p>
+<span class="target" id="module-nerfstudio.fields.nerfacto_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.nerfacto_field.NerfactoField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.nerfacto_field.</span></span><span class="sig-name descname"><span class="pre">NerfactoField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aabb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_images</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo_feat_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_levels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_res</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">19</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers_color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers_transient</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_per_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim_color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim_transient</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">appearance_embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transient_embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_transient_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_semantics</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_semantic_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass_semantic_gradients</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pred_normals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_average_appearance_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_distortion</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/spatial_distortions.html#nerfstudio.field_components.spatial_distortions.SpatialDistortion" title="nerfstudio.field_components.spatial_distortions.SpatialDistortion"><span class="pre">SpatialDistortion</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">average_init_density</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implementation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'tcnn'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'torch'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'tcnn'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/nerfacto_field.html#NerfactoField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.nerfacto_field.NerfactoField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>Compound Field</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>aabb</strong> – parameters of scene aabb bounds</p></li>
+<li><p><strong>num_images</strong> – number of images in the dataset</p></li>
+<li><p><strong>num_layers</strong> – number of hidden layers</p></li>
+<li><p><strong>hidden_dim</strong> – dimension of hidden layers</p></li>
+<li><p><strong>geo_feat_dim</strong> – output geo feat dimensions</p></li>
+<li><p><strong>num_levels</strong> – number of levels of the hashmap for the base mlp</p></li>
+<li><p><strong>base_res</strong> – base resolution of the hashmap for the base mlp</p></li>
+<li><p><strong>max_res</strong> – maximum resolution of the hashmap for the base mlp</p></li>
+<li><p><strong>log2_hashmap_size</strong> – size of the hashmap for the base mlp</p></li>
+<li><p><strong>num_layers_color</strong> – number of hidden layers for color network</p></li>
+<li><p><strong>num_layers_transient</strong> – number of hidden layers for transient network</p></li>
+<li><p><strong>features_per_level</strong> – number of features per level for the hashgrid</p></li>
+<li><p><strong>hidden_dim_color</strong> – dimension of hidden layers for color network</p></li>
+<li><p><strong>hidden_dim_transient</strong> – dimension of hidden layers for transient network</p></li>
+<li><p><strong>appearance_embedding_dim</strong> – dimension of appearance embedding</p></li>
+<li><p><strong>transient_embedding_dim</strong> – dimension of transient embedding</p></li>
+<li><p><strong>use_transient_embedding</strong> – whether to use transient embedding</p></li>
+<li><p><strong>use_semantics</strong> – whether to use semantic segmentation</p></li>
+<li><p><strong>num_semantic_classes</strong> – number of semantic classes</p></li>
+<li><p><strong>use_pred_normals</strong> – whether to use predicted normals</p></li>
+<li><p><strong>use_average_appearance_embedding</strong> – whether to use average appearance embedding or zeros for inference</p></li>
+<li><p><strong>spatial_distortion</strong> – spatial distortion to apply to the scene</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.nerfacto_field.NerfactoField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/nerfacto_field.html#NerfactoField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.nerfacto_field.NerfactoField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.nerfacto_field.NerfactoField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/nerfacto_field.html#NerfactoField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.nerfacto_field.NerfactoField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the colors. Returns output field values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples locations to compute outputs.</p></li>
+<li><p><strong>density_embedding</strong> – Density embeddings to condition on.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="nerf-w">
+<h2>Nerf-W<a class="headerlink" href="#nerf-w" title="Permalink to this heading">#</a></h2>
+<p>Fields for nerf-w</p>
+<span class="target" id="module-nerfstudio.fields.nerfw_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.nerfw_field.VanillaNerfWField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.nerfw_field.</span></span><span class="sig-name descname"><span class="pre">VanillaNerfWField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_images</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_mlp_num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_mlp_layer_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_layer_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">appearance_embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">48</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transient_embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_connections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(4,)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/nerfw_field.html#VanillaNerfWField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.nerfw_field.VanillaNerfWField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>The NeRF-W field which has appearance and transient conditioning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_images</strong> – How many images exist in the dataset.</p></li>
+<li><p><strong>position_encoding</strong> – Position encoder.</p></li>
+<li><p><strong>direction_encoding</strong> – Direction encoder.</p></li>
+<li><p><strong>base_mlp_num_layers</strong> – Number of layers for base MLP.</p></li>
+<li><p><strong>base_mlp_layer_width</strong> – Width of base MLP layers.</p></li>
+<li><p><strong>head_mlp_num_layers</strong> – Number of layer for output head MLP.</p></li>
+<li><p><strong>head_mlp_layer_width</strong> – Width of output head MLP layers.</p></li>
+<li><p><strong>appearance_embedding_dim:</strong> – Dimension of appearance embedding.:</p></li>
+<li><p><strong>transient_embedding_dim:</strong> – Dimension of transient embedding.:</p></li>
+<li><p><strong>skip_connections</strong> – Where to add skip connection in base MLP.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.nerfw_field.VanillaNerfWField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/nerfw_field.html#VanillaNerfWField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.nerfw_field.VanillaNerfWField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.nerfw_field.VanillaNerfWField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">embedding_size'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/nerfw_field.html#VanillaNerfWField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.nerfw_field.VanillaNerfWField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the outputs of the NeRF-W field.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Ray samples.</p></li>
+<li><p><strong>density_embedding</strong> – Density embedding.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Outputs of the NeRF-W field.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="sdf">
+<h2>SDF<a class="headerlink" href="#sdf" title="Permalink to this heading">#</a></h2>
+<p>Field for SDF based model, rather then estimating density to generate a surface,
+a signed distance function (SDF) for surface representation is used to help with extracting high fidelity surfaces</p>
+<span class="target" id="module-nerfstudio.fields.sdf_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.LearnedVariance">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.sdf_field.</span></span><span class="sig-name descname"><span class="pre">LearnedVariance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init_val</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#LearnedVariance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.LearnedVariance" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Variance network in NeuS</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>init_val</strong> – initial value in NeuS variance network</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.LearnedVariance.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'1'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'1'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#LearnedVariance.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.LearnedVariance.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns current variance value</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.LearnedVariance.get_variance">
+<span class="sig-name descname"><span class="pre">get_variance</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'1'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#LearnedVariance.get_variance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.LearnedVariance.get_variance" title="Permalink to this definition">#</a></dt>
+<dd><p>return current variance value</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.sdf_field.</span></span><span class="sig-name descname"><span class="pre">SDFField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig" title="nerfstudio.fields.sdf_field.SDFFieldConfig"><span class="pre">SDFFieldConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">aabb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'2</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_images</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_average_appearance_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_distortion</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/spatial_distortions.html#nerfstudio.field_components.spatial_distortions.SpatialDistortion" title="nerfstudio.field_components.spatial_distortions.SpatialDistortion"><span class="pre">SpatialDistortion</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>A field for Signed Distance Functions (SDF).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The configuration for the SDF field.</p></li>
+<li><p><strong>aabb</strong> – An axis-aligned bounding box for the SDF field.</p></li>
+<li><p><strong>num_images</strong> – The number of images for embedding appearance.</p></li>
+<li><p><strong>use_average_appearance_embedding</strong> – Whether to use average appearance embedding. Defaults to False.</p></li>
+<li><p><strong>spatial_distortion</strong> – The spatial distortion. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_normals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_alphas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Evaluates the field at points along the ray.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples to evaluate field on.</p></li>
+<li><p><strong>normals</strong> (<em>compute</em>) – not currently used in this implementation.</p></li>
+<li><p><strong>return_alphas</strong> – Whether to return alpha values</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.forward_geonetwork">
+<span class="sig-name descname"><span class="pre">forward_geonetwork</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">geo_features+1'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.forward_geonetwork"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.forward_geonetwork" title="Permalink to this definition">#</a></dt>
+<dd><p>forward the geonetwork</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.get_alpha">
+<span class="sig-name descname"><span class="pre">get_alpha</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sdf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'num_samples</span> <span class="pre">...</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradients</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'num_samples</span> <span class="pre">...</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'num_samples</span> <span class="pre">...</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.get_alpha"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.get_alpha" title="Permalink to this definition">#</a></dt>
+<dd><p>compute alpha from sdf as in NeuS</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.get_colors">
+<span class="sig-name descname"><span class="pre">get_colors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">directions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">geo_feat_dim'</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'*batch</span> <span class="pre">3'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.get_colors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.get_colors" title="Permalink to this definition">#</a></dt>
+<dd><p>compute colors</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities. Returns a tensor of densities and a tensor of features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples locations to compute density.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_alphas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>compute output of ray samples</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.get_sdf">
+<span class="sig-name descname"><span class="pre">get_sdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Float</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'num_samples</span> <span class="pre">...</span> <span class="pre">1'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.get_sdf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.get_sdf" title="Permalink to this definition">#</a></dt>
+<dd><p>predict the sdf value for ray samples</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.initialize_geo_layers">
+<span class="sig-name descname"><span class="pre">initialize_geo_layers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.initialize_geo_layers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.initialize_geo_layers" title="Permalink to this definition">#</a></dt>
+<dd><p>Initialize layers for geometric network (sdf)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFField.set_cos_anneal_ratio">
+<span class="sig-name descname"><span class="pre">set_cos_anneal_ratio</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">anneal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFField.set_cos_anneal_ratio"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFField.set_cos_anneal_ratio" title="Permalink to this definition">#</a></dt>
+<dd><p>Set the anneal value for the proposal network.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.sdf_field.</span></span><span class="sig-name descname"><span class="pre">SDFFieldConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">~typing.Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geo_feat_dim:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers_color:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim_color:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">appearance_embedding_dim:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_appearance_embedding:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geometric_init:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inside_outside:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_norm:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_grid_feature:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">divide_factor:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta_init:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding_type:</span> <span class="pre">~typing.Literal['hash'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'periodic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'tensorf_vm']</span> <span class="pre">=</span> <span class="pre">'hash'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_levels:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_res:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">19</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_per_level:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_hash:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smoothstep:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/sdf_field.html#SDFFieldConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.FieldConfig" title="nerfstudio.fields.base_field.FieldConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldConfig</span></code></a></p>
+<p>SDF Field Config</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.appearance_embedding_dim">
+<span class="sig-name descname"><span class="pre">appearance_embedding_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.appearance_embedding_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Dimension of appearance embedding</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.base_res">
+<span class="sig-name descname"><span class="pre">base_res</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">16</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.base_res" title="Permalink to this definition">#</a></dt>
+<dd><p>Base resolution of the encoding</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.beta_init">
+<span class="sig-name descname"><span class="pre">beta_init</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.beta_init" title="Permalink to this definition">#</a></dt>
+<dd><p>Init learnable beta value for transformation of sdf to density</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.bias">
+<span class="sig-name descname"><span class="pre">bias</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.8</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.bias" title="Permalink to this definition">#</a></dt>
+<dd><p>Sphere size of geometric initialization</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.divide_factor">
+<span class="sig-name descname"><span class="pre">divide_factor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2.0</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.divide_factor" title="Permalink to this definition">#</a></dt>
+<dd><p>Normalization factor for multi-resolution grids</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.features_per_level">
+<span class="sig-name descname"><span class="pre">features_per_level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.features_per_level" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of features per encoding level</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.geo_feat_dim">
+<span class="sig-name descname"><span class="pre">geo_feat_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">256</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.geo_feat_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Dimension of geometric feature</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.geometric_init">
+<span class="sig-name descname"><span class="pre">geometric_init</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.geometric_init" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use geometric initialization</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.hidden_dim">
+<span class="sig-name descname"><span class="pre">hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">256</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.hidden_dim" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of hidden dimension of geometric network</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.hidden_dim_color">
+<span class="sig-name descname"><span class="pre">hidden_dim_color</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">256</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.hidden_dim_color" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of hidden dimension of color network</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.inside_outside">
+<span class="sig-name descname"><span class="pre">inside_outside</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.inside_outside" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to revert signed distance value, set to True for indoor scene</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.log2_hashmap_size">
+<span class="sig-name descname"><span class="pre">log2_hashmap_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">19</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.log2_hashmap_size" title="Permalink to this definition">#</a></dt>
+<dd><p>Size of the hash map</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.max_res">
+<span class="sig-name descname"><span class="pre">max_res</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2048</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.max_res" title="Permalink to this definition">#</a></dt>
+<dd><p>Maximum resolution of the encoding</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.num_layers">
+<span class="sig-name descname"><span class="pre">num_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.num_layers" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of layers for geometric network</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.num_layers_color">
+<span class="sig-name descname"><span class="pre">num_layers_color</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.num_layers_color" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of layers for color network</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.num_levels">
+<span class="sig-name descname"><span class="pre">num_levels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">16</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.num_levels" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of encoding levels</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.smoothstep">
+<span class="sig-name descname"><span class="pre">smoothstep</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.smoothstep" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use the smoothstep function</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.use_appearance_embedding">
+<span class="sig-name descname"><span class="pre">use_appearance_embedding</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.use_appearance_embedding" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use appearance embedding</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.use_grid_feature">
+<span class="sig-name descname"><span class="pre">use_grid_feature</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.use_grid_feature" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use multi-resolution feature grids</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.use_hash">
+<span class="sig-name descname"><span class="pre">use_hash</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.use_hash" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use hash encoding</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.fields.sdf_field.SDFFieldConfig.weight_norm">
+<span class="sig-name descname"><span class="pre">weight_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.weight_norm" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use weight norm for linear layer</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="semantic-nerf">
+<h2>Semantic NeRF<a class="headerlink" href="#semantic-nerf" title="Permalink to this heading">#</a></h2>
+<p>Semantic NeRF field implementation.</p>
+<span class="target" id="module-nerfstudio.fields.semantic_nerf_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.semantic_nerf_field.SemanticNerfField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.semantic_nerf_field.</span></span><span class="sig-name descname"><span class="pre">SemanticNerfField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_semantic_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_mlp_num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_mlp_layer_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_layer_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_connections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(4,)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/semantic_nerf_field.html#SemanticNerfField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.semantic_nerf_field.SemanticNerfField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>Semantic-NeRF field</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_semantic_classes</strong> – Number of distinct semantic classes.</p></li>
+<li><p><strong>position_encoding</strong> – Position encoder.</p></li>
+<li><p><strong>direction_encoding</strong> – Direction encoder.</p></li>
+<li><p><strong>base_mlp_num_layers</strong> – Number of layers for base MLP.</p></li>
+<li><p><strong>base_mlp_layer_width</strong> – Width of base MLP layers.</p></li>
+<li><p><strong>head_mlp_num_layers</strong> – Number of layer for output head MLP.</p></li>
+<li><p><strong>head_mlp_layer_width</strong> – Width of output head MLP layers.</p></li>
+<li><p><strong>skip_connections</strong> – Where to add skip connection in base MLP.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.semantic_nerf_field.SemanticNerfField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/semantic_nerf_field.html#SemanticNerfField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.semantic_nerf_field.SemanticNerfField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities. Returns a tensor of densities and a tensor of features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples locations to compute density.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.semantic_nerf_field.SemanticNerfField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/semantic_nerf_field.html#SemanticNerfField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.semantic_nerf_field.SemanticNerfField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the colors. Returns output field values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples locations to compute outputs.</p></li>
+<li><p><strong>density_embedding</strong> – Density embeddings to condition on.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="tensorf">
+<h2>TensoRF<a class="headerlink" href="#tensorf" title="Permalink to this heading">#</a></h2>
+<p>TensoRF Field</p>
+<span class="target" id="module-nerfstudio.fields.tensorf_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.tensorf_field.TensoRFField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.tensorf_field.</span></span><span class="sig-name descname"><span class="pre">TensoRFField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aabb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="field_components/encodings.html#nerfstudio.field_components.encodings.Encoding" title="nerfstudio.field_components.encodings.Encoding"><span class="pre">Encoding</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">appearance_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">27</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_layer_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_sh</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sh_levels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/tensorf_field.html#TensoRFField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.tensorf_field.TensoRFField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>TensoRF Field</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.tensorf_field.TensoRFField.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_normals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bg_color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/tensorf_field.html#TensoRFField.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.tensorf_field.TensoRFField.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Evaluates the field at points along the ray.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples to evaluate field on.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.tensorf_field.TensoRFField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/tensorf_field.html#TensoRFField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.tensorf_field.TensoRFField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities. Returns a tensor of densities and a tensor of features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples locations to compute density.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.tensorf_field.TensoRFField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/tensorf_field.html#TensoRFField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.tensorf_field.TensoRFField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the colors. Returns output field values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples locations to compute outputs.</p></li>
+<li><p><strong>density_embedding</strong> – Density embeddings to condition on.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="vanilla-nerf">
+<h2>Vanilla NeRF<a class="headerlink" href="#vanilla-nerf" title="Permalink to this heading">#</a></h2>
+<p>Classic NeRF field</p>
+<span class="target" id="module-nerfstudio.fields.vanilla_nerf_field"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.fields.vanilla_nerf_field.NeRFField">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.fields.vanilla_nerf_field.</span></span><span class="sig-name descname"><span class="pre">NeRFField</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position_encoding:</span> <span class="pre">~nerfstudio.field_components.encodings.Encoding</span> <span class="pre">=</span> <span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction_encoding:</span> <span class="pre">~nerfstudio.field_components.encodings.Encoding</span> <span class="pre">=</span> <span class="pre">Identity()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_mlp_num_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_mlp_layer_width:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_num_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mlp_layer_width:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_connections:</span> <span class="pre">~typing.Tuple[int]</span> <span class="pre">=</span> <span class="pre">(4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_heads:</span> <span class="pre">~typing.Optional[~typing.Tuple[~typing.Type[~nerfstudio.field_components.field_heads.FieldHead]]]</span> <span class="pre">=</span> <span class="pre">(&lt;class</span> <span class="pre">'nerfstudio.field_components.field_heads.RGBFieldHead'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_integrated_encoding:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_distortion:</span> <span class="pre">~typing.Optional[~nerfstudio.field_components.spatial_distortions.SpatialDistortion]</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/fields/vanilla_nerf_field.html#NeRFField"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.vanilla_nerf_field.NeRFField" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.fields.base_field.Field" title="nerfstudio.fields.base_field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a></p>
+<p>NeRF Field</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>position_encoding</strong> – Position encoder.</p></li>
+<li><p><strong>direction_encoding</strong> – Direction encoder.</p></li>
+<li><p><strong>base_mlp_num_layers</strong> – Number of layers for base MLP.</p></li>
+<li><p><strong>base_mlp_layer_width</strong> – Width of base MLP layers.</p></li>
+<li><p><strong>head_mlp_num_layers</strong> – Number of layer for output head MLP.</p></li>
+<li><p><strong>head_mlp_layer_width</strong> – Width of output head MLP layers.</p></li>
+<li><p><strong>skip_connections</strong> – Where to add skip connection in base MLP.</p></li>
+<li><p><strong>use_integrated_encoding</strong> – Used integrated samples as encoding input.</p></li>
+<li><p><strong>spatial_distortion</strong> – Spatial distortion.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.vanilla_nerf_field.NeRFField.get_density">
+<span class="sig-name descname"><span class="pre">get_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/vanilla_nerf_field.html#NeRFField.get_density"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.vanilla_nerf_field.NeRFField.get_density" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the densities. Returns a tensor of densities and a tensor of features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_samples</strong> – Samples locations to compute density.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.fields.vanilla_nerf_field.NeRFField.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RaySamples" title="nerfstudio.cameras.rays.RaySamples"><span class="pre">RaySamples</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="field_components/field_heads.html#nerfstudio.field_components.field_heads.FieldHeadNames" title="nerfstudio.field_components.field_heads.FieldHeadNames"><span class="pre">FieldHeadNames</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/fields/vanilla_nerf_field.html#NeRFField.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.fields.vanilla_nerf_field.NeRFField.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the colors. Returns output field values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_samples</strong> – Samples locations to compute outputs.</p></li>
+<li><p><strong>density_embedding</strong> – Density embeddings to condition on.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="field_components/index.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Field Modules</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="data/utils.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Utils</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Fields</a><ul>
+<li><a class="reference internal" href="#base">Base</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.Field"><code class="docutils literal notranslate"><span class="pre">Field</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.Field.density_fn"><code class="docutils literal notranslate"><span class="pre">Field.density_fn()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.Field.forward"><code class="docutils literal notranslate"><span class="pre">Field.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.Field.get_density"><code class="docutils literal notranslate"><span class="pre">Field.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.Field.get_normals"><code class="docutils literal notranslate"><span class="pre">Field.get_normals()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.Field.get_outputs"><code class="docutils literal notranslate"><span class="pre">Field.get_outputs()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.FieldConfig"><code class="docutils literal notranslate"><span class="pre">FieldConfig</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.base_field.get_normalized_directions"><code class="docutils literal notranslate"><span class="pre">get_normalized_directions()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#density">Density</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.density_fields.HashMLPDensityField"><code class="docutils literal notranslate"><span class="pre">HashMLPDensityField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.density_fields.HashMLPDensityField.get_density"><code class="docutils literal notranslate"><span class="pre">HashMLPDensityField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.density_fields.HashMLPDensityField.get_outputs"><code class="docutils literal notranslate"><span class="pre">HashMLPDensityField.get_outputs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfacto">Nerfacto</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.nerfacto_field.NerfactoField"><code class="docutils literal notranslate"><span class="pre">NerfactoField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.nerfacto_field.NerfactoField.get_density"><code class="docutils literal notranslate"><span class="pre">NerfactoField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.nerfacto_field.NerfactoField.get_outputs"><code class="docutils literal notranslate"><span class="pre">NerfactoField.get_outputs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerf-w">Nerf-W</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.nerfw_field.VanillaNerfWField"><code class="docutils literal notranslate"><span class="pre">VanillaNerfWField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.nerfw_field.VanillaNerfWField.get_density"><code class="docutils literal notranslate"><span class="pre">VanillaNerfWField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.nerfw_field.VanillaNerfWField.get_outputs"><code class="docutils literal notranslate"><span class="pre">VanillaNerfWField.get_outputs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#sdf">SDF</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.LearnedVariance"><code class="docutils literal notranslate"><span class="pre">LearnedVariance</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.LearnedVariance.forward"><code class="docutils literal notranslate"><span class="pre">LearnedVariance.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.LearnedVariance.get_variance"><code class="docutils literal notranslate"><span class="pre">LearnedVariance.get_variance()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField"><code class="docutils literal notranslate"><span class="pre">SDFField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.forward"><code class="docutils literal notranslate"><span class="pre">SDFField.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.forward_geonetwork"><code class="docutils literal notranslate"><span class="pre">SDFField.forward_geonetwork()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.get_alpha"><code class="docutils literal notranslate"><span class="pre">SDFField.get_alpha()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.get_colors"><code class="docutils literal notranslate"><span class="pre">SDFField.get_colors()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.get_density"><code class="docutils literal notranslate"><span class="pre">SDFField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.get_outputs"><code class="docutils literal notranslate"><span class="pre">SDFField.get_outputs()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.get_sdf"><code class="docutils literal notranslate"><span class="pre">SDFField.get_sdf()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.initialize_geo_layers"><code class="docutils literal notranslate"><span class="pre">SDFField.initialize_geo_layers()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFField.set_cos_anneal_ratio"><code class="docutils literal notranslate"><span class="pre">SDFField.set_cos_anneal_ratio()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.appearance_embedding_dim"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.appearance_embedding_dim</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.base_res"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.base_res</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.beta_init"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.beta_init</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.bias"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.bias</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.divide_factor"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.divide_factor</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.features_per_level"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.features_per_level</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.geo_feat_dim"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.geo_feat_dim</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.geometric_init"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.geometric_init</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.hidden_dim"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.hidden_dim</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.hidden_dim_color"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.hidden_dim_color</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.inside_outside"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.inside_outside</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.log2_hashmap_size"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.log2_hashmap_size</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.max_res"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.max_res</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.num_layers"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.num_layers</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.num_layers_color"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.num_layers_color</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.num_levels"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.num_levels</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.smoothstep"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.smoothstep</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.use_appearance_embedding"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.use_appearance_embedding</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.use_grid_feature"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.use_grid_feature</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.use_hash"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.use_hash</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.sdf_field.SDFFieldConfig.weight_norm"><code class="docutils literal notranslate"><span class="pre">SDFFieldConfig.weight_norm</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semantic-nerf">Semantic NeRF</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.semantic_nerf_field.SemanticNerfField"><code class="docutils literal notranslate"><span class="pre">SemanticNerfField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.semantic_nerf_field.SemanticNerfField.get_density"><code class="docutils literal notranslate"><span class="pre">SemanticNerfField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.semantic_nerf_field.SemanticNerfField.get_outputs"><code class="docutils literal notranslate"><span class="pre">SemanticNerfField.get_outputs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tensorf">TensoRF</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.tensorf_field.TensoRFField"><code class="docutils literal notranslate"><span class="pre">TensoRFField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.tensorf_field.TensoRFField.forward"><code class="docutils literal notranslate"><span class="pre">TensoRFField.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.tensorf_field.TensoRFField.get_density"><code class="docutils literal notranslate"><span class="pre">TensoRFField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.tensorf_field.TensoRFField.get_outputs"><code class="docutils literal notranslate"><span class="pre">TensoRFField.get_outputs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vanilla-nerf">Vanilla NeRF</a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.vanilla_nerf_field.NeRFField"><code class="docutils literal notranslate"><span class="pre">NeRFField</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.fields.vanilla_nerf_field.NeRFField.get_density"><code class="docutils literal notranslate"><span class="pre">NeRFField.get_density()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.fields.vanilla_nerf_field.NeRFField.get_outputs"><code class="docutils literal notranslate"><span class="pre">NeRFField.get_outputs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>
