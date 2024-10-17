@@ -361,6 +361,7 @@ class Viewer:
             if was_limited:
                 print(f"camera_update_callback: Posição da câmera foi limitada para client_id: {client_id}")
                 self.render_callback(client_id)
+
     # -----------------------------------------------------------------
     def get_camera_state(self, client: viser.ClientHandle) -> CameraState:
         R = vtf.SO3(wxyz=client.camera.wxyz)
