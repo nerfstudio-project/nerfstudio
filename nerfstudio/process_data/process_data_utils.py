@@ -490,7 +490,7 @@ def downscale_images(
 
 
 def find_tool_feature_matcher_combination(
-    sfm_tool: Literal["any", "colmap", "hloc"],
+    sfm_tool: Literal["any", "colmap", "hloc", "glomap"],
     feature_type: Literal[
         "any",
         "sift",
@@ -518,7 +518,7 @@ def find_tool_feature_matcher_combination(
 ) -> Union[
     Tuple[None, None, None],
     Tuple[
-        Literal["colmap", "hloc"],
+        Literal["colmap", "glomap", "hloc"],
         Literal[
             "sift",
             "superpoint_aachen",
@@ -546,7 +546,7 @@ def find_tool_feature_matcher_combination(
     Basically, replace the default parameters 'any' by usable value
 
     Args:
-        sfm_tool: Sfm tool name (any, colmap, hloc)
+        sfm_tool: Sfm tool name (any, colmap, glomap, hloc)
         feature_type: Type of image features (any, sift, superpoint, ...)
         matcher_type: Type of matching algorithm (any, NN, superglue,...)
 
@@ -564,6 +564,10 @@ def find_tool_feature_matcher_combination(
         if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
             return (None, None, None)
         return ("colmap", "sift", "NN")
+    if sfm_tool == "glomap":
+        if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
+            return (None, None, None)
+        return ("glomap", "sift", "NN")
     if sfm_tool == "hloc":
         if feature_type in ("any", "superpoint"):
             feature_type = "superpoint_aachen"

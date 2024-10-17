@@ -184,6 +184,99 @@ def run_colmap(
         CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
+def run_glomap(
+    image_dir: Path,
+    glomap_dir: Path,
+    camera_model: CameraModel,
+    camera_mask_path: Optional[Path] = None,
+    gpu: bool = True,
+    verbose: bool = False,
+    matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    refine_intrinsics: bool = True,
+    glomap_cmd: str = "glomap",
+) -> None:
+    """Runs GLOMAP on the images.
+
+    Args:
+        image_dir: Path to the directory containing the images.
+        colmap_dir: Path to the output directory.
+        camera_model: Camera model to use.
+        camera_mask_path: Path to the camera mask.
+        gpu: If True, use GPU.
+        verbose: If True, logs the output of the command.
+        matching_method: Matching method to use.
+        refine_intrinsics: If True, refine intrinsics.
+        colmap_cmd: Path to the GLOMAP executable.
+    """
+
+    colmap_version = get_colmap_version("colmap")
+
+    colmap_database_path = glomap_dir / "database.db"
+    colmap_database_path.unlink(missing_ok=True)
+    CONSOLE.log("[bold green]Running GLOMAP on top of COLMAP")
+    # Feature extraction
+    feature_extractor_cmd = [
+        f"colmap feature_extractor",
+        f"--database_path {glomap_dir / 'database.db'}",
+        f"--image_path {image_dir}",
+        "--ImageReader.single_camera 1",
+        f"--ImageReader.camera_model {camera_model.value}",
+        f"--SiftExtraction.use_gpu {int(gpu)}",
+    ]
+    if camera_mask_path is not None:
+        feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
+    feature_extractor_cmd = " ".join(feature_extractor_cmd)
+    with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
+        run_command(feature_extractor_cmd, verbose=verbose)
+
+    CONSOLE.log("[bold green]:tada: Done extracting COLMAP features.")
+
+    # Feature matching
+    feature_matcher_cmd = [
+        f"colmap {matching_method}_matcher",
+        f"--database_path {glomap_dir / 'database.db'}",
+        f"--SiftMatching.use_gpu {int(gpu)}",
+    ]
+    if matching_method == "vocab_tree":
+        vocab_tree_filename = get_vocab_tree()
+        feature_matcher_cmd.append(f'--VocabTreeMatching.vocab_tree_path "{vocab_tree_filename}"')
+    feature_matcher_cmd = " ".join(feature_matcher_cmd)
+    with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
+        run_command(feature_matcher_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
+
+    # Bundle adjustment
+    sparse_dir = glomap_dir / "sparse"
+    sparse_dir.mkdir(parents=True, exist_ok=True)
+    mapper_cmd = [
+        f"{glomap_cmd} mapper",
+        f"--database_path {glomap_dir / 'database.db'}",
+        f"--image_path {image_dir}",
+        f"--output_path {sparse_dir}",
+    ]
+
+    mapper_cmd = " ".join(mapper_cmd)
+
+    with status(
+        msg="[bold yellow]Running GLOMAP bundle adjustment... (This may take a while)",
+        spinner="circle",
+        verbose=verbose,
+    ):
+        run_command(mapper_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done GLOMAP bundle adjustment.")
+
+    if refine_intrinsics:
+        with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
+            bundle_adjuster_cmd = [
+                f"colmap bundle_adjuster",
+                f"--input_path {sparse_dir}/0",
+                f"--output_path {sparse_dir}/0",
+                "--BundleAdjustment.refine_principal_point 1",
+            ]
+            run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
+
+
 def parse_colmap_camera_params(camera) -> Dict[str, Any]:
     """
     Parses all currently supported COLMAP cameras into the transforms.json metadata
