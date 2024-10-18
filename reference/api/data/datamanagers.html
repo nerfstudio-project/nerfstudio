@@ -1,0 +1,1066 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Datamanagers" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/reference/api/data/datamanagers.html" />
+  
+<meta property="og:description" content="Base: Datamanager." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Datamanagers" />
+  <link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" /><link rel="next" title="Datasets" href="datasets.html" /><link rel="prev" title="Data" href="index.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Datamanagers - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/scripts/furo.js"></script>
+    <script src="../../../_static/clipboard.min.js"></script>
+    <script src="../../../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../../../_static/design-tabs.js"></script>
+    <script src="../../../_static/require.min.js"></script>
+    <script src="../../../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../../../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../../../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../../../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">API</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../config.html">Configs</a></li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">Data</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="datamanagers">
+<span id="id1"></span><h1>Datamanagers<a class="headerlink" href="#datamanagers" title="Permalink to this heading">#</a></h1>
+<section id="base">
+<h2>Base<a class="headerlink" href="#base" title="Permalink to this heading">#</a></h2>
+<p>Datamanager.</p>
+<span class="target" id="module-nerfstudio.data.datamanagers.base_datamanager"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.data.datamanagers.base_datamanager.</span></span><span class="sig-name descname"><span class="pre">DataManager</span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager" title="Permalink to this definition">#</a></dt>
+<dd><p>Generic data manager’s abstract class</p>
+<p>This version of the data manager is designed be a monolithic way to load data and latents,
+especially since this may contain learnable parameters which need to be shared across the train
+and test data managers. The idea is that we have setup methods for train and eval separately and
+this can be a combined train/eval if you want.</p>
+<p>Usage:
+To get data, use the next_train and next_eval functions.
+This data manager’s next_train and next_eval methods will return 2 things:</p>
+<ol class="arabic simple">
+<li><dl class="simple">
+<dt>‘rays’: This will contain the rays or camera we are sampling, with latents and</dt><dd><p>conditionals attached (everything needed at inference)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>A “batch” of auxiliary information: This will contain the mask, the ground truth</dt><dd><p>pixels, etc needed to actually train, score, etc the model</p>
+</dd>
+</dl>
+</li>
+</ol>
+<p>Rationale:
+Because of this abstraction we’ve added, we can support more NeRF paradigms beyond the
+vanilla nerf paradigm of single-scene, fixed-images, no-learnt-latents.
+We can now support variable scenes, variable number of images, and arbitrary latents.</p>
+<dl class="simple">
+<dt>Train Methods:</dt><dd><p>setup_train: sets up for being used as train
+iter_train: will be called on __iter__() for the train iterator
+next_train: will be called on __next__() for the training iterator
+get_train_iterable: utility that gets a clean pythonic iterator for your training data</p>
+</dd>
+<dt>Eval Methods:</dt><dd><p>setup_eval: sets up for being used as eval
+iter_eval: will be called on __iter__() for the eval iterator
+next_eval: will be called on __next__() for the eval iterator
+get_eval_iterable: utility that gets a clean pythonic iterator for your eval data</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.train_count">
+<span class="sig-name descname"><span class="pre">train_count</span></span><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.train_count" title="Permalink to this definition">#</a></dt>
+<dd><p>the step number of our train iteration, needs to be incremented manually</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.eval_count">
+<span class="sig-name descname"><span class="pre">eval_count</span></span><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.eval_count" title="Permalink to this definition">#</a></dt>
+<dd><p>the step number of our eval iteration, needs to be incremented manually</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.train_dataset">
+<span class="sig-name descname"><span class="pre">train_dataset</span></span><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.train_dataset" title="Permalink to this definition">#</a></dt>
+<dd><p>the dataset for the train dataset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.eval_dataset">
+<span class="sig-name descname"><span class="pre">eval_dataset</span></span><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.eval_dataset" title="Permalink to this definition">#</a></dt>
+<dd><p>the dataset for the eval dataset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.includes_time">
+<span class="sig-name descname"><span class="pre">includes_time</span></span><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.includes_time" title="Permalink to this definition">#</a></dt>
+<dd><p>whether the dataset includes time information</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Additional</span> <span class="pre">attributes</span> <span class="pre">specific</span> <span class="pre">to</span> <span class="pre">each</span> <span class="pre">subclass</span> <span class="pre">are</span> <span class="pre">defined</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">setup_train</span> <span class="pre">and</span> <span class="pre">setup_eval</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">functions.</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Blank forward method</p>
+<p>This is an nn.Module, and so requires a forward() method normally, although in our case
+we do not need a forward() method</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_datapath">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_datapath</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Path</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_datapath"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_datapath" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the path to the data. This is used to determine where to save camera paths.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_eval_iterable">
+<span class="sig-name descname"><span class="pre">get_eval_iterable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">IterableWrapper</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_eval_iterable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_eval_iterable" title="Permalink to this definition">#</a></dt>
+<dd><p>Gets a trivial pythonic iterator that will use the iter_eval and next_eval functions
+as __iter__ and __next__ methods respectively.</p>
+<p>This basically is just a little utility if you want to do something like:
+|    for ray_bundle, batch in datamanager.get_eval_iterable():
+|        &lt;eval code here&gt;
+since the returned IterableWrapper is just an iterator with the __iter__ and __next__
+methods (methods bound to our DataManager instance in this case) specified in the constructor.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_eval_rays_per_batch">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_eval_rays_per_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_eval_rays_per_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_eval_rays_per_batch" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the number of rays per batch for evaluation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_param_groups">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_param_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_param_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_param_groups" title="Permalink to this definition">#</a></dt>
+<dd><p>Get the param groups for the data manager.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of dictionaries containing the data manager’s param groups.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_train_iterable">
+<span class="sig-name descname"><span class="pre">get_train_iterable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">IterableWrapper</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_train_iterable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_train_iterable" title="Permalink to this definition">#</a></dt>
+<dd><p>Gets a trivial pythonic iterator that will use the iter_train and next_train functions
+as __iter__ and __next__ methods respectively.</p>
+<p>This basically is just a little utility if you want to do something like:
+|    for ray_bundle, batch in datamanager.get_train_iterable():
+|        &lt;eval code here&gt;
+since the returned IterableWrapper is just an iterator with the __iter__ and __next__
+methods (methods bound to our DataManager instance in this case) specified in the constructor.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_train_rays_per_batch">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_train_rays_per_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_train_rays_per_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_train_rays_per_batch" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the number of rays per batch for training.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.get_training_callbacks">
+<span class="sig-name descname"><span class="pre">get_training_callbacks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_callback_attributes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../optimizers.html#nerfstudio.engine.callbacks.TrainingCallbackAttributes" title="nerfstudio.engine.callbacks.TrainingCallbackAttributes"><span class="pre">TrainingCallbackAttributes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../optimizers.html#nerfstudio.engine.callbacks.TrainingCallback" title="nerfstudio.engine.callbacks.TrainingCallback"><span class="pre">TrainingCallback</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.get_training_callbacks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_training_callbacks" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns a list of callbacks to be used during training.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.iter_eval">
+<span class="sig-name descname"><span class="pre">iter_eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.iter_eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.iter_eval" title="Permalink to this definition">#</a></dt>
+<dd><p>The __iter__ function for the eval iterator.</p>
+<p>This only exists to assist the get_eval_iterable function, since we need to pass
+in an __iter__ function for our trivial iterable that we are making.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.iter_train">
+<span class="sig-name descname"><span class="pre">iter_train</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.iter_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.iter_train" title="Permalink to this definition">#</a></dt>
+<dd><p>The __iter__ function for the train iterator.</p>
+<p>This only exists to assist the get_train_iterable function, since we need to pass
+in an __iter__ function for our trivial iterable that we are making.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.next_eval">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">next_eval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.next_eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.next_eval" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the next batch of data from the eval data manager.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> – the step number of the eval image to retrieve</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of the ray/camera for the image, and a dictionary of additional batch information
+such as the groundtruth image.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.next_eval_image">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">next_eval_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.next_eval_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.next_eval_image" title="Permalink to this definition">#</a></dt>
+<dd><p>Retrieve the next eval image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> – the step number of the eval image to retrieve</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of the step number, the ray/camera for the image, and a dictionary of
+additional batch information such as the groundtruth image.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.next_train">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">next_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.next_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.next_train" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the next batch of data from the train data manager.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> – the step number of the eval image to retrieve</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of the ray bundle for the image, and a dictionary of additional batch information
+such as the groundtruth image.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.setup_eval">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">setup_eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.setup_eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.setup_eval" title="Permalink to this definition">#</a></dt>
+<dd><p>Sets up the data manager for evaluation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManager.setup_train">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">setup_train</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManager.setup_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.setup_train" title="Permalink to this definition">#</a></dt>
+<dd><p>Sets up the data manager for training.</p>
+<p>Here you will define any subclass specific object attributes from the attribute</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.data.datamanagers.base_datamanager.</span></span><span class="sig-name descname"><span class="pre">DataManagerConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">~typing.Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data:</span> <span class="pre">~typing.Optional[~pathlib.Path]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">masks_on_gpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images_on_gpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#DataManagerConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
+After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
+train/eval data at each iteration</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.data">
+<span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Path</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.data" title="Permalink to this definition">#</a></dt>
+<dd><p>Source of data, may not be used by all models.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.images_on_gpu">
+<span class="sig-name descname"><span class="pre">images_on_gpu</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.images_on_gpu" title="Permalink to this definition">#</a></dt>
+<dd><p>Process images on GPU for speed at the expense of memory, if True.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.masks_on_gpu">
+<span class="sig-name descname"><span class="pre">masks_on_gpu</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.masks_on_gpu" title="Permalink to this definition">#</a></dt>
+<dd><p>Process masks on GPU for speed at the expense of memory, if True.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.data.datamanagers.base_datamanager.</span></span><span class="sig-name descname"><span class="pre">VanillaDataManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig" title="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig"><span class="pre">VanillaDataManagerConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">device</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cpu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'test'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'val'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'inference'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'val'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager" title="Permalink to this definition">#</a></dt>
+<dd><p>Basic stored data manager implementation.</p>
+<p>This is pretty much a port over from our old dataloading utilities, and is a little jank
+under the hood. We may clean this up a little bit under the hood with more standard dataloading
+components that can be strung together, but it can be just used as a black box for now since
+only the constructor is likely to change in the future, or maybe passing in step number to the
+next_train and next_eval functions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> – the DataManagerConfig used to instantiate class</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.create_eval_dataset">
+<span class="sig-name descname"><span class="pre">create_eval_dataset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">TDataset</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.create_eval_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.create_eval_dataset" title="Permalink to this definition">#</a></dt>
+<dd><p>Sets up the data loaders for evaluation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.create_train_dataset">
+<span class="sig-name descname"><span class="pre">create_train_dataset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">TDataset</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.create_train_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.create_train_dataset" title="Permalink to this definition">#</a></dt>
+<dd><p>Sets up the data loaders for training</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.dataset_type">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dataset_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Type</span><span class="p"><span class="pre">[</span></span><span class="pre">TDataset</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.dataset_type" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the dataset type passed as the generic argument</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_datapath">
+<span class="sig-name descname"><span class="pre">get_datapath</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Path</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.get_datapath"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_datapath" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the path to the data. This is used to determine where to save camera paths.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_eval_rays_per_batch">
+<span class="sig-name descname"><span class="pre">get_eval_rays_per_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.get_eval_rays_per_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_eval_rays_per_batch" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the number of rays per batch for evaluation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_param_groups">
+<span class="sig-name descname"><span class="pre">get_param_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.get_param_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_param_groups" title="Permalink to this definition">#</a></dt>
+<dd><p>Get the param groups for the data manager.
+:returns: A list of dictionaries containing the data manager’s param groups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_train_rays_per_batch">
+<span class="sig-name descname"><span class="pre">get_train_rays_per_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.get_train_rays_per_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_train_rays_per_batch" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the number of rays per batch for training.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_eval">
+<span class="sig-name descname"><span class="pre">next_eval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.next_eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_eval" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the next batch of data from the eval dataloader.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_eval_image">
+<span class="sig-name descname"><span class="pre">next_eval_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.next_eval_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_eval_image" title="Permalink to this definition">#</a></dt>
+<dd><p>Retrieve the next eval image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> – the step number of the eval image to retrieve</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of the step number, the ray/camera for the image, and a dictionary of
+additional batch information such as the groundtruth image.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_train">
+<span class="sig-name descname"><span class="pre">next_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.next_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_train" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the next batch of data from the train dataloader.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.setup_eval">
+<span class="sig-name descname"><span class="pre">setup_eval</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.setup_eval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.setup_eval" title="Permalink to this definition">#</a></dt>
+<dd><p>Sets up the data loader for evaluation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.setup_train">
+<span class="sig-name descname"><span class="pre">setup_train</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManager.setup_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.setup_train" title="Permalink to this definition">#</a></dt>
+<dd><p>Sets up the data loaders for training</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.data.datamanagers.base_datamanager.</span></span><span class="sig-name descname"><span class="pre">VanillaDataManagerConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">_target:</span> <span class="pre">~typing.Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">data:</span> <span class="pre">~typing.Optional[~pathlib.Path]</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">masks_on_gpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False,</span> <span class="pre">images_on_gpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False,</span> <span class="pre">dataparser:</span> <span class="pre">~typing.Union[~nerfstudio.data.dataparsers.nerfstudio_dataparser.NerfstudioDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.minimal_dataparser.MinimalDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.arkitscenes_dataparser.ARKitScenesDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.blender_dataparser.BlenderDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.instant_ngp_dataparser.InstantNGPDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.nuscenes_dataparser.NuScenesDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.dnerf_dataparser.DNeRFDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.phototourism_dataparser.PhototourismDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.dycheck_dataparser.DycheckDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.scannet_dataparser.ScanNetDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.sdfstudio_dataparser.SDFStudioDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.nerfosr_dataparser.NeRFOSRDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.sitcoms3d_dataparser.Sitcoms3DDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.scannetpp_dataparser.ScanNetppDataParserConfig,</span> <span class="pre">~nerfstudio.data.dataparsers.colmap_dataparser.ColmapDataParserConfig]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">train_num_rays_per_batch:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1024,</span> <span class="pre">train_num_images_to_sample_from:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1,</span> <span class="pre">train_num_times_to_repeat_images:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1,</span> <span class="pre">eval_num_rays_per_batch:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1024,</span> <span class="pre">eval_num_images_to_sample_from:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1,</span> <span class="pre">eval_num_times_to_repeat_images:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1,</span> <span class="pre">eval_image_indices:</span> <span class="pre">~typing.Optional[~typing.Tuple[int,</span> <span class="pre">...]]</span> <span class="pre">=</span> <span class="pre">(0,),</span> <span class="pre">collate_fn:</span> <span class="pre">~typing.Callable[[~typing.Any],</span> <span class="pre">~typing.Any]</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">nerfstudio_collate&gt;,</span> <span class="pre">camera_res_scale_factor:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0,</span> <span class="pre">patch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1,</span> <span class="pre">camera_optimizer:</span> <span class="pre">~typing.Optional[~nerfstudio.cameras.camera_optimizers.CameraOptimizerConfig]</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">pixel_sampler:</span> <span class="pre">~nerfstudio.data.pixel_samplers.PixelSamplerConfig</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManagerConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>A basic data manager for a ray-based model</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.__post_init__">
+<span class="sig-name descname"><span class="pre">__post_init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#VanillaDataManagerConfig.__post_init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.__post_init__" title="Permalink to this definition">#</a></dt>
+<dd><p>Warn user of camera optimizer change.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.camera_optimizer">
+<span class="sig-name descname"><span class="pre">camera_optimizer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../cameras.html#nerfstudio.cameras.camera_optimizers.CameraOptimizerConfig" title="nerfstudio.cameras.camera_optimizers.CameraOptimizerConfig"><span class="pre">CameraOptimizerConfig</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.camera_optimizer" title="Permalink to this definition">#</a></dt>
+<dd><p>Deprecated, has been moved to the model config.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.camera_res_scale_factor">
+<span class="sig-name descname"><span class="pre">camera_res_scale_factor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.0</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.camera_res_scale_factor" title="Permalink to this definition">#</a></dt>
+<dd><p>The scale factor for scaling spatial data such as images, mask, semantics
+along with relevant information about camera intrinsics</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.collate_fn">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">collate_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_mappings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">type</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.collate_fn" title="Permalink to this definition">#</a></dt>
+<dd><p>Specifies the collate function to use for the train and eval dataloaders.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.dataparser">
+<span class="sig-name descname"><span class="pre">dataparser</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.nerfstudio_dataparser.NerfstudioDataParserConfig" title="nerfstudio.data.dataparsers.nerfstudio_dataparser.NerfstudioDataParserConfig"><span class="pre">NerfstudioDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.minimal_dataparser.MinimalDataParserConfig" title="nerfstudio.data.dataparsers.minimal_dataparser.MinimalDataParserConfig"><span class="pre">MinimalDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.arkitscenes_dataparser.ARKitScenesDataParserConfig" title="nerfstudio.data.dataparsers.arkitscenes_dataparser.ARKitScenesDataParserConfig"><span class="pre">ARKitScenesDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.blender_dataparser.BlenderDataParserConfig" title="nerfstudio.data.dataparsers.blender_dataparser.BlenderDataParserConfig"><span class="pre">BlenderDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.instant_ngp_dataparser.InstantNGPDataParserConfig" title="nerfstudio.data.dataparsers.instant_ngp_dataparser.InstantNGPDataParserConfig"><span class="pre">InstantNGPDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.nuscenes_dataparser.NuScenesDataParserConfig" title="nerfstudio.data.dataparsers.nuscenes_dataparser.NuScenesDataParserConfig"><span class="pre">NuScenesDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.dnerf_dataparser.DNeRFDataParserConfig" title="nerfstudio.data.dataparsers.dnerf_dataparser.DNeRFDataParserConfig"><span class="pre">DNeRFDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.phototourism_dataparser.PhototourismDataParserConfig" title="nerfstudio.data.dataparsers.phototourism_dataparser.PhototourismDataParserConfig"><span class="pre">PhototourismDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.dycheck_dataparser.DycheckDataParserConfig" title="nerfstudio.data.dataparsers.dycheck_dataparser.DycheckDataParserConfig"><span class="pre">DycheckDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.scannet_dataparser.ScanNetDataParserConfig" title="nerfstudio.data.dataparsers.scannet_dataparser.ScanNetDataParserConfig"><span class="pre">ScanNetDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.sdfstudio_dataparser.SDFStudioDataParserConfig" title="nerfstudio.data.dataparsers.sdfstudio_dataparser.SDFStudioDataParserConfig"><span class="pre">SDFStudioDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.nerfosr_dataparser.NeRFOSRDataParserConfig" title="nerfstudio.data.dataparsers.nerfosr_dataparser.NeRFOSRDataParserConfig"><span class="pre">NeRFOSRDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="dataparsers.html#nerfstudio.data.dataparsers.sitcoms3d_dataparser.Sitcoms3DDataParserConfig" title="nerfstudio.data.dataparsers.sitcoms3d_dataparser.Sitcoms3DDataParserConfig"><span class="pre">Sitcoms3DDataParserConfig</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ScanNetppDataParserConfig</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ColmapDataParserConfig</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.dataparser" title="Permalink to this definition">#</a></dt>
+<dd><p>Specifies the dataparser used to unpack the data.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_image_indices">
+<span class="sig-name descname"><span class="pre">eval_image_indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(0,)</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_image_indices" title="Permalink to this definition">#</a></dt>
+<dd><p>Specifies the image indices to use during eval; if None, uses all.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_images_to_sample_from">
+<span class="sig-name descname"><span class="pre">eval_num_images_to_sample_from</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_images_to_sample_from" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of images to sample during eval iteration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_rays_per_batch">
+<span class="sig-name descname"><span class="pre">eval_num_rays_per_batch</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1024</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_rays_per_batch" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of rays per batch to use per eval iteration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_times_to_repeat_images">
+<span class="sig-name descname"><span class="pre">eval_num_times_to_repeat_images</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_times_to_repeat_images" title="Permalink to this definition">#</a></dt>
+<dd><p>When not evaluating on all images, number of iterations before picking
+new images. If -1, never pick new images.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.patch_size">
+<span class="sig-name descname"><span class="pre">patch_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.patch_size" title="Permalink to this definition">#</a></dt>
+<dd><p>Size of patch to sample from. If &gt; 1, patch-based sampling will be used.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.pixel_sampler">
+<span class="sig-name descname"><span class="pre">pixel_sampler</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="index.html#nerfstudio.data.pixel_samplers.PixelSamplerConfig" title="nerfstudio.data.pixel_samplers.PixelSamplerConfig"><span class="pre">PixelSamplerConfig</span></a></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.pixel_sampler" title="Permalink to this definition">#</a></dt>
+<dd><p>Specifies the pixel sampler used to sample pixels from images.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_images_to_sample_from">
+<span class="sig-name descname"><span class="pre">train_num_images_to_sample_from</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_images_to_sample_from" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of images to sample during training iteration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_rays_per_batch">
+<span class="sig-name descname"><span class="pre">train_num_rays_per_batch</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1024</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_rays_per_batch" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of rays per batch to use per training iteration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_times_to_repeat_images">
+<span class="sig-name descname"><span class="pre">train_num_times_to_repeat_images</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_times_to_repeat_images" title="Permalink to this definition">#</a></dt>
+<dd><p>When not training on all images, number of iterations before picking new
+images. If -1, never pick new images.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="nerfstudio.data.datamanagers.base_datamanager.variable_res_collate">
+<span class="sig-prename descclassname"><span class="pre">nerfstudio.data.datamanagers.base_datamanager.</span></span><span class="sig-name descname"><span class="pre">variable_res_collate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span></span></span><a class="reference internal" href="../../../_modules/nerfstudio/data/datamanagers/base_datamanager.html#variable_res_collate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.data.datamanagers.base_datamanager.variable_res_collate" title="Permalink to this definition">#</a></dt>
+<dd><p>Default collate function for the cached dataloader.
+:param batch: Batch of samples from the dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Collated batch.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="datasets.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Datasets</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Data</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Datamanagers</a><ul>
+<li><a class="reference internal" href="#base">Base</a><ul>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager"><code class="docutils literal notranslate"><span class="pre">DataManager</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.train_count"><code class="docutils literal notranslate"><span class="pre">DataManager.train_count</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.eval_count"><code class="docutils literal notranslate"><span class="pre">DataManager.eval_count</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.train_dataset"><code class="docutils literal notranslate"><span class="pre">DataManager.train_dataset</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.eval_dataset"><code class="docutils literal notranslate"><span class="pre">DataManager.eval_dataset</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.includes_time"><code class="docutils literal notranslate"><span class="pre">DataManager.includes_time</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.forward"><code class="docutils literal notranslate"><span class="pre">DataManager.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_datapath"><code class="docutils literal notranslate"><span class="pre">DataManager.get_datapath()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_eval_iterable"><code class="docutils literal notranslate"><span class="pre">DataManager.get_eval_iterable()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_eval_rays_per_batch"><code class="docutils literal notranslate"><span class="pre">DataManager.get_eval_rays_per_batch()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_param_groups"><code class="docutils literal notranslate"><span class="pre">DataManager.get_param_groups()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_train_iterable"><code class="docutils literal notranslate"><span class="pre">DataManager.get_train_iterable()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_train_rays_per_batch"><code class="docutils literal notranslate"><span class="pre">DataManager.get_train_rays_per_batch()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.get_training_callbacks"><code class="docutils literal notranslate"><span class="pre">DataManager.get_training_callbacks()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.iter_eval"><code class="docutils literal notranslate"><span class="pre">DataManager.iter_eval()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.iter_train"><code class="docutils literal notranslate"><span class="pre">DataManager.iter_train()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.next_eval"><code class="docutils literal notranslate"><span class="pre">DataManager.next_eval()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.next_eval_image"><code class="docutils literal notranslate"><span class="pre">DataManager.next_eval_image()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.next_train"><code class="docutils literal notranslate"><span class="pre">DataManager.next_train()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.setup_eval"><code class="docutils literal notranslate"><span class="pre">DataManager.setup_eval()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManager.setup_train"><code class="docutils literal notranslate"><span class="pre">DataManager.setup_train()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig"><code class="docutils literal notranslate"><span class="pre">DataManagerConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.data"><code class="docutils literal notranslate"><span class="pre">DataManagerConfig.data</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.images_on_gpu"><code class="docutils literal notranslate"><span class="pre">DataManagerConfig.images_on_gpu</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.DataManagerConfig.masks_on_gpu"><code class="docutils literal notranslate"><span class="pre">DataManagerConfig.masks_on_gpu</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.create_eval_dataset"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.create_eval_dataset()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.create_train_dataset"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.create_train_dataset()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.dataset_type"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.dataset_type</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_datapath"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.get_datapath()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_eval_rays_per_batch"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.get_eval_rays_per_batch()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_param_groups"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.get_param_groups()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.get_train_rays_per_batch"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.get_train_rays_per_batch()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_eval"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.next_eval()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_eval_image"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.next_eval_image()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.next_train"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.next_train()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.setup_eval"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.setup_eval()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManager.setup_train"><code class="docutils literal notranslate"><span class="pre">VanillaDataManager.setup_train()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.__post_init__"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.__post_init__()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.camera_optimizer"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.camera_optimizer</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.camera_res_scale_factor"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.camera_res_scale_factor</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.collate_fn"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.collate_fn()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.dataparser"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.dataparser</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_image_indices"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.eval_image_indices</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_images_to_sample_from"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.eval_num_images_to_sample_from</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_rays_per_batch"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.eval_num_rays_per_batch</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.eval_num_times_to_repeat_images"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.eval_num_times_to_repeat_images</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.patch_size"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.patch_size</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.pixel_sampler"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.pixel_sampler</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_images_to_sample_from"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.train_num_images_to_sample_from</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_rays_per_batch"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.train_num_rays_per_batch</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.VanillaDataManagerConfig.train_num_times_to_repeat_images"><code class="docutils literal notranslate"><span class="pre">VanillaDataManagerConfig.train_num_times_to_repeat_images</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.data.datamanagers.base_datamanager.variable_res_collate"><code class="docutils literal notranslate"><span class="pre">variable_res_collate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>
