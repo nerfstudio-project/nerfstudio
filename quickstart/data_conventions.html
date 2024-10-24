@@ -1,0 +1,652 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Data conventions" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/quickstart/data_conventions.html" />
+  
+<meta property="og:description" content="Coordinate conventions: Here we explain the coordinate conventions for using our repo. Camera/view space: We use the OpenGL/Blender (and original NeRF) coordinate convention for cameras. +X is righ..." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Data conventions" />
+  <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../reference/contributing.html" /><link rel="prev" title="Export geometry" href="export_geometry.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Data conventions - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    <script src="../_static/clipboard.min.js"></script>
+    <script src="../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/require.min.js"></script>
+    <script src="../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="data-conventions">
+<h1>Data conventions<a class="headerlink" href="#data-conventions" title="Permalink to this heading">#</a></h1>
+<section id="coordinate-conventions">
+<h2>Coordinate conventions<a class="headerlink" href="#coordinate-conventions" title="Permalink to this heading">#</a></h2>
+<p>Here we explain the coordinate conventions for using our repo.</p>
+<section id="camera-view-space">
+<h3>Camera/view space<a class="headerlink" href="#camera-view-space" title="Permalink to this heading">#</a></h3>
+<p>We use the OpenGL/Blender (and original NeRF) coordinate convention for cameras. +X is right, +Y is up, and +Z is pointing back and away from the camera. -Z is the look-at direction. Other codebases may use the COLMAP/OpenCV convention, where the Y and Z axes are flipped from ours but the +X axis remains the same.</p>
+</section>
+<section id="world-space">
+<h3>World space<a class="headerlink" href="#world-space" title="Permalink to this heading">#</a></h3>
+<p>Our world space is oriented such that the up vector is +Z. The XY plane is parallel to the ground plane. In the viewer, you’ll notice that red, green, and blue vectors correspond to X, Y, and Z respectively.</p>
+</section>
+<section id="pixel-coordinates">
+<h3>Pixel coordinates<a class="headerlink" href="#pixel-coordinates" title="Permalink to this heading">#</a></h3>
+<p>We assume coordinates correspond to the centers of pixels (e.g. generating a ray for pixel (0,0) will shoot the ray through the center of that pixel). This aligns more with graphics conventions, and is distinct from OpenCV where the corners are aligned with the pixel coordinate.</p>
+<hr>
+</section>
+</section>
+<section id="dataset-format">
+<h2>Dataset format<a class="headerlink" href="#dataset-format" title="Permalink to this heading">#</a></h2>
+<p>Our explanation here is for the nerfstudio data format. The <code class="docutils literal notranslate"><span class="pre">transforms.json</span></code> has a similar format to <a class="reference external" href="https://github.com/NVlabs/instant-ngp">Instant NGP</a>.</p>
+<section id="camera-intrinsics">
+<h3>Camera intrinsics<a class="headerlink" href="#camera-intrinsics" title="Permalink to this heading">#</a></h3>
+<p>If all of the images share the same camera intrinsics, the values can be placed at the top of the file.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;camera_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;OPENCV_FISHEYE&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// camera model type [OPENCV, OPENCV_FISHEYE]</span>
+<span class="w">  </span><span class="nt">&quot;fl_x&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1072.0</span><span class="p">,</span><span class="w"> </span><span class="c1">// focal length x</span>
+<span class="w">  </span><span class="nt">&quot;fl_y&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1068.0</span><span class="p">,</span><span class="w"> </span><span class="c1">// focal length y</span>
+<span class="w">  </span><span class="nt">&quot;cx&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1504.0</span><span class="p">,</span><span class="w"> </span><span class="c1">// principal point x</span>
+<span class="w">  </span><span class="nt">&quot;cy&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1000.0</span><span class="p">,</span><span class="w"> </span><span class="c1">// principal point y</span>
+<span class="w">  </span><span class="nt">&quot;w&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3008</span><span class="p">,</span><span class="w"> </span><span class="c1">// image width</span>
+<span class="w">  </span><span class="nt">&quot;h&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2000</span><span class="p">,</span><span class="w"> </span><span class="c1">// image height</span>
+<span class="w">  </span><span class="nt">&quot;k1&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0312</span><span class="p">,</span><span class="w"> </span><span class="c1">// first radial distortion parameter, used by [OPENCV, OPENCV_FISHEYE]</span>
+<span class="w">  </span><span class="nt">&quot;k2&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0051</span><span class="p">,</span><span class="w"> </span><span class="c1">// second radial distortion parameter, used by [OPENCV, OPENCV_FISHEYE]</span>
+<span class="w">  </span><span class="nt">&quot;k3&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0006</span><span class="p">,</span><span class="w"> </span><span class="c1">// third radial distortion parameter, used by [OPENCV_FISHEYE]</span>
+<span class="w">  </span><span class="nt">&quot;k4&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0001</span><span class="p">,</span><span class="w"> </span><span class="c1">// fourth radial distortion parameter, used by [OPENCV_FISHEYE]</span>
+<span class="w">  </span><span class="nt">&quot;p1&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-6.47e-5</span><span class="p">,</span><span class="w"> </span><span class="c1">// first tangential distortion parameter, used by [OPENCV]</span>
+<span class="w">  </span><span class="nt">&quot;p2&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-1.37e-7</span><span class="p">,</span><span class="w"> </span><span class="c1">// second tangential distortion parameter, used by [OPENCV]</span>
+<span class="w">  </span><span class="nt">&quot;frames&quot;</span><span class="p">:</span><span class="w"> </span><span class="c1">// ... per-frame intrinsics and extrinsics parameters</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Per-frame intrinsics can also be defined in the <code class="docutils literal notranslate"><span class="pre">frames</span></code> field. If defined for a field (ie. <code class="docutils literal notranslate"><span class="pre">fl_x</span></code>), all images must have per-image intrinsics defined for that field. Per-frame <code class="docutils literal notranslate"><span class="pre">camera_model</span></code> is not supported.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// ...</span>
+<span class="w">  </span><span class="nt">&quot;frames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;fl_x&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1234</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="camera-extrinsics">
+<h3>Camera extrinsics<a class="headerlink" href="#camera-extrinsics" title="Permalink to this heading">#</a></h3>
+<p>For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the camera orientation, and the X, Y, Z values define the origin. The last row is to be compatible with homogeneous coordinates.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// ...</span>
+<span class="w">  </span><span class="nt">&quot;frames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;file_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;images/frame_00001.jpeg&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;transform_matrix&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="c1">// [+X0 +Y0 +Z0 X]</span>
+<span class="w">        </span><span class="c1">// [+X1 +Y1 +Z1 Y]</span>
+<span class="w">        </span><span class="c1">// [+X2 +Y2 +Z2 Z]</span>
+<span class="w">        </span><span class="c1">// [0.0 0.0 0.0 1]</span>
+<span class="w">        </span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">],</span>
+<span class="w">        </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">],</span>
+<span class="w">        </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">],</span>
+<span class="w">        </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">]</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">      </span><span class="c1">// Additional per-frame info</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="depth-images">
+<h3>Depth images<a class="headerlink" href="#depth-images" title="Permalink to this heading">#</a></h3>
+<p>To train with depth supervision, you can also provide a <code class="docutils literal notranslate"><span class="pre">depth_file_path</span></code> for each frame in your <code class="docutils literal notranslate"><span class="pre">transforms.json</span></code> and use one of the methods that support additional depth losses (e.g., depth-nerfacto). The depths are assumed to be 16-bit or 32-bit and to be in millimeters to remain consistent with <a class="reference external" href="https://github.com/PolyCam/polyform">Polyform</a>. Zero-value in the depth image is treated as unknown depth. You can adjust this scaling factor using the <code class="docutils literal notranslate"><span class="pre">depth_unit_scale_factor</span></code> parameter in <code class="docutils literal notranslate"><span class="pre">NerfstudioDataParserConfig</span></code>. Note that by default, we resize the depth images to match the shape of the RGB images.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;frames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// ...</span>
+<span class="w">      </span><span class="nt">&quot;depth_file_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;depth/0001.png&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="masks">
+<h3>Masks<a class="headerlink" href="#masks" title="Permalink to this heading">#</a></h3>
+<div class="warning admonition">
+<p class="admonition-title">Warning</p>
+<p>The current implementation of masking is inefficient and will cause large memory allocations.</p>
+</div>
+<p>There may be parts of the training image that should not be used during training (ie. moving objects such as people). These images can be masked out using an additional mask image that is specified in the <code class="docutils literal notranslate"><span class="pre">frame</span></code> data.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;frames&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="c1">// ...</span>
+<span class="w">      </span><span class="nt">&quot;mask_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;masks/mask.jpeg&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The following mask requirements must be met:</p>
+<ul class="simple">
+<li><p>Must be 1 channel with only black and white pixels</p></li>
+<li><p>Must be the same resolution as the training image</p></li>
+<li><p>Black corresponds to regions to ignore</p></li>
+<li><p>If used, all images must have a mask</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../reference/contributing.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Contributing</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="export_geometry.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Export geometry</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Data conventions</a><ul>
+<li><a class="reference internal" href="#coordinate-conventions">Coordinate conventions</a><ul>
+<li><a class="reference internal" href="#camera-view-space">Camera/view space</a></li>
+<li><a class="reference internal" href="#world-space">World space</a></li>
+<li><a class="reference internal" href="#pixel-coordinates">Pixel coordinates</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dataset-format">Dataset format</a><ul>
+<li><a class="reference internal" href="#camera-intrinsics">Camera intrinsics</a></li>
+<li><a class="reference internal" href="#camera-extrinsics">Camera extrinsics</a></li>
+<li><a class="reference internal" href="#depth-images">Depth images</a></li>
+<li><a class="reference internal" href="#masks">Masks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>

@@ -1,0 +1,1177 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>nerfstudio.viewer.viewer_elements - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/scripts/furo.js"></script>
+    <script src="../../../_static/clipboard.min.js"></script>
+    <script src="../../../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../../../_static/design-tabs.js"></script>
+    <script src="../../../_static/require.min.js"></script>
+    <script src="../../../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../../../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../../../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../../../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart/data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../reference/cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../reference/api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../reference/api/data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../reference/api/field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../reference/api/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../reference/api/utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../reference/api/utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../reference/api/viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <h1>Source code for nerfstudio.viewer.viewer_elements</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+
+<span class="sd">&quot;&quot;&quot;Viewer GUI elements for the nerfstudio viewer&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">overload</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">viser.transforms</span> <span class="k">as</span> <span class="nn">vtf</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">LiteralString</span><span class="p">,</span> <span class="n">TypeVar</span>
+<span class="kn">from</span> <span class="nn">viser</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">GuiButtonGroupHandle</span><span class="p">,</span>
+    <span class="n">GuiButtonHandle</span><span class="p">,</span>
+    <span class="n">GuiDropdownHandle</span><span class="p">,</span>
+    <span class="n">GuiInputHandle</span><span class="p">,</span>
+    <span class="n">ScenePointerEvent</span><span class="p">,</span>
+    <span class="n">ViserServer</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">nerfstudio.cameras.cameras</span> <span class="kn">import</span> <span class="n">Cameras</span><span class="p">,</span> <span class="n">CameraType</span>
+<span class="kn">from</span> <span class="nn">nerfstudio.utils.rich_utils</span> <span class="kn">import</span> <span class="n">CONSOLE</span>
+<span class="kn">from</span> <span class="nn">nerfstudio.viewer.utils</span> <span class="kn">import</span> <span class="n">CameraState</span><span class="p">,</span> <span class="n">get_camera</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">nerfstudio.viewer.viewer</span> <span class="kn">import</span> <span class="n">Viewer</span>
+
+<span class="n">TValue</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;TValue&quot;</span><span class="p">)</span>
+<span class="n">TString</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;TString&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ViewerClick"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerClick">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">ViewerClick</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class representing a click in the viewer as a ray.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># the information here matches the information in the ClickMessage,</span>
+    <span class="c1"># but we implement a wrapper as an abstraction layer</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The origin of the click in world coordinates (center of camera)&quot;&quot;&quot;</span>
+    <span class="n">direction</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The direction of the click if projected from the camera through the clicked pixel,</span>
+<span class="sd">    in world coordinates</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">screen_pos</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The screen position of the click in OpenCV screen coordinates, normalized to [0, 1]&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="ViewerRectSelect"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerRectSelect">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">ViewerRectSelect</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class representing a rectangle selection in the viewer (screen-space).</span>
+
+<span class="sd">    The screen coordinates follow OpenCV image coordinates, with the origin at the top-left corner,</span>
+<span class="sd">    but the bounds are also normalized to [0, 1] in both dimensions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">min_bounds</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The minimum bounds of the rectangle selection in screen coordinates.&quot;&quot;&quot;</span>
+    <span class="n">max_bounds</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The maximum bounds of the rectangle selection in screen coordinates.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="ViewerControl"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl">[docs]</a><span class="k">class</span> <span class="nc">ViewerControl</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    class for exposing non-gui controls of the viewer to the user</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viewer</span><span class="p">:</span> <span class="n">Viewer</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Internal use only, setup the viewer control with the viewer state object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            viewer: The viewer object (viewer.py)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">:</span> <span class="n">Viewer</span> <span class="o">=</span> <span class="n">viewer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span> <span class="o">=</span> <span class="n">viewer</span><span class="o">.</span><span class="n">viser_server</span>
+
+<div class="viewcode-block" id="ViewerControl.set_pose"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.set_pose">[docs]</a>    <span class="k">def</span> <span class="nf">set_pose</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">position</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">look_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">instant</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the camera position of the viewer camera.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            position: The new position of the camera in world coordinates</span>
+<span class="sd">            look_at: The new look_at point of the camera in world coordinates</span>
+<span class="sd">            instant: If the camera should move instantly or animate to the new position</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ViewerControl.set_fov"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.set_fov">[docs]</a>    <span class="k">def</span> <span class="nf">set_fov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fov</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the FOV of the viewer camera</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fov: The new FOV of the camera in degrees</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ViewerControl.set_crop"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.set_crop">[docs]</a>    <span class="k">def</span> <span class="nf">set_crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_point</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">max_point</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the scene crop box of the viewer to the specified min,max point</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            min_point: The minimum point of the crop box</span>
+<span class="sd">            max_point: The maximum point of the crop box</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ViewerControl.get_camera"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.get_camera">[docs]</a>    <span class="k">def</span> <span class="nf">get_camera</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">img_width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">client_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Cameras</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the Cameras object representing the current camera for the viewer, or None if the viewer</span>
+<span class="sd">        is not connected yet</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            img_height: The height of the image to get camera intrinsics for</span>
+<span class="sd">            img_width: The width of the image to get camera intrinsics for</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">clients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viser_server</span><span class="o">.</span><span class="n">get_clients</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">clients</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">client_id</span><span class="p">:</span>
+            <span class="n">client_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">clients</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="kn">from</span> <span class="nn">nerfstudio.viewer.viewer</span> <span class="kn">import</span> <span class="n">VISER_NERFSTUDIO_SCALE_RATIO</span>
+
+        <span class="n">client</span> <span class="o">=</span> <span class="n">clients</span><span class="p">[</span><span class="n">client_id</span><span class="p">]</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">vtf</span><span class="o">.</span><span class="n">SO3</span><span class="p">(</span><span class="n">wxyz</span><span class="o">=</span><span class="n">client</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">wxyz</span><span class="p">)</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">R</span> <span class="o">@</span> <span class="n">vtf</span><span class="o">.</span><span class="n">SO3</span><span class="o">.</span><span class="n">from_x_radians</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">R</span><span class="o">.</span><span class="n">as_matrix</span><span class="p">())</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> <span class="o">/</span> <span class="n">VISER_NERFSTUDIO_SCALE_RATIO</span>
+        <span class="n">c2w</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">R</span><span class="p">,</span> <span class="n">pos</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">camera_state</span> <span class="o">=</span> <span class="n">CameraState</span><span class="p">(</span>
+            <span class="n">fov</span><span class="o">=</span><span class="n">client</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">fov</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="n">client</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">aspect</span><span class="p">,</span> <span class="n">c2w</span><span class="o">=</span><span class="n">c2w</span><span class="p">,</span> <span class="n">camera_type</span><span class="o">=</span><span class="n">CameraType</span><span class="o">.</span><span class="n">PERSPECTIVE</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_camera</span><span class="p">(</span><span class="n">camera_state</span><span class="p">,</span> <span class="n">img_height</span><span class="p">,</span> <span class="n">img_width</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ViewerControl.register_click_cb"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.register_click_cb">[docs]</a>    <span class="k">def</span> <span class="nf">register_click_cb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cb</span><span class="p">:</span> <span class="n">Callable</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deprecated, use register_pointer_cb instead.&quot;&quot;&quot;</span>
+        <span class="n">CONSOLE</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;`register_click_cb` is deprecated, use `register_pointer_cb` instead.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_pointer_cb</span><span class="p">(</span><span class="s2">&quot;click&quot;</span><span class="p">,</span> <span class="n">cb</span><span class="p">)</span></div>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">register_pointer_cb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;click&quot;</span><span class="p">],</span>
+        <span class="n">cb</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerClick</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">removed_cb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">register_pointer_cb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;rect-select&quot;</span><span class="p">],</span>
+        <span class="n">cb</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerRectSelect</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">removed_cb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span> <span class="o">...</span>
+
+<div class="viewcode-block" id="ViewerControl.register_pointer_cb"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.register_pointer_cb">[docs]</a>    <span class="k">def</span> <span class="nf">register_pointer_cb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;click&quot;</span><span class="p">,</span> <span class="s2">&quot;rect-select&quot;</span><span class="p">],</span>
+        <span class="n">cb</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerClick</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerRectSelect</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">removed_cb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a callback which will be called when a scene pointer event is detected in the viewer.</span>
+<span class="sd">        Scene pointer events include:</span>
+<span class="sd">        - &quot;click&quot;: A click event, which includes the origin and direction of the click</span>
+<span class="sd">        - &quot;rect-select&quot;: A rectangle selection event, which includes the screen bounds of the box selection</span>
+
+<span class="sd">        The callback should take a ViewerClick object as an argument if the event type is &quot;click&quot;,</span>
+<span class="sd">        and a ViewerRectSelect object as an argument if the event type is &quot;rect-select&quot;.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cb: The callback to call when a click or a rect-select is detected.</span>
+<span class="sd">            removed_cb: The callback to run when the pointer event is removed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">nerfstudio.viewer.viewer</span> <span class="kn">import</span> <span class="n">VISER_NERFSTUDIO_SCALE_RATIO</span>
+
+        <span class="k">def</span> <span class="nf">wrapped_cb</span><span class="p">(</span><span class="n">scene_pointer_msg</span><span class="p">:</span> <span class="n">ScenePointerEvent</span><span class="p">):</span>
+            <span class="c1"># Check that the event type is the same as the one we are interested in.</span>
+            <span class="k">if</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">event_type</span> <span class="o">!=</span> <span class="n">event_type</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected event type </span><span class="si">{</span><span class="n">event_type</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">event_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;click&quot;</span><span class="p">:</span>
+                <span class="n">origin</span> <span class="o">=</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">ray_origin</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">ray_direction</span>
+                <span class="n">screen_pos</span> <span class="o">=</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">screen_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">assert</span> <span class="p">(</span><span class="n">origin</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
+                    <span class="n">direction</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="p">),</span> <span class="s2">&quot;Origin and direction should not be None for click event.&quot;</span>
+                <span class="n">origin</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">x</span> <span class="o">/</span> <span class="n">VISER_NERFSTUDIO_SCALE_RATIO</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">origin</span><span class="p">])</span>
+                <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">origin</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+                <span class="n">pointer_event</span> <span class="o">=</span> <span class="n">ViewerClick</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">direction</span><span class="p">,</span> <span class="n">screen_pos</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;rect-select&quot;</span><span class="p">:</span>
+                <span class="n">pointer_event</span> <span class="o">=</span> <span class="n">ViewerRectSelect</span><span class="p">(</span><span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">screen_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">screen_pos</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown event type: </span><span class="si">{</span><span class="n">scene_pointer_msg</span><span class="o">.</span><span class="n">event_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">cb</span><span class="p">(</span><span class="n">pointer_event</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+
+        <span class="n">cb_overriden</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+            <span class="c1"># Register the callback with the viser server.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">viser_server</span><span class="o">.</span><span class="n">scene</span><span class="o">.</span><span class="n">on_pointer_event</span><span class="p">(</span><span class="n">event_type</span><span class="o">=</span><span class="n">event_type</span><span class="p">)(</span><span class="n">wrapped_cb</span><span class="p">)</span>
+            <span class="c1"># If there exists a warning, it&#39;s because a callback was overriden.</span>
+            <span class="n">cb_overriden</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">cb_overriden</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;A ScenePointer callback has already been registered for this event type. &quot;</span>
+                <span class="s2">&quot;The new callback will override the existing one.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># If there exists a cleanup callback after the pointer event is done, register it.</span>
+        <span class="k">if</span> <span class="n">removed_cb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">viser_server</span><span class="o">.</span><span class="n">scene</span><span class="o">.</span><span class="n">on_pointer_callback_removed</span><span class="p">(</span><span class="n">removed_cb</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ViewerControl.unregister_click_cb"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.unregister_click_cb">[docs]</a>    <span class="k">def</span> <span class="nf">unregister_click_cb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deprecated, use unregister_pointer_cb instead. `cb` is ignored.&quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;`unregister_click_cb` is deprecated, use `unregister_pointer_cb` instead.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># raise warning</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;cb argument is ignored in unregister_click_cb.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">unregister_pointer_cb</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ViewerControl.unregister_pointer_cb"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerControl.unregister_pointer_cb">[docs]</a>    <span class="k">def</span> <span class="nf">unregister_pointer_cb</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove a callback which will be called, when a scene pointer event is detected in the viewer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cb: The callback to remove</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">viser_server</span><span class="o">.</span><span class="n">scene</span><span class="o">.</span><span class="n">remove_pointer_callback</span><span class="p">()</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">viser_server</span></div>
+
+
+<div class="viewcode-block" id="ViewerElement"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerElement">[docs]</a><span class="k">class</span> <span class="nc">ViewerElement</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">TValue</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all viewer elements</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the element</span>
+<span class="sd">        disabled: If the element is disabled</span>
+<span class="sd">        visible: If the element is visible</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">GuiInputHandle</span><span class="p">[</span><span class="n">TValue</span><span class="p">],</span> <span class="n">GuiButtonHandle</span><span class="p">,</span> <span class="n">GuiButtonGroupHandle</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="n">disabled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visible</span> <span class="o">=</span> <span class="n">visible</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cb_hook</span> <span class="o">=</span> <span class="n">cb_hook</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the GuiInputHandle object which actually controls the parameter in the gui.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            viser_server: The server to install the gui element into.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">...</span>
+
+<div class="viewcode-block" id="ViewerElement.remove"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerElement.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Removes the gui element from the viewer&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="ViewerElement.set_hidden"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerElement.set_hidden">[docs]</a>    <span class="k">def</span> <span class="nf">set_hidden</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hidden</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets the hidden state of the gui element&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">visible</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">hidden</span></div>
+
+<div class="viewcode-block" id="ViewerElement.set_disabled"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerElement.set_disabled">[docs]</a>    <span class="k">def</span> <span class="nf">set_disabled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets the disabled state of the gui element&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="n">disabled</span></div>
+
+<div class="viewcode-block" id="ViewerElement.set_visible"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerElement.set_visible">[docs]</a>    <span class="k">def</span> <span class="nf">set_visible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets the visible state of the gui element&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">visible</span> <span class="o">=</span> <span class="n">visible</span></div>
+
+<div class="viewcode-block" id="ViewerElement.install"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerElement.install">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Installs the gui element into the given viser_server&quot;&quot;&quot;</span>
+        <span class="o">...</span></div></div>
+
+
+<div class="viewcode-block" id="ViewerButton"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerButton">[docs]</a><span class="k">class</span> <span class="nc">ViewerButton</span><span class="p">(</span><span class="n">ViewerElement</span><span class="p">[</span><span class="nb">bool</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A button in the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the button</span>
+<span class="sd">        cb_hook: The function to call when the button is pressed</span>
+<span class="sd">        disabled: If the button is disabled</span>
+<span class="sd">        visible: If the button is visible</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">gui_handle</span><span class="p">:</span> <span class="n">GuiButtonHandle</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerButton</span><span class="p">],</span> <span class="n">Any</span><span class="p">],</span> <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_button</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ViewerButton.install"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerButton.install">[docs]</a>    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_gui_handle</span><span class="p">(</span><span class="n">viser_server</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="ViewerParameter"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerParameter">[docs]</a><span class="k">class</span> <span class="nc">ViewerParameter</span><span class="p">(</span><span class="n">ViewerElement</span><span class="p">[</span><span class="n">TValue</span><span class="p">],</span> <span class="n">Generic</span><span class="p">[</span><span class="n">TValue</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A viewer element with state</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the element</span>
+<span class="sd">        default_value: The default value of the element</span>
+<span class="sd">        disabled: If the element is disabled</span>
+<span class="sd">        visible: If the element is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">gui_handle</span><span class="p">:</span> <span class="n">GuiInputHandle</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">TValue</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span> <span class="o">=</span> <span class="n">default_value</span>
+
+<div class="viewcode-block" id="ViewerParameter.install"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerParameter.install">[docs]</a>    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Based on the type provided by default_value, installs a gui element inside the given viser_server</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            viser_server: The server to install the gui element into.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_gui_handle</span><span class="p">(</span><span class="n">viser_server</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">on_update</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span></div>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TValue</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the current value of the viewer element&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="nd">@value</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">TValue</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span> <span class="o">=</span> <span class="n">value</span></div>
+
+
+<span class="n">IntOrFloat</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;IntOrFloat&quot;</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ViewerSlider"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerSlider">[docs]</a><span class="k">class</span> <span class="nc">ViewerSlider</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="n">IntOrFloat</span><span class="p">],</span> <span class="n">Generic</span><span class="p">[</span><span class="n">IntOrFloat</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A slider in the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the slider</span>
+<span class="sd">        default_value: The default value of the slider</span>
+<span class="sd">        min_value: The minimum value of the slider</span>
+<span class="sd">        max_value: The maximum value of the slider</span>
+<span class="sd">        step: The step size of the slider</span>
+<span class="sd">        disabled: If the slider is disabled</span>
+<span class="sd">        visible: If the slider is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">IntOrFloat</span><span class="p">,</span>
+        <span class="n">min_value</span><span class="p">:</span> <span class="n">IntOrFloat</span><span class="p">,</span>
+        <span class="n">max_value</span><span class="p">:</span> <span class="n">IntOrFloat</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="n">IntOrFloat</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerSlider</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default_value</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">))</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min</span> <span class="o">=</span> <span class="n">min_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="n">max_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="n">step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;gui_handle should be initialized once&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_slider</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span>
+            <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span>
+            <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span>
+            <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ViewerText"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerText">[docs]</a><span class="k">class</span> <span class="nc">ViewerText</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A text field in the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the text field</span>
+<span class="sd">        default_value: The default value of the text field</span>
+<span class="sd">        disabled: If the text field is disabled</span>
+<span class="sd">        visible: If the text field is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerText</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default_value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;gui_handle should be initialized once&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_text</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ViewerNumber"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerNumber">[docs]</a><span class="k">class</span> <span class="nc">ViewerNumber</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="n">IntOrFloat</span><span class="p">],</span> <span class="n">Generic</span><span class="p">[</span><span class="n">IntOrFloat</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A number field in the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the number field</span>
+<span class="sd">        default_value: The default value of the number field</span>
+<span class="sd">        disabled: If the number field is disabled</span>
+<span class="sd">        visible: If the number field is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">default_value</span><span class="p">:</span> <span class="n">IntOrFloat</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">IntOrFloat</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerNumber</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default_value</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">))</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;gui_handle should be initialized once&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_number</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ViewerCheckbox"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerCheckbox">[docs]</a><span class="k">class</span> <span class="nc">ViewerCheckbox</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="nb">bool</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A checkbox in the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the checkbox</span>
+<span class="sd">        default_value: The default value of the checkbox</span>
+<span class="sd">        disabled: If the checkbox is disabled</span>
+<span class="sd">        visible: If the checkbox is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerCheckbox</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default_value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;gui_handle should be initialized once&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_checkbox</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span>
+        <span class="p">)</span></div>
+
+
+<span class="n">TLiteralString</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;TLiteralString&quot;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">LiteralString</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ViewerDropdown"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerDropdown">[docs]</a><span class="k">class</span> <span class="nc">ViewerDropdown</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="n">TString</span><span class="p">],</span> <span class="n">Generic</span><span class="p">[</span><span class="n">TString</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A dropdown in the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the dropdown</span>
+<span class="sd">        default_value: The default value of the dropdown</span>
+<span class="sd">        options: The options of the dropdown</span>
+<span class="sd">        disabled: If the dropdown is disabled</span>
+<span class="sd">        visible: If the dropdown is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">gui_handle</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">GuiDropdownHandle</span><span class="p">[</span><span class="n">TString</span><span class="p">]]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">TString</span><span class="p">,</span>
+        <span class="n">options</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">TString</span><span class="p">],</span>
+        <span class="n">disabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerDropdown</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="n">default_value</span> <span class="ow">in</span> <span class="n">options</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;gui_handle should be initialized once&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_dropdown</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span>
+            <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span>
+            <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span>
+            <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ViewerDropdown.set_options"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerDropdown.set_options">[docs]</a>    <span class="k">def</span> <span class="nf">set_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_options</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">TString</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the options of the dropdown,</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            new_options: The new options. If the current option isn&#39;t in the new options, the first option is selected.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">new_options</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">new_options</span></div></div>
+
+
+<div class="viewcode-block" id="ViewerButtonGroup"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerButtonGroup">[docs]</a><span class="k">class</span> <span class="nc">ViewerButtonGroup</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="n">TString</span><span class="p">],</span> <span class="n">Generic</span><span class="p">[</span><span class="n">TString</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A button group in the viewer. Unlike other fields, cannot be disabled.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the button group</span>
+<span class="sd">        visible: If the button group is visible</span>
+<span class="sd">        options: The options of the button group</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">gui_handle</span><span class="p">:</span> <span class="n">GuiButtonGroupHandle</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">TString</span><span class="p">,</span>
+        <span class="n">options</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">TString</span><span class="p">],</span>
+        <span class="n">visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerDropdown</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="n">default_value</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;gui_handle should be initialized once&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_button_group</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ViewerButtonGroup.install"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerButtonGroup.install">[docs]</a>    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_gui_handle</span><span class="p">(</span><span class="n">viser_server</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="ViewerRGB"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerRGB">[docs]</a><span class="k">class</span> <span class="nc">ViewerRGB</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An RGB color picker for the viewer</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the color picker</span>
+<span class="sd">        default_value: The default value of the color picker</span>
+<span class="sd">        disabled: If the color picker is disabled</span>
+<span class="sd">        visible: If the color picker is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerRGB</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">default_value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_rgb</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ViewerVec3"><a class="viewcode-back" href="../../../reference/api/viewer.html#nerfstudio.viewer.viewer_elements.ViewerVec3">[docs]</a><span class="k">class</span> <span class="nc">ViewerVec3</span><span class="p">(</span><span class="n">ViewerParameter</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    3 number boxes in a row to input a vector</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the vector</span>
+<span class="sd">        default_value: The default value of the vector</span>
+<span class="sd">        step: The step of the vector</span>
+<span class="sd">        disabled: If the vector is disabled</span>
+<span class="sd">        visible: If the vector is visible</span>
+<span class="sd">        cb_hook: Callback to call on update</span>
+<span class="sd">        hint: The hint text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">,</span>
+        <span class="n">default_value</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cb_hook</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">ViewerVec3</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">hint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">default_value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="n">visible</span><span class="p">,</span> <span class="n">cb_hook</span><span class="o">=</span><span class="n">cb_hook</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="n">step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hint</span> <span class="o">=</span> <span class="n">hint</span>
+
+    <span class="k">def</span> <span class="nf">_create_gui_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">viser_server</span><span class="p">:</span> <span class="n">ViserServer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gui_handle</span> <span class="o">=</span> <span class="n">viser_server</span><span class="o">.</span><span class="n">gui</span><span class="o">.</span><span class="n">add_vector3</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="n">disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disabled</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hint</span>
+        <span class="p">)</span></div>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>
