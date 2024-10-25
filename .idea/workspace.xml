@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f1d567c2-831a-4cd1-95b7-6af4886f2347" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/nerfstudio/process_data/colmap_converter_to_nerfstudio_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/nerfstudio/process_data/colmap_converter_to_nerfstudio_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nerfstudio/process_data/colmap_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/nerfstudio/process_data/colmap_utils.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.tslint": "(autodetect)"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <servers />
+  </component>
+</project>

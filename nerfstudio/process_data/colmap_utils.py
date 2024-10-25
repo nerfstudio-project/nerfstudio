@@ -396,7 +396,7 @@ def colmap_to_json(
     ply_filename="sparse_pc.ply",
     keep_original_world_coordinate: bool = False,
     use_single_camera_mode: bool = True,
-    save_output = True
+    save_output: bool = True
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -410,6 +410,7 @@ def colmap_to_json(
         keep_original_world_coordinate: If True, no extra transform will be applied to world coordinate.
                     Colmap optimized world often have y direction of the first camera pointing towards down direction,
                     while nerfstudio world set z direction to be up direction for viewer.
+        save_output: If True, the output will be saved as a JSON file in the output directory.
     Returns:
         The number of registered images.
     """
