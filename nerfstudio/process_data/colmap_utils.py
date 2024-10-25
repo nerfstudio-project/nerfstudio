@@ -396,6 +396,7 @@ def colmap_to_json(
     ply_filename="sparse_pc.ply",
     keep_original_world_coordinate: bool = False,
     use_single_camera_mode: bool = True,
+    save_output = True
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -488,8 +489,9 @@ def colmap_to_json(
     )
     out["ply_file_path"] = ply_filename
 
-    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=4)
+    if save_output:
+        with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=4)
 
     return len(frames)
 

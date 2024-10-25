@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Base class to processes a video or image sequence to a nerfstudio compatible dataset."""
-
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
@@ -130,11 +130,33 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             image_id_to_depth_path: When including sfm-based depth, embed these depth file paths in the exported json
             image_rename_map: Use these image names instead of the names embedded in the COLMAP db
         """
+
         summary_log = []
-        if (self.absolute_colmap_model_path / "cameras.bin").exists():
+        models_path = self.absolute_colmap_path.joinpath('sparse')
+        if os.path.exists(models_path):
+            matched_frame_counts = []
+            models = os.listdir(str(self.absolute_colmap_path.joinpath('sparse')))
+            for model in models:
+                if (models_path / model / "cameras.bin").exists():
+                    model_path = models_path / model
+                    num_matched_frames = colmap_utils.colmap_to_json(
+                        recon_dir=model_path,
+                        output_dir=self.output_dir,
+                        image_id_to_depth_path=image_id_to_depth_path,
+                        camera_mask_path=camera_mask_path,
+                        image_rename_map=image_rename_map,
+                        use_single_camera_mode=self.use_single_camera_mode,
+                        save_output=False
+                    )
+                    matched_frame_counts.append(num_matched_frames)
+                else:
+                    matched_frame_counts.append(-1)
+
+            best_model_index = matched_frame_counts.index(max(matched_frame_counts))
+            best_model_path = models_path / models[best_model_index]
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    recon_dir=self.absolute_colmap_model_path,
+                    recon_dir=best_model_path,
                     output_dir=self.output_dir,
                     image_id_to_depth_path=image_id_to_depth_path,
                     camera_mask_path=camera_mask_path,
@@ -143,7 +165,6 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
-
         else:
             CONSOLE.log(
                 "[bold yellow]Warning: Could not find existing COLMAP results. " "Not generating transforms.json"
