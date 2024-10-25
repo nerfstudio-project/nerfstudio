@@ -399,7 +399,6 @@ class CacheDataloader(DataLoader):
 import math
 
 from torch.utils.data import Dataset
-from tqdm.auto import tqdm
 
 
 class RayBatchStream(torch.utils.data.IterableDataset):
@@ -483,8 +482,9 @@ class RayBatchStream(torch.utils.data.IterableDataset):
     def _get_batch_list(self, indices=None):
         """Returns a list representing a single batch from the dataset attribute.
         Each item of the list is a dictionary with dict_keys(['image_idx', 'image']) representing 1 image.
-        This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch
-        The length of the list is equal to the (# of training images) / (num_workers)"""
+        This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch()
+        The length of the list is equal to the (# of training images) / (num_workers)
+        """
 
         assert isinstance(self.input_dataset, Sized)
         if indices is None:
@@ -504,7 +504,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             for idx in indices:
                 res = executor.submit(self.input_dataset.__getitem__, idx)
                 results.append(res)
-            results = tqdm(results)  # this is temporary and will be removed in the final push
+            # results = tqdm(results)  # this is temporary and will be removed in the final push
             for res in results:
                 batch_list.append(res.result())
 
@@ -622,9 +622,8 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         i = 0  # i refers to what image index we are outputting: i=0 => we are yielding our first image,camera
 
         while True:
-            if i >= len(
-                worker_indices
-            ):  # if we've iterated through all the worker's partition of images, we need to reshuffle
+            if i >= len(worker_indices):
+                # if we've iterated through all the worker's partition of images, we need to reshuffle
                 r.shuffle(worker_indices)
                 i = 0
             idx = worker_indices[i]  # idx refers to the actual datapoint index this worker will retrieve

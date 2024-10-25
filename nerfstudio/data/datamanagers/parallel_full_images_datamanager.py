@@ -76,11 +76,6 @@ class ParallelFullImageDatamanager(DataManager, Generic[TDataset]):
                 style="bold yellow",
             )
             self.config.cache_images = "cpu"
-        self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
-        if self.config.masks_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("mask")
-        if self.config.images_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("image")
 
         # Some logic to make sure we sample every camera in equal amounts
         self.train_unseen_cameras = self.sample_train_cameras()

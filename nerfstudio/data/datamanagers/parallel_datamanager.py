@@ -179,12 +179,11 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             collate_fn=identity_collate,  # Our dataset handles batching / collation of rays
         )
         self.iter_eval_raybundles = iter(self.eval_ray_dataloader)
-        self.image_eval_dataloader = RandIndicesEvalDataloader(
+        self.image_eval_dataloader = RandIndicesEvalDataloader(  # this is used for ns-eval
             input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,
         )
-        # this is used for ns-eval
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
