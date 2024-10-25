@@ -48,18 +48,18 @@ def run_command_with_console_output(command, stop_on_output=None):
         print(f"An error occurred: {e}")
 
 
-def run_ns_download_data(scene: Literal["poster, dozer, desolation"]):
+def run_ns_download_data(scene: Literal["poster", "dozer", "desolation"]):
     command = f"ns-download-data nerfstudio --capture-name={scene}"
     run_command_with_console_output(command)
 
 
-def run_ns_train(scene: Literal["poster, dozer, desolation"]):
+def run_ns_train_nerfacto(scene: Literal["poster", "dozer", "desolation"]):
     dataset_path = f"data/nerfstudio/{scene}"
     command = f"ns-train nerfacto --data {dataset_path}"
     run_command_with_console_output(command, stop_on_output="Checkpoint Directory")
 
 
-def run_ns_eval(scene: Literal["poster, dozer, desolation"]):
+def run_ns_eval(scene: Literal["poster", "dozer", "desolation"]):
     timestamp = sorted(os.listdir(f"outputs/{scene}/nerfacto/"))[-1]
     config_filename = f"outputs/{scene}/nerfacto/{timestamp}/config.yml"
     command = f"ns-eval --load-config {config_filename} --output-path nerfacto_integration_eval.json"
@@ -79,7 +79,7 @@ def main():
     run_ns_download_data(scene)
 
     print("\nStarting training...")
-    run_ns_train(scene)
+    run_ns_train_nerfacto(scene)
 
     print("\nStarting evaluation...")
     run_ns_eval(scene)
