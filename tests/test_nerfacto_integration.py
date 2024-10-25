@@ -68,18 +68,18 @@ def run_ns_eval(scene: Literal["poster, dozer, desolation"]):
     with open("nerfacto_integration_eval.json", "r") as f:
         results = json.load(f)
 
-    assert results["results"]["psnr"] > 20.0
-    assert results["results"]["ssim"] > 0.7
+    assert results["results"]["psnr"] > 20.0, "PSNR was lower than 20"
+    assert results["results"]["ssim"] > 0.7, "SSIM was lower than 0.7"
 
 
 def main():
     scene = "dozer"  # You can change this to "poster" or "desolation"
 
-    # print("Starting data download...")
-    # run_ns_download_data(scene)
+    print("Starting data download...")
+    run_ns_download_data(scene)
 
-    # print("\nStarting training...")
-    # run_ns_train(scene)
+    print("\nStarting training...")
+    run_ns_train(scene)
 
     print("\nStarting evaluation...")
     run_ns_eval(scene)
