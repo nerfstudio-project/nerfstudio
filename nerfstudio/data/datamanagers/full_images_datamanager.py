@@ -353,7 +353,14 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         Pretends to be the dataloader for evaluation, it returns a list of (camera, data) tuples
         """
         if self.config.cache_images == "disk":
-            return self.iter_eval_image_dataloader
+            dataloader = DataLoader(
+                self.eval_imagebatch_stream,
+                batch_size=1,
+                num_workers=0,
+                collate_fn=identity_collate,
+            )
+            return [batch[0] for batch in dataloader]
+
         image_indices = [i for i in range(len(self.eval_dataset))]
         data = [d.copy() for d in self.cached_eval]
         _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
@@ -371,10 +378,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """
         return {}
 
-    def get_train_rays_per_batch(self):
+    def get_train_rays_per_batch(self) -> int:
         """Returns resolution of the image returned from datamanager."""
         camera = self.train_dataset.cameras[0].reshape(())
-        return camera.width.item() * camera.height.item()
+        return int(camera.width[0].item() * camera.height[0].item())
 
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
@@ -408,7 +415,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         Returns a Camera instead of raybundle"""
         self.eval_count += 1
         if self.config.cache_images == "disk":
-            camera, data = next(self.iter_train_image_dataloader)[0]
+            camera, data = next(self.iter_eval_image_dataloader)[0]
             return camera, data
 
         return self.next_eval_image(step=step)

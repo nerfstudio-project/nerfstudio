@@ -29,7 +29,7 @@ import cv2
 import numpy as np
 import torch
 from rich.progress import track
-from torch.utils.data import Dataset, get_worker_info
+from torch.utils.data import Dataset, IterableDataset, get_worker_info
 from torch.utils.data.dataloader import DataLoader
 
 from nerfstudio.cameras.camera_utils import fisheye624_project, fisheye624_unproject_helper
@@ -237,7 +237,6 @@ def _undistort_image(
                 map2,
                 interpolation=cv2.INTER_LINEAR,
                 borderMode=cv2.BORDER_CONSTANT,
-                borderValue=0,
             )
             / 255.0
         ).bool()[..., None]
@@ -265,7 +264,7 @@ def undistort_view(
         f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
     )
     if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
-        return data
+        return camera, data
     K = camera.get_intrinsics_matrices().numpy()
     distortion_params = camera.distortion_params.numpy()
     image = data["image"].numpy()
@@ -397,7 +396,7 @@ class CacheDataloader(DataLoader):
             yield collated_batch
 
 
-class RayBatchStream(torch.utils.data.IterableDataset):
+class RayBatchStream(IterableDataset):
     """Wrapper around Pytorch's IterableDataset to generate the next batch of rays (next RayBundle) and corresponding labels
     with multiple parallel workers.
 
@@ -451,11 +450,11 @@ class RayBatchStream(torch.utils.data.IterableDataset):
         """Each worker has a self._cached_collated_batch contains a collated batch of images cached in RAM for a specific worker that's ready for pixel sampling."""
         self.pixel_sampler_config: PixelSamplerConfig = PixelSamplerConfig()
         """Specifies the pixel sampler config used to sample pixels from images. Each worker will have its own pixel sampler"""
-        self.ray_generator: RayGenerator = None
+        self.ray_generator: Optional[RayGenerator] = None
         """Each worker will have its own ray generator, so this is set to None for now."""
         self.custom_ray_processor = custom_ray_processor
 
-    def _get_pixel_sampler(self, dataset: Dataset, num_rays_per_batch: int) -> PixelSampler:
+    def _get_pixel_sampler(self, dataset: InputDataset, num_rays_per_batch: int) -> PixelSampler:
         """copied from VanillaDataManager."""
         from nerfstudio.cameras.cameras import CameraType
 
@@ -579,7 +578,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
             yield ray_bundle, batch
 
 
-class ImageBatchStream(torch.utils.data.IterableDataset):
+class ImageBatchStream(IterableDataset):
     """
     A wrapper of InputDataset that outputs undistorted full images and cameras. This makes the
     datamanager more lightweight since we don't have to do generate rays. Useful for full-image
@@ -622,7 +621,7 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
                 r.shuffle(worker_indices)
                 i = 0
             idx = worker_indices[i]  # idx refers to the actual datapoint index this worker will retrieve
-            camera, data = undistort_view(idx, self.input_dataset, self.cache_images_type)
+            camera, data = undistort_view(idx, self.input_dataset, self.cache_images_type)  # type: ignore
             if camera.metadata is None:
                 camera.metadata = {}
             camera.metadata["cam_idx"] = idx
