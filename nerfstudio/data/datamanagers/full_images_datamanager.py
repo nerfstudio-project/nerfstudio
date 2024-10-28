@@ -34,6 +34,7 @@ import numpy as np
 import torch
 from rich.progress import track
 from torch.nn import Parameter
+from torch.utils.data import DataLoader
 from typing_extensions import assert_never
 
 from nerfstudio.cameras.cameras import Cameras
@@ -319,7 +320,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 device=self.device,
                 custom_view_processor=self.custom_view_processor,
             )
-            self.train_image_dataloader = torch.utils.data.DataLoader(
+            self.train_image_dataloader = DataLoader(
                 self.train_imagebatch_stream,
                 batch_size=1,
                 num_workers=self.config.dataloader_num_workers,
@@ -338,7 +339,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 device=self.device,
                 custom_view_processor=self.custom_view_processor,
             )
-            self.eval_image_dataloader = torch.utils.data.DataLoader(
+            self.eval_image_dataloader = DataLoader(
                 self.eval_imagebatch_stream,
                 batch_size=1,
                 num_workers=0,

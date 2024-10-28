@@ -15,15 +15,17 @@
 """Utility functions to allow easy re-use of common operations across dataloaders"""
 
 from pathlib import Path
-from typing import List, Tuple, Union, IO
+from typing import IO, List, Tuple, Union
 
 import cv2
 import numpy as np
 import torch
 from PIL import Image
+from PIL.Image import Image as PILImage
 from torch.profiler import record_function
 
-def pil_to_numpy(im: Image) -> np.ndarray:
+
+def pil_to_numpy(im: PILImage) -> np.ndarray:
     """Converts a PIL Image object to a NumPy array.
 
     Args:
@@ -47,8 +49,8 @@ def pil_to_numpy(im: Image) -> np.ndarray:
 
     bufsize, s, offset = 65536, 0, 0
     while not s:
-        l, s, d = e.encode(bufsize)
-        mem[offset:offset + len(d)] = d
+        _, s, d = e.encode(bufsize)
+        mem[offset : offset + len(d)] = d
         offset += len(d)
     if s < 0:
         raise RuntimeError("encoder error %d in tobytes" % s)
@@ -118,6 +120,7 @@ def get_depth_image_from_path(
         image = image.astype(np.float32) * scale_factor
         image = cv2.resize(image, (width, height), interpolation=interpolation)
     return torch.from_numpy(image[:, :, np.newaxis])
+
 
 def identity_collate(x):
     """This function does nothing but serves to help our dataloaders have a pickleable function, as lambdas are not pickleable"""

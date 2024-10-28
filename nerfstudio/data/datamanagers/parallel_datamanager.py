@@ -24,6 +24,7 @@ from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Ty
 
 import torch
 from torch.nn import Parameter
+from torch.utils.data import DataLoader
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
@@ -150,7 +151,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             load_from_disk=self.config.load_from_disk,
             custom_ray_processor=self.custom_ray_processor,
         )
-        self.train_ray_dataloader = torch.utils.data.DataLoader(
+        self.train_ray_dataloader = DataLoader(
             self.train_raybatchstream,
             batch_size=1,
             num_workers=self.config.dataloader_num_workers,
@@ -171,7 +172,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             load_from_disk=True,
             custom_ray_processor=self.custom_ray_processor,
         )
-        self.eval_ray_dataloader = torch.utils.data.DataLoader(
+        self.eval_ray_dataloader = DataLoader(
             self.eval_raybatchstream,
             batch_size=1,
             num_workers=0,

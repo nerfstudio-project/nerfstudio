@@ -18,6 +18,7 @@ Code for sampling images from a dataset of images.
 
 # for multithreading
 import concurrent.futures
+import math
 import multiprocessing
 import random
 from abc import abstractmethod
@@ -28,7 +29,7 @@ import cv2
 import numpy as np
 import torch
 from rich.progress import track
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, get_worker_info
 from torch.utils.data.dataloader import DataLoader
 
 from nerfstudio.cameras.camera_utils import fisheye624_project, fisheye624_unproject_helper
@@ -396,11 +397,6 @@ class CacheDataloader(DataLoader):
             yield collated_batch
 
 
-import math
-
-from torch.utils.data import Dataset
-
-
 class RayBatchStream(torch.utils.data.IterableDataset):
     """Wrapper around Pytorch's IterableDataset to generate the next batch of rays (next RayBundle) and corresponding labels
     with multiple parallel workers.
@@ -527,7 +523,7 @@ class RayBatchStream(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         """This implementation allows every worker only cache the indices of the images they will use to generate rays to conserve RAM memory."""
-        worker_info = torch.utils.data.get_worker_info()
+        worker_info = get_worker_info()
         if worker_info is not None:  # if we have multiple processes
             per_worker = int(math.ceil(len(self.input_dataset) / float(worker_info.num_workers)))
             slice_start = worker_info.id * per_worker
@@ -605,9 +601,8 @@ class ImageBatchStream(torch.utils.data.IterableDataset):
         self.custom_view_processor = custom_view_processor
 
     def __iter__(self):
-        # print(self.input_dataset.cameras.device) prints cpu
         dataset_indices = list(range(len(self.input_dataset)))
-        worker_info = torch.utils.data.get_worker_info()
+        worker_info = get_worker_info()
         if worker_info is not None:  # if we have multiple processes
             per_worker = int(math.ceil(len(dataset_indices) / float(worker_info.num_workers)))
             slice_start = worker_info.id * per_worker
