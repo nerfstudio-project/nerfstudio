@@ -19,10 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
 
-from nerfstudio.process_data import (colmap_utils, hloc_utils,
-                                     process_data_utils)
-from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import \
-    BaseConverterToNerfstudioDataset
+from nerfstudio.process_data import colmap_utils, hloc_utils, process_data_utils
+from nerfstudio.process_data.base_converter_to_nerfstudio_dataset import BaseConverterToNerfstudioDataset
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -32,9 +30,7 @@ from nerfstudio.utils.rich_utils import CONSOLE
 class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """Base class to process images or video into a nerfstudio dataset using colmap"""
 
-    camera_type: Literal[
-        "perspective", "fisheye", "equirectangular", "pinhole", "simple_pinhole"
-    ] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular", "pinhole", "simple_pinhole"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
@@ -159,9 +155,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
             best_model_index = matched_frame_counts.index(max(matched_frame_counts))
             best_model_path = models_path / models[best_model_index]
-            with CONSOLE.status(
-                "[bold yellow]Saving results to transforms.json", spinner="balloon"
-            ):
+            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
                     recon_dir=best_model_path,
                     output_dir=self.output_dir,
@@ -171,13 +165,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                     use_single_camera_mode=self.use_single_camera_mode,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
-            summary_log.append(
-                colmap_utils.get_matching_summary(num_frames, num_matched_frames)
-            )
+            summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
         else:
             CONSOLE.log(
-                "[bold yellow]Warning: Could not find existing COLMAP results. "
-                "Not generating transforms.json"
+                "[bold yellow]Warning: Could not find existing COLMAP results. " "Not generating transforms.json"
             )
         return summary_log
 
@@ -233,9 +224,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
         # check that sfm_tool is hloc if using use_single_camera_mode
         if not self.use_single_camera_mode:
-            assert (
-                sfm_tool == "hloc"
-            ), "not_use_single_camera_mode only works with sfm_tool hloc"
+            assert sfm_tool == "hloc", "not_use_single_camera_mode only works with sfm_tool hloc"
 
         # set the image_dir if didn't copy
         if self.skip_image_processing:
@@ -257,10 +246,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
-                raise RuntimeError(
-                    "Cannot use a mask with hloc. Please remove the cropping options "
-                    "and try again."
-                )
+                raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
 
             assert feature_type is not None
             assert matcher_type is not None
@@ -277,10 +263,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 use_single_camera_mode=self.use_single_camera_mode,
             )
         else:
-            raise RuntimeError(
-                "Invalid combination of sfm_tool, feature_type, and matcher_type, "
-                "exiting"
-            )
+            raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, " "exiting")
 
     def __post_init__(self) -> None:
         super().__post_init__()
