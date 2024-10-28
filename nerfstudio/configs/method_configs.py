@@ -42,7 +42,6 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.datasets.depth_dataset import DepthDataset
 from nerfstudio.data.datasets.sdf_dataset import SDFDataset
 from nerfstudio.data.datasets.semantic_dataset import SemanticDataset
-from nerfstudio.data.pixel_samplers import PairPixelSamplerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import (
     CosineDecaySchedulerConfig,
@@ -230,7 +229,6 @@ method_configs["depth-nerfacto"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             _target=VanillaDataManager[DepthDataset],
-            pixel_sampler=PairPixelSamplerConfig(),
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
