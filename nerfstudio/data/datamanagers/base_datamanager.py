@@ -162,7 +162,6 @@ class DataManager:
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
     includes_time: bool = False
-    test_mode: Literal["test", "val", "inference"] = "val"
 
     def __init__(self):
         """Constructor for the DataManager class.
