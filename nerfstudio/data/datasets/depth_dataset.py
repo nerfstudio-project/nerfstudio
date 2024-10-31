@@ -41,6 +41,8 @@ class DepthDataset(InputDataset):
         scale_factor: The scaling factor for the dataparser outputs.
     """
 
+    exclude_batch_keys_from_device = InputDataset.exclude_batch_keys_from_device + ["depth_image"]
+
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__(dataparser_outputs, scale_factor)
         # if there are no depth images than we want to generate them all with zoe depth

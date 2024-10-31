@@ -29,3 +29,11 @@ By default the nerfstudio dataparser is used. If you would like to use a differe
 ```bash
 ns-train {method} {dataparser} --help
 ```
+
+For example, if you want to specify the `eval_mode` of the nerfstudio dataparser to be `filename` when training your `splatfacto` model via the `ns-train` cli, you can do
+
+```
+ns-train splatfacto [method args] nerfstudio-data --eval-mode filename
+```
+
+Notice that the custom dataparser and its arguments are passed after specifying the training method and its arguments.
