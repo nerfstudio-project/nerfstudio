@@ -433,8 +433,8 @@ def main(
         output_dir (Path, optional): Directory to store output configurations and results.
                                      Defaults to "outputs".
         project_name (str, optional): Name of the NeRF project. Defaults to "large-nerfstudio-project".
-        rows (int, optional): Number of rows to split the scene into. Defaults to 16.
-        cols (int, optional): Number of columns to split the scene into. Defaults to 16.
+        rows (int, optional): Number of rows to split the scene into. Defaults to 32.
+        cols (int, optional): Number of columns to split the scene into. Defaults to 32.
     """
     # Validate the provided data path by checking the existence of required subdirectories
     if not ((data / "colmap" / "sparse" / "0").is_dir() and (data / "images").is_dir()):
@@ -451,7 +451,7 @@ def main(
 
     # Check for checkpoints
     checkpoint = False
-    if (exports_dir).is_dir():
+    if exports_dir.is_dir():
         CONSOLE.log("Splitting results detected")
         checkpoint = Confirm.ask("Would you like to begin training with current splitting results?")
 
@@ -519,6 +519,7 @@ def main(
                 f"--pipeline.model.cull-scale-thresh=1000 "
                 f"--viewer.quit-on-train-completion=True "
                 f"colmap --data={scene_dir} "
+                f"--force-downscale=True "
                 f"--center-method=none "
                 f"--orientation-method=none "
                 f"--auto-scale-poses=False"
@@ -531,6 +532,7 @@ def main(
                 f"--vis=tensorboard "
                 f"--viewer.quit-on-train-completion=True "
                 f"colmap --data={scene_dir} "
+                f"--force-downscale=True "
                 f"--center-method=none "
                 f"--orientation-method=none "
                 f"--auto-scale-poses=False"

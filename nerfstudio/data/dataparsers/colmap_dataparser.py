@@ -24,6 +24,7 @@ from typing import List, Literal, Optional, Type
 import numpy as np
 import torch
 from PIL import Image
+from rich.prompt import Confirm
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras
@@ -57,6 +58,8 @@ class ColmapDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     downscale_rounding_mode: Literal["floor", "round", "ceil"] = "floor"
     """How to round downscale image height and Image width."""
+    force_downscale: bool = False
+    """Whether to downscale images without asking or not."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "vertical", "none"] = "up"
@@ -539,32 +542,37 @@ class ColmapDataParser(DataParser):
                 CONSOLE.print(
                     f"[bold red]Downscaled images do not exist for factor of {self._downscale_factor}.[/bold red]"
                 )
-                # Install the method
-                self._downscale_images(
-                    image_filenames,
-                    partial(get_fname, self.config.data / self.config.images_path),
-                    self._downscale_factor,
-                    self.config.downscale_rounding_mode,
-                    nearest_neighbor=False,
-                )
-                if len(mask_filenames) > 0:
-                    assert self.config.masks_path is not None
+                if self.config.force_downscale or Confirm.ask(
+                        f"\nWould you like to downscale the images using '{self.config.downscale_rounding_mode}' rounding mode now?",
+                        default=False,
+                        console=CONSOLE,
+                ):
+                    # Install the method
                     self._downscale_images(
-                        mask_filenames,
-                        partial(get_fname, self.config.data / self.config.masks_path),
+                        image_filenames,
+                        partial(get_fname, self.config.data / self.config.images_path),
                         self._downscale_factor,
                         self.config.downscale_rounding_mode,
-                        nearest_neighbor=True,
+                        nearest_neighbor=False,
                     )
-                if len(depth_filenames) > 0:
-                    assert self.config.depths_path is not None
-                    self._downscale_images(
-                        depth_filenames,
-                        partial(get_fname, self.config.data / self.config.depths_path),
-                        self._downscale_factor,
-                        self.config.downscale_rounding_mode,
-                        nearest_neighbor=True,
-                    )
+                    if len(mask_filenames) > 0:
+                        assert self.config.masks_path is not None
+                        self._downscale_images(
+                            mask_filenames,
+                            partial(get_fname, self.config.data / self.config.masks_path),
+                            self._downscale_factor,
+                            self.config.downscale_rounding_mode,
+                            nearest_neighbor=True,
+                        )
+                    if len(depth_filenames) > 0:
+                        assert self.config.depths_path is not None
+                        self._downscale_images(
+                            depth_filenames,
+                            partial(get_fname, self.config.data / self.config.depths_path),
+                            self._downscale_factor,
+                            self.config.downscale_rounding_mode,
+                            nearest_neighbor=True,
+                        )
 
         # Return transformed filenames
         if self._downscale_factor > 1:
