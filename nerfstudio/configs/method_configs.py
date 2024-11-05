@@ -40,7 +40,6 @@ from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParser
 from nerfstudio.data.datasets.depth_dataset import DepthDataset
 from nerfstudio.data.datasets.sdf_dataset import SDFDataset
 from nerfstudio.data.datasets.semantic_dataset import SemanticDataset
-from nerfstudio.data.pixel_samplers import PairPixelSamplerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import (
     CosineDecaySchedulerConfig,
@@ -222,7 +221,6 @@ method_configs["depth-nerfacto"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             _target=VanillaDataManager[DepthDataset],
-            pixel_sampler=PairPixelSamplerConfig(),
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
@@ -663,8 +661,7 @@ method_configs["splatfacto-big"] = TrainerConfig(
         ),
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
-            continue_cull_post_densification=False,
-            densify_grad_thresh=0.0006,
+            densify_grad_thresh=0.0005,
         ),
     ),
     optimizers={

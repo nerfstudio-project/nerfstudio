@@ -39,7 +39,9 @@ dependencies = [
     "protobuf<=3.20.3,!=3.20.0",
     # TODO(1480) enable when pycolmap windows wheels are available
     # "pycolmap==0.3.0",
+    # TODO(3461) and external issue cnr-isti-vclab/PyMeshLab/issues/398: Unrestrict Windows version when it isn't broken anymore.
     "pymeshlab>=2022.2.post2; platform_machine != 'arm64' and platform_machine != 'aarch64'",
+    "pymeshlab<2023.12.post2; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'aarch64'",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
     "pyquaternion>=0.9.9",
@@ -62,7 +64,7 @@ dependencies = [
     "xatlas",
     "trimesh>=3.20.2",
     "timm==0.6.7",
-    "gsplat==1.0.0",
+    "gsplat==1.4.0",
     "pytorch-msssim",
     "pathos",
     "packaging",
