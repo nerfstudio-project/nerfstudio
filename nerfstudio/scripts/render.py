@@ -77,7 +77,7 @@ def _render_trajectory_video(
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
     render_nearest_camera: bool = False,
     check_occlusions: bool = False,
-    kill_flag: List[bool] = [False],
+    _kill_flag: List[bool] = [False],
 ) -> bool:
     """Helper function to create a video of the spiral trajectory.
 
@@ -455,11 +455,11 @@ class BaseRender:
     """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
     camera_idx: Optional[int] = None
     """Index of the training camera to render."""
-    kill_flag: List[bool] = field(default_factory=lambda: [False])
+    _kill_flag: tyro.conf.Suppress[List[bool]] = field(default_factory=lambda: [False])
     """Stop execution of render if set to True."""
 
     def kill(self) -> None:
-        self.kill_flag[0] = True
+        self._kill_flag[0] = True
 
 
 @dataclass
@@ -531,7 +531,7 @@ class RenderCameraPath(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
-            kill_flag=self.kill_flag,
+            _kill_flag=self._kill_flag,
         )
 
         if (
@@ -567,7 +567,7 @@ class RenderCameraPath(BaseRender):
                 colormap_options=self.colormap_options,
                 render_nearest_camera=self.render_nearest_camera,
                 check_occlusions=self.check_occlusions,
-                kill_flag=self.kill_flag,
+                _kill_flag=self._kill_flag,
             )
 
             self.output_path = Path(str(left_eye_path.parent)[:-5] + ".mp4")
@@ -671,7 +671,7 @@ class RenderInterpolated(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
-            kill_flag=self.kill_flag,
+            _kill_flag=self._kill_flag,
         )
 
 
@@ -727,7 +727,7 @@ class SpiralRender(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
-            kill_flag=self.kill_flag,
+            _kill_flag=self._kill_flag,
         )
 
 
