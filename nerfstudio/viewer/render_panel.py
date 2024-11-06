@@ -20,6 +20,8 @@ import datetime
 import json
 import threading
 import time
+import yaml
+
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
@@ -28,6 +30,7 @@ import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
+
 from scipy import interpolate
 
 from nerfstudio.viewer.control_panel import ControlPanel
@@ -960,6 +963,7 @@ def populate_render_tab(
     @load_camera_path_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
+
         camera_path_dir = datapath / "camera_paths"
         camera_path_dir.mkdir(parents=True, exist_ok=True)
         preexisting_camera_paths = list(camera_path_dir.glob("*.json"))
@@ -1017,6 +1021,10 @@ def populate_render_tab(
                     # update the render name
                     render_name_text.value = json_path.stem
                     camera_path.update_spline()
+
+                    if len(camera_path._keyframes) > 1:
+                        render_button.disabled = False
+
                     modal.close()
 
             cancel_button = event.client.gui.add_button("Cancel")
@@ -1182,6 +1190,19 @@ def populate_render_tab(
         client = event.client
         assert client is not None
 
+        config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+        if config.load_dir is None:
+            render_button.disabled = True
+
+            notif = client.add_notification(
+                title="Render unsuccessful",
+                body="Cannot render video before 2000 training steps.",
+                loading=False,
+                with_close_button=True,
+                color="red",
+            )
+            return
+
         render_button.disabled = True
         cancel_render_button.disabled = False
 
@@ -1216,7 +1237,7 @@ def populate_render_tab(
 
         render.main()
 
-        if render.complete:
+        if render._complete:
             notif.title = "Render complete!"
             notif.body = "Video saved as " + render_path
             notif.loading = False

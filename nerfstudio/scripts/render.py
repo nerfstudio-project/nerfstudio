@@ -138,7 +138,7 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-                if kill_flag[0]:
+                if _kill_flag[0]:
                     return False
 
                 obb_box = None
@@ -475,7 +475,7 @@ class RenderCameraPath(BaseRender):
     """Filename of the camera path to render."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
-    complete: bool = True
+    _complete: tyro.conf.Suppress[bool] = False
     """Set to True when render is finished."""
 
     def main(self) -> None:
@@ -520,7 +520,7 @@ class RenderCameraPath(BaseRender):
         if self.camera_idx is not None:
             camera_path.metadata = {"cam_idx": self.camera_idx}
 
-        self.complete = _render_trajectory_video(
+        self._complete = _render_trajectory_video(
             pipeline,
             camera_path,
             output_filename=self.output_path,

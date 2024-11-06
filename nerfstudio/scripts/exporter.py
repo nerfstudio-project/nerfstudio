@@ -58,7 +58,7 @@ class Exporter:
     """Path to the config YAML file."""
     output_dir: Path
     """Path to the output directory."""
-    complete: bool = False
+    _complete: tyro.conf.Suppress[bool] = False
     """Set to True when export is finished."""
 
 
@@ -193,7 +193,7 @@ class ExportPointCloud(Exporter):
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
-        self.complete = True
+        self._complete = True
 
 
 @dataclass
@@ -276,7 +276,7 @@ class ExportTSDFMesh(Exporter):
                 num_pixels_per_side=self.num_pixels_per_side,
             )
 
-        self.complete = True
+        self._complete = True
 
 
 @dataclass
@@ -409,7 +409,7 @@ class ExportPoissonMesh(Exporter):
                 num_pixels_per_side=self.num_pixels_per_side,
             )
 
-        self.complete = True
+        self._complete = True
 
 
 @dataclass
@@ -477,7 +477,7 @@ class ExportMarchingCubesMesh(Exporter):
             num_pixels_per_side=self.num_pixels_per_side,
         )
 
-        self.complete = True
+        self._complete = True
 
 
 @dataclass
@@ -679,7 +679,7 @@ class ExportGaussianSplat(Exporter):
 
         ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
 
-        self.complete = True
+        self._complete = True
 
 
 Commands = tyro.conf.FlagConversionOff[

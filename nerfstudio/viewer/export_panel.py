@@ -17,6 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
+import yaml
+
 import viser
 import viser.transforms as vtf
 from typing_extensions import Literal, Tuple
@@ -149,6 +151,17 @@ def populate_point_cloud_tab(
             client = event.client
             assert client is not None
 
+            config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+            if config.load_dir is None:
+                notif = client.add_notification(
+                    title="Export unsuccessful",
+                    body="Cannot export before 2000 training steps.",
+                    loading=False,
+                    with_close_button=True,
+                    color="red",
+                )
+                return
+
             notif = client.add_notification(
                 title="Exporting point cloud",
                 body="File will be saved under " + str(output_dir.value),
@@ -178,7 +191,7 @@ def populate_point_cloud_tab(
             )
             export.main()
 
-            if export.complete:
+            if export._complete:
                 notif.title = "Export complete!"
                 notif.body = "File saved under " + str(output_dir.value)
                 notif.loading = False
@@ -249,6 +262,17 @@ def populate_mesh_tab(
             client = event.client
             assert client is not None
 
+            config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+            if config.load_dir is None:
+                notif = client.add_notification(
+                    title="Export unsuccessful",
+                    body="Cannot export before 2000 training steps.",
+                    loading=False,
+                    with_close_button=True,
+                    color="red",
+                )
+                return
+
             notif = client.add_notification(
                 title="Exporting poisson mesh",
                 body="File will be saved under " + str(output_dir.value),
@@ -279,7 +303,7 @@ def populate_mesh_tab(
             )
             export.main()
 
-            if export.complete:
+            if export._complete:
                 notif.title = "Export complete!"
                 notif.body = "File saved under " + str(output_dir.value)
                 notif.loading = False
@@ -337,6 +361,17 @@ def populate_splat_tab(
             client = event.client
             assert client is not None
 
+            config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+            if config.load_dir is None:
+                notif = client.add_notification(
+                    title="Export unsuccessful",
+                    body="Cannot export before 2000 training steps.",
+                    loading=False,
+                    with_close_button=True,
+                    color="red",
+                )
+                return
+
             notif = client.add_notification(
                 title="Exporting gaussian splat",
                 body="File will be saved under " + str(output_dir.value),
@@ -362,7 +397,7 @@ def populate_splat_tab(
             )
             export.main()
 
-            if export.complete:
+            if export._complete:
                 notif.title = "Export complete!"
                 notif.body = "File saved under " + str(output_dir.value)
                 notif.loading = False
