@@ -478,8 +478,8 @@ class Trainer:
         )
         # possibly delete old checkpoints
         if self.config.save_only_latest_checkpoint:
-            # delete everything else in the checkpoint folder
-            for f in self.checkpoint_dir.glob("*"):
+            # delete every other checkpoint in the checkpoint folder
+            for f in self.checkpoint_dir.glob("*.ckpt"):
                 if f != ckpt_path:
                     f.unlink()
 
