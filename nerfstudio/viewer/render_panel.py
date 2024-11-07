@@ -20,8 +20,6 @@ import datetime
 import json
 import threading
 import time
-import yaml
-
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
@@ -30,7 +28,7 @@ import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
-
+import yaml
 from scipy import interpolate
 
 from nerfstudio.viewer.control_panel import ControlPanel

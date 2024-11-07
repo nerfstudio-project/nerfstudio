@@ -17,10 +17,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-import yaml
-
 import viser
 import viser.transforms as vtf
+import yaml
 from typing_extensions import Literal, Tuple
 
 from nerfstudio.data.scene_box import OrientedBox
