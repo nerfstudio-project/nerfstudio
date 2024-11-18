@@ -54,7 +54,7 @@ def quaternion_from_matrix(matrix: NDArray, isprecise: bool = False) -> np.ndarr
         matrix: rotation matrix to obtain quaternion
         isprecise: if True, input matrix is assumed to be precise rotation matrix and a faster algorithm is used.
     """
-    M = np.array(matrix, dtype=np.float64, copy=False)[:4, :4]
+    M = np.array(matrix, dtype=np.float64, copy=True)[:4, :4]
     if isprecise:
         q = np.empty((4,))
         t = np.trace(M)
@@ -577,7 +577,8 @@ def auto_orient_and_center_poses(
         oriented_poses = transform @ poses
 
         if oriented_poses.mean(dim=0)[2, 1] < 0:
-            oriented_poses[:, 1:3] = -1 * oriented_poses[:, 1:3]
+            oriented_poses[1:3, :] = -1 * oriented_poses[1:3, :]
+            transform[1:3, :] = -1 * transform[1:3, :]
     elif method in ("up", "vertical"):
         up = torch.mean(poses[:, :3, 1], dim=0)
         up = up / torch.linalg.norm(up)

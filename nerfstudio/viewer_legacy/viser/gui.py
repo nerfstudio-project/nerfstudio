@@ -13,10 +13,11 @@
 # limitations under the License.
 
 
-""" Manages GUI communication.
+"""Manages GUI communication.
 
 Should be almost identical to: https://github.com/brentyi/viser/blob/main/viser/_gui.py
 """
+
 from __future__ import annotations
 
 import dataclasses

@@ -28,9 +28,7 @@ def dilate(tensor: Float[Tensor, "bs 1 H W"], kernel_size=3) -> Float[Tensor, "b
     Args:
         kernel_size: Size of the pooling region. Dilates/contracts 1 pixel if kernel_size is 3.
     """
-
-    unique_vals = torch.unique(tensor)
-    if any(val not in (0, 1) for val in unique_vals) or tensor.dtype != torch.float32:
+    if not (tensor.dtype == torch.float32 and torch.all((tensor == 0) | (tensor == 1))):
         raise ValueError("Input tensor should contain only values 0 and 1, and should have dtype torch.float32.")
 
     return torch.nn.functional.max_pool2d(tensor, kernel_size=kernel_size, stride=1, padding=(kernel_size - 1) // 2)
@@ -42,22 +40,18 @@ def erode(tensor: Float[Tensor, "bs 1 H W"], kernel_size=3) -> Float[Tensor, "bs
     Args:
         kernel_size: Size of the pooling region. Erodes/expands 1 pixel if kernel_size is 3.
     """
-
-    unique_vals = torch.unique(tensor)
-    if any(val not in (0, 1) for val in unique_vals) or tensor.dtype != torch.float32:
+    if not (tensor.dtype == torch.float32 and torch.all((tensor == 0) | (tensor == 1))):
         raise ValueError("Input tensor should contain only values 0 and 1, and should have dtype torch.float32.")
 
-    x = 1 - dilate(1 - tensor, kernel_size=kernel_size)
-    # set edge pixels to 0
+    # Invert the tensor, dilate, and re-invert
+    eroded = 1 - dilate(1 - tensor, kernel_size=kernel_size)
+
+    # Use padding to control edge effects (set edge pixels to 0)
     p = (kernel_size - 1) // 2
-    x[:, :, :p, :] *= 0
-    x[:, :, :, :p] *= 0
-    x[:, :, -p:, :] *= 0
-    x[:, :, :, -p:] *= 0
-    return x
+    return torch.nn.functional.pad(eroded[:, :, p:-p, p:-p], pad=(p, p, p, p), mode="constant", value=0)
 
 
-def erode_mask(tensor: Float[Tensor, "bs 1 H W"], pixel_radius: int = 1):
+def erode_mask(tensor: Float[Tensor, "bs 1 H W"], pixel_radius: int = 1) -> Float[Tensor, "bs 1 H W"]:
     """Erode a mask. Expands 1 values to nearby pixels with a max pooling operation.
     A pixel radius of 1 will also extend the 1s along the diagonal.
 

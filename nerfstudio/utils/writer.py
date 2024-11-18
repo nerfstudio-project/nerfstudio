@@ -15,6 +15,7 @@
 """
 Generic Writer class
 """
+
 from __future__ import annotations
 
 import enum
@@ -333,7 +334,7 @@ class WandbWriter(Writer):
         """
         import wandb  # wandb is slow to import, so we only import it if we need it.
 
-        wandb.config.update(config_dict, allow_val_change=True)
+        wandb.config.update(config_dict, allow_val_change=True)  # type: ignore
 
 
 @decorate_all([check_main_thread])
