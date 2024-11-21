@@ -186,9 +186,10 @@ def _render_trajectory_video(
                         max_idx = true_max_idx
 
                 if crop_data is not None:
-                    with renderers.background_color_override_context(
-                        crop_data.background_color.to(pipeline.device)
-                    ), torch.no_grad():
+                    with (
+                        renderers.background_color_override_context(crop_data.background_color.to(pipeline.device)),
+                        torch.no_grad(),
+                    ):
                         outputs = pipeline.model.get_outputs_for_camera(
                             cameras[camera_idx : camera_idx + 1], obb_box=obb_box
                         )

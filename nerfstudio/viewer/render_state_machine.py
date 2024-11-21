@@ -161,9 +161,11 @@ class RenderStateMachine(threading.Thread):
                                 [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
                                 device=self.viewer.get_model().device,
                             )
-                        with background_color_override_context(
-                            background_color
-                        ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
+                        with (
+                            background_color_override_context(background_color),
+                            torch.no_grad(),
+                            viewer_utils.SetTrace(self.check_interrupt),
+                        ):
                             outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
