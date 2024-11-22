@@ -57,6 +57,11 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
+    eval_num_images_to_sample_from: int = -1
+    """Number of images to sample during eval iteration."""
+    eval_num_times_to_repeat_images: int = -1
+    """When not evaluating on all images, number of iterations before picking
+    new images. If -1, never pick new images."""
     cache_images: Literal["cpu", "gpu", "disk"] = "gpu"
     """Where to cache images in memory. 
         - If "cpu", caches images on cpu RAM as pytorch tensors. 
