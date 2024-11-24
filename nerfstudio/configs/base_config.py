@@ -68,7 +68,7 @@ class MachineConfig(PrintableConfig):
     """current machine's rank (for DDP)"""
     dist_url: str = "auto"
     """distributed connection point (for DDP)"""
-    device_type: Literal["cpu", "cuda", "mps"]
+    device_type: Literal["cpu", "cuda", "mps"] = "cuda"
     """device type to use for training"""
 
 
