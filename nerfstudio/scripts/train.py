@@ -62,7 +62,7 @@ from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils import comms, profiler
-from nerfstudio.utils.best_device import get_best_device
+from nerfstudio.utils.available_devices import get_available_devices
 from nerfstudio.utils.rich_utils import CONSOLE
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
@@ -227,6 +227,15 @@ def launch(
 def main(config: TrainerConfig) -> None:
     """Main function."""
 
+    # Check if the specified device type is available
+    available_device_types = get_available_devices()
+    if config.machine.device_type not in available_device_types:
+        raise RuntimeError(
+            f"Specified device type '{config.machine.device_type}' is not available. "
+            f"Available device types: {available_device_types}. "
+            "Please specify a valid device type using the CLI option: --machine.device_type [cuda|mps|cpu]"
+        )
+
     if config.data:
         CONSOLE.log("Using --data alias for --data.pipeline.datamanager.data")
         config.pipeline.datamanager.data = config.data
@@ -238,12 +247,6 @@ def main(config: TrainerConfig) -> None:
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
-
-    if not hasattr(config.machine, "device_type") or config.machine.device_type is None:
-        device_type, reason = get_best_device()
-        config.machine.device_type = device_type
-        CONSOLE.log(f"No device specified: {reason}")
-        CONSOLE.log("You can force a certain device type with --machine.device_type [cuda|mps|cpu]")
 
     config.set_timestamp()
 
