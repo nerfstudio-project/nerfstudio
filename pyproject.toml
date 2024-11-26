@@ -193,6 +193,7 @@ lint.ignore = [
     "PLW0603",  # Globa statement updates are discouraged.
     "PLW2901",  # For loop variable overwritten.
     "PLR1730",  # Replace if statement with min/max
+    "PLC0206",  # Extracting value from dictionary without calling `.items()`
 ]
 
 [tool.ruff.lint.isort]
