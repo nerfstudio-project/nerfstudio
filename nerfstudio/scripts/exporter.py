@@ -58,6 +58,8 @@ class Exporter:
     """Path to the config YAML file."""
     output_dir: Path
     """Path to the output directory."""
+    _complete: tyro.conf.Suppress[bool] = False
+    """Set to True when export is finished."""
 
 
 def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pipeline) -> None:
@@ -141,7 +143,12 @@ class ExportPointCloud(Exporter):
         # Increase the batchsize to speed up the evaluation.
         assert isinstance(
             pipeline.datamanager,
-            (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
+            (
+                VanillaDataManager,
+                ParallelDataManager,
+                FullImageDatamanager,
+                RandomCamerasDataManager,
+            ),
         )
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
@@ -159,7 +166,7 @@ class ExportPointCloud(Exporter):
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
+            normal_output_name=(self.normal_output_name if self.normal_method == "model_output" else None),
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
@@ -185,6 +192,8 @@ class ExportPointCloud(Exporter):
         o3d.t.io.write_point_cloud(str(self.output_dir / "point_cloud.ply"), tpcd)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
+
+        self._complete = True
 
 
 @dataclass
@@ -254,17 +263,20 @@ class ExportTSDFMesh(Exporter):
         if self.texture_method == "nerf":
             # load the mesh from the tsdf export
             mesh = get_mesh_from_filename(
-                str(self.output_dir / "tsdf_mesh.ply"), target_num_faces=self.target_num_faces
+                str(self.output_dir / "tsdf_mesh.ply"),
+                target_num_faces=self.target_num_faces,
             )
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+                px_per_uv_triangle=(self.px_per_uv_triangle if self.unwrap_method == "custom" else None),
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
+
+        self._complete = True
 
 
 @dataclass
@@ -329,7 +341,12 @@ class ExportPoissonMesh(Exporter):
         # Increase the batchsize to speed up the evaluation.
         assert isinstance(
             pipeline.datamanager,
-            (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
+            (
+                VanillaDataManager,
+                ParallelDataManager,
+                FullImageDatamanager,
+                RandomCamerasDataManager,
+            ),
         )
         assert pipeline.datamanager.train_pixel_sampler is not None
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
@@ -349,7 +366,7 @@ class ExportPoissonMesh(Exporter):
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
+            normal_output_name=(self.normal_output_name if self.normal_method == "model_output" else None),
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
         )
@@ -379,17 +396,20 @@ class ExportPoissonMesh(Exporter):
         if self.texture_method == "nerf":
             # load the mesh from the poisson reconstruction
             mesh = get_mesh_from_filename(
-                str(self.output_dir / "poisson_mesh.ply"), target_num_faces=self.target_num_faces
+                str(self.output_dir / "poisson_mesh.ply"),
+                target_num_faces=self.target_num_faces,
             )
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+                px_per_uv_triangle=(self.px_per_uv_triangle if self.unwrap_method == "custom" else None),
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
+
+        self._complete = True
 
 
 @dataclass
@@ -452,10 +472,12 @@ class ExportMarchingCubesMesh(Exporter):
             mesh,
             pipeline,
             self.output_dir,
-            px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+            px_per_uv_triangle=(self.px_per_uv_triangle if self.unwrap_method == "custom" else None),
             unwrap_method=self.unwrap_method,
             num_pixels_per_side=self.num_pixels_per_side,
         )
+
+        self._complete = True
 
 
 @dataclass
@@ -473,7 +495,10 @@ class ExportCameraPoses(Exporter):
         assert isinstance(pipeline, VanillaPipeline)
         train_frames, eval_frames = collect_camera_poses(pipeline)
 
-        for file_name, frames in [("transforms_train.json", train_frames), ("transforms_eval.json", eval_frames)]:
+        for file_name, frames in [
+            ("transforms_train.json", train_frames),
+            ("transforms_eval.json", eval_frames),
+        ]:
             if len(frames) == 0:
                 CONSOLE.print(f"[bold yellow]No frames found for {file_name}. Skipping.")
                 continue
@@ -653,6 +678,8 @@ class ExportGaussianSplat(Exporter):
             count = np.sum(select)
 
         ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
+
+        self._complete = True
 
 
 Commands = tyro.conf.FlagConversionOff[
