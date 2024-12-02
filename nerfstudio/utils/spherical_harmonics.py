@@ -22,19 +22,19 @@ MAX_SH_DEGREE = 4
 
 
 def components_from_spherical_harmonics(
-    levels: int, directions: Float[Tensor, "*batch 3"]
+    degree: int, directions: Float[Tensor, "*batch 3"]
 ) -> Float[Tensor, "*batch components"]:
     """
     Returns value for each component of spherical harmonics.
 
     Args:
-        levels: Number of spherical harmonic levels to compute.
+        degree: Number of spherical harmonic degrees to compute.
         directions: Spherical harmonic coefficients
     """
-    num_components = levels**2
+    num_components = num_sh_bases(degree)
     components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)
 
-    assert 1 <= levels <= MAX_SH_DEGREE, f"SH levels must be in [1,{MAX_SH_DEGREE}], got {levels}"
+    assert 0 <= degree <= MAX_SH_DEGREE, f"SH degree must be in [0, {MAX_SH_DEGREE}], got {degree}"
     assert directions.shape[-1] == 3, f"Direction input should have three dimensions. Got {directions.shape[-1]}"
 
     x = directions[..., 0]
@@ -49,13 +49,13 @@ def components_from_spherical_harmonics(
     components[..., 0] = 0.28209479177387814
 
     # l1
-    if levels > 1:
+    if degree > 0:
         components[..., 1] = 0.4886025119029199 * y
         components[..., 2] = 0.4886025119029199 * z
         components[..., 3] = 0.4886025119029199 * x
 
     # l2
-    if levels > 2:
+    if degree > 1:
         components[..., 4] = 1.0925484305920792 * x * y
         components[..., 5] = 1.0925484305920792 * y * z
         components[..., 6] = 0.9461746957575601 * zz - 0.31539156525251999
@@ -63,7 +63,7 @@ def components_from_spherical_harmonics(
         components[..., 8] = 0.5462742152960396 * (xx - yy)
 
     # l3
-    if levels > 3:
+    if degree > 2:
         components[..., 9] = 0.5900435899266435 * y * (3 * xx - yy)
         components[..., 10] = 2.890611442640554 * x * y * z
         components[..., 11] = 0.4570457994644658 * y * (5 * zz - 1)
@@ -73,7 +73,7 @@ def components_from_spherical_harmonics(
         components[..., 15] = 0.5900435899266435 * x * (xx - 3 * yy)
 
     # l4
-    if levels > 4:
+    if degree > 3:
         components[..., 16] = 2.5033429417967046 * x * y * (xx - yy)
         components[..., 17] = 1.7701307697799304 * y * z * (3 * xx - yy)
         components[..., 18] = 0.9461746957575601 * x * y * (7 * zz - 1)

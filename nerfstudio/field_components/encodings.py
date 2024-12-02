@@ -757,15 +757,15 @@ class SHEncoding(Encoding):
     """Spherical harmonic encoding
 
     Args:
-        levels: Number of spherical harmonic levels to encode.
+        levels: Number of spherical harmonic levels to encode. (level = sh degree + 1)
     """
 
     def __init__(self, levels: int = 4, implementation: Literal["tcnn", "torch"] = "torch") -> None:
         super().__init__(in_dim=3)
 
-        if levels <= 0 or levels > MAX_SH_DEGREE:
+        if levels <= 0 or levels > MAX_SH_DEGREE + 1:
             raise ValueError(
-                f"Spherical harmonic encoding only supports 1 to {MAX_SH_DEGREE} levels, requested {levels}"
+                f"Spherical harmonic encoding only supports 1 to {MAX_SH_DEGREE + 1} levels, requested {levels}"
             )
 
         self.levels = levels
@@ -781,7 +781,7 @@ class SHEncoding(Encoding):
             )
 
     @classmethod
-    def get_tcnn_encoding_config(cls, levels) -> dict:
+    def get_tcnn_encoding_config(cls, levels: int) -> dict:
         """Get the encoding configuration for tcnn if implemented"""
         encoding_config = {
             "otype": "SphericalHarmonics",
@@ -795,7 +795,7 @@ class SHEncoding(Encoding):
     @torch.no_grad()
     def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         """Forward pass using pytorch. Significantly slower than TCNN implementation."""
-        return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)
+        return components_from_spherical_harmonics(degree=self.levels - 1, directions=in_tensor)
 
     def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
         if self.tcnn_encoding is not None:

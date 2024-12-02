@@ -269,7 +269,7 @@ class SHRenderer(nn.Module):
         sh = sh.view(*sh.shape[:-1], 3, sh.shape[-1] // 3)
 
         levels = int(math.sqrt(sh.shape[-1]))
-        components = components_from_spherical_harmonics(levels=levels, directions=directions)
+        components = components_from_spherical_harmonics(degree=levels - 1, directions=directions)
 
         rgb = sh * components[..., None, :]  # [..., num_samples, 3, sh_components]
         rgb = torch.sum(rgb, dim=-1)  # [..., num_samples, 3]
