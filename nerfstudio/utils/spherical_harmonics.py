@@ -34,7 +34,7 @@ def components_from_spherical_harmonics(
     num_components = levels**2
     components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)
 
-    assert 1 <= levels < MAX_SH_DEGREE, f"SH levels must be in [1,{MAX_SH_DEGREE}], got {levels}"
+    assert 1 <= levels <= MAX_SH_DEGREE, f"SH levels must be in [1,{MAX_SH_DEGREE}], got {levels}"
     assert directions.shape[-1] == 3, f"Direction input should have three dimensions. Got {directions.shape[-1]}"
 
     x = directions[..., 0]
