@@ -28,8 +28,9 @@ from torch import Tensor, nn
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.external import TCNN_EXISTS, tcnn
-from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin, generate_polyhedron_basis
+from nerfstudio.utils.math import expected_sin, generate_polyhedron_basis
 from nerfstudio.utils.printing import print_tcnn_speed_warning
+from nerfstudio.utils.spherical_harmonics import MAX_SH_DEGREE, components_from_spherical_harmonics
 
 
 class Encoding(FieldComponent):
@@ -762,8 +763,10 @@ class SHEncoding(Encoding):
     def __init__(self, levels: int = 4, implementation: Literal["tcnn", "torch"] = "torch") -> None:
         super().__init__(in_dim=3)
 
-        if levels <= 0 or levels > 4:
-            raise ValueError(f"Spherical harmonic encoding only supports 1 to 4 levels, requested {levels}")
+        if levels <= 0 or levels > MAX_SH_DEGREE:
+            raise ValueError(
+                f"Spherical harmonic encoding only supports 1 to {MAX_SH_DEGREE} levels, requested {levels}"
+            )
 
         self.levels = levels
 

@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from nerfstudio.utils.math import components_from_spherical_harmonics
+from nerfstudio.utils.spherical_harmonics import components_from_spherical_harmonics
 
 
 @pytest.mark.parametrize("components", list(range(1, 5 + 1)))

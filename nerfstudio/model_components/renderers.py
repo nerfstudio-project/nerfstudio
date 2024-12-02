@@ -38,7 +38,8 @@ from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors
-from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
+from nerfstudio.utils.math import safe_normalize
+from nerfstudio.utils.spherical_harmonics import components_from_spherical_harmonics
 
 BackgroundColor = Union[Literal["random", "last_sample", "black", "white"], Float[Tensor, "3"], Float[Tensor, "*bs 3"]]
 BACKGROUND_COLOR_OVERRIDE: Optional[Float[Tensor, "3"]] = None
