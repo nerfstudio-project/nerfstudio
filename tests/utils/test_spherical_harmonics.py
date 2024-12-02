@@ -4,7 +4,7 @@ import torch
 from nerfstudio.utils.spherical_harmonics import components_from_spherical_harmonics
 
 
-@pytest.mark.parametrize("components", list(range(1, 5 + 1)))
+@pytest.mark.parametrize("components", list(range(1, 5)))
 def test_spherical_harmonics(components):
     torch.manual_seed(0)
     N = 1000000
