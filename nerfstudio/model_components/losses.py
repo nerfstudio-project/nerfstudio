@@ -22,6 +22,7 @@ from typing import Dict, Literal, Optional, Tuple, cast
 import torch
 from jaxtyping import Bool, Float
 from torch import Tensor, nn
+from torchmetrics.functional.regression import pearson_corrcoef
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -44,6 +45,8 @@ class DepthLossType(Enum):
     DS_NERF = 1
     URF = 2
     SPARSENERF_RANKING = 3
+    MSE = 4
+    PEARSON_LOSS = 5
 
 
 FORCE_PSEUDODEPTH_LOSS = False
@@ -221,6 +224,44 @@ def pred_normal_loss(
     """Loss between normals calculated from density and normals from prediction network."""
     return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
 
+def mse_depth_loss(
+    termination_depth: Float[Tensor, "*batch 1"],
+    predicted_depth: Float[Tensor, "*batch 1"],
+)-> Float[Tensor, "*batch 1"]:
+    """MSE depth loss. 
+
+    Args:
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Predicted depths.
+    Returns:
+        Depth loss scalar.
+    """
+    depth_mask = termination_depth > 0
+
+    expected_depth_loss = (termination_depth - predicted_depth) ** 2
+
+    expected_depth_loss = expected_depth_loss * depth_mask
+    return torch.mean(expected_depth_loss)
+
+
+def pearson_correlation_depth_loss(
+    termination_depth,
+    predicted_depth,
+)-> Float[Tensor, "*batch 1"]:
+    """Pearson correlation depth loss.
+
+    Args:
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Rendered depth from the radiance field
+    Returns:
+        Depth loss scalar.
+    """
+    termination_depth = termination_depth.reshape(-1, 1)
+    predicted_depth = predicted_depth.reshape(-1, 1)
+
+    loss = (1 - pearson_corrcoef( predicted_depth, termination_depth))
+    return torch.mean(loss)
+
 
 def ds_nerf_depth_loss(
     weights: Float[Tensor, "*batch num_samples 1"],
@@ -318,6 +359,9 @@ def depth_loss(
     if depth_loss_type == DepthLossType.DS_NERF:
         lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
         return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
+    
+    if depth_loss_type == DepthLossType.MSE:
+        return mse_depth_loss(termination_depth, predicted_depth) 
 
     if depth_loss_type == DepthLossType.URF:
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
