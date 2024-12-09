@@ -1135,7 +1135,9 @@ def populate_render_tab(
             json_outfile = datapath / "camera_paths" / f"{render_name_text.value}.json"
             json_outfile.parent.mkdir(parents=True, exist_ok=True)
         except Exception:
-            CONSOLE.print("[bold yellow]Warning: Failed to write the camera path to the data directory. Saving to the output directory instead.")
+            CONSOLE.print(
+                "[bold yellow]Warning: Failed to write the camera path to the data directory. Saving to the output directory instead."
+            )
             json_outfile = config_path.parent / "camera_paths" / f"{render_name_text.value}.json"
             json_outfile.parent.mkdir(parents=True, exist_ok=True)
         with open(json_outfile.absolute(), "w") as outfile:
