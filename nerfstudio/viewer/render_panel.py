@@ -30,8 +30,8 @@ import viser
 import viser.transforms as tf
 from scipy import interpolate
 
-from nerfstudio.viewer.control_panel import ControlPanel
 from nerfstudio.utils.rich_utils import CONSOLE
+from nerfstudio.viewer.control_panel import ControlPanel
 
 @dataclasses.dataclass
 class Keyframe:
@@ -1133,7 +1133,7 @@ def populate_render_tab(
         try:
             json_outfile = datapath / "camera_paths" / f"{render_name_text.value}.json"
             json_outfile.parent.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
+        except Exception:
             CONSOLE.print("[bold yellow]Warning: Failed to write the camera path to the data directory. Saving to the output directory instead.")
             json_outfile = config_path.parent / "camera_paths" / f"{render_name_text.value}.json"
             json_outfile.parent.mkdir(parents=True, exist_ok=True)
