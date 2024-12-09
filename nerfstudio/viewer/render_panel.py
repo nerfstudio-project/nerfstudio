@@ -28,10 +28,9 @@ import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
-from scipy import interpolate
-
 from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.viewer.control_panel import ControlPanel
+from scipy import interpolate
 
 @dataclasses.dataclass
 class Keyframe:
