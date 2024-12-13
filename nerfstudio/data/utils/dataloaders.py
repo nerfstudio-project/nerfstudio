@@ -258,7 +258,7 @@ def undistort_view(
     Returns: The undistorted data (image, depth, mask, etc.) and the new linear Camera object
     """
     data = dataset.get_data(idx, image_type)
-    camera = dataset.cameras[idx].reshape(())
+    camera = dataset.cameras[idx].reshape((1,))
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
         f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
         f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
