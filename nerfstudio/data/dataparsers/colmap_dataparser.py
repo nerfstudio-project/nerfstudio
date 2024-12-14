@@ -57,7 +57,7 @@ class ColmapDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
-    downscale_rounding_mode: Literal["floor", "round", "ceil"] = "round"
+    downscale_rounding_mode: Literal["floor", "round", "ceil"] = "floor"
     """How to round downscale image height and Image width."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
