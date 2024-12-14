@@ -723,7 +723,6 @@ method_configs["splatfacto-mcmc"] = TrainerConfig(
             strategy="mcmc",
             mcmc_opacity_reg=0.01,
             mcmc_scale_reg=0.01,
-            random_init=True,
         ),
     ),
     optimizers={

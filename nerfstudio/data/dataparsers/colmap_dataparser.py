@@ -250,12 +250,14 @@ class ColmapDataParser(DataParser):
 
     def _generate_dataparser_outputs(self, split: str = "train", **kwargs):
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
-        # Try detecting the colmap path automatically
-        possible_colmap_paths = [self.config.colmap_path, "colmap/sparse/0", "sparse/0", "sparse"]
-        for colmap_path in possible_colmap_paths:
-            colmap_path = self.config.data / colmap_path
-            if colmap_path.exists():
-                break
+        colmap_path = self.config.data / self.config.colmap_path
+        if not colmap_path.exists():
+            # Try detecting the colmap path automatically
+            possible_colmap_paths = ["colmap/sparse/0", "sparse/0", "sparse"]
+            for colmap_path in possible_colmap_paths:
+                colmap_path = self.config.data / colmap_path
+                if colmap_path.exists():
+                    break
         assert colmap_path.exists(), f"Colmap path {colmap_path} does not exist."
 
         meta = self._get_all_images_and_cameras(colmap_path)
