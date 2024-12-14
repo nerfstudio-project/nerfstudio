@@ -168,9 +168,9 @@ class SplatfactoModelConfig(ModelConfig):
     """Whether to print verbose information. Default to False."""
     max_steps: int = 30_000
     """Number of training steps"""
-    mcmc_opacity_reg: int = 0.01
+    mcmc_opacity_reg: float = 0.01
     """Regularization term for opacity in MCMC strategy. Only enabled when using MCMC strategy"""
-    mcmc_scale_reg: int = 0.01
+    mcmc_scale_reg: float = 0.01
     """Regularization term for scale in MCMC strategy. Only enabled when using MCMC strategy"""
 
 
