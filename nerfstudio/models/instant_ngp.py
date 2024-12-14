@@ -118,7 +118,7 @@ class NGPModel(Model):
             self.config.render_step_size = ((self.scene_aabb[3:] - self.scene_aabb[:3]) ** 2).sum().sqrt().item() / 1000
         # Occupancy Grid.
         self.occupancy_grid = nerfacc.OccGridEstimator(
-            roi_aabb=self.scene_aabb,
+            roi_aabb=self.scene_aabb * 2 ** -(self.config.grid_levels - 1),
             resolution=self.config.grid_resolution,
             levels=self.config.grid_levels,
         )
