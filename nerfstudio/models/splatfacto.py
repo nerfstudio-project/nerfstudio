@@ -158,7 +158,7 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, apply color correction to the rendered images before computing the metrics."""
     strategy: Literal["default", "mcmc"] = "default"
     """The default strategy will be used if strategy is not specified. Other strategies, e.g. mcmc, can be used."""
-    cap_max: int = 1_500_000
+    cap_max: int = 1_000_000
     """Maximum number of GSs. Default to 1_000_000."""
     noise_lr: float = 5e5
     """MCMC samping noise learning rate. Default to 5e5."""
