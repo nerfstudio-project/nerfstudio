@@ -158,16 +158,10 @@ class SplatfactoModelConfig(ModelConfig):
     """If True, apply color correction to the rendered images before computing the metrics."""
     strategy: Literal["default", "mcmc"] = "default"
     """The default strategy will be used if strategy is not specified. Other strategies, e.g. mcmc, can be used."""
-    cap_max: int = 1_000_000
+    max_gs_num: int = 1_000_000
     """Maximum number of GSs. Default to 1_000_000."""
     noise_lr: float = 5e5
     """MCMC samping noise learning rate. Default to 5e5."""
-    min_opacity: float = 0.005
-    """GSs with opacity below this value will be pruned. Default to 0.005."""
-    verbose: bool = False
-    """Whether to print verbose information. Default to False."""
-    max_steps: int = 30_000
-    """Number of training steps"""
     mcmc_opacity_reg: float = 0.01
     """Regularization term for opacity in MCMC strategy. Only enabled when using MCMC strategy"""
     mcmc_scale_reg: float = 0.01
@@ -287,13 +281,13 @@ class SplatfactoModel(Model):
             self.strategy_state = self.strategy.initialize_state(scene_scale=1.0)
         elif self.config.strategy == "mcmc":
             self.strategy = MCMCStrategy(
-                cap_max=self.config.cap_max,
+                cap_max=self.config.max_gs_num,
                 noise_lr=self.config.noise_lr,
                 refine_start_iter=self.config.warmup_length,
                 refine_stop_iter=self.config.stop_split_at,
                 refine_every=self.config.refine_every,
-                min_opacity=self.config.min_opacity,
-                verbose=self.config.verbose,
+                min_opacity=self.config.cull_alpha_thresh,
+                verbose=False,
             )
             self.strategy_state = self.strategy.initialize_state()
         else:

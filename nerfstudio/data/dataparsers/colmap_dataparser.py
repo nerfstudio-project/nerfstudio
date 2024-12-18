@@ -254,10 +254,17 @@ class ColmapDataParser(DataParser):
         if not colmap_path.exists():
             # Try detecting the colmap path automatically
             possible_colmap_paths = ["colmap/sparse/0", "sparse/0", "sparse"]
-            for colmap_path in possible_colmap_paths:
-                colmap_path = self.config.data / colmap_path
+            for path in possible_colmap_paths:
+                colmap_path = self.config.data / path
                 if colmap_path.exists():
-                    break
+                    from rich.prompt import Confirm
+
+                    if Confirm.ask(
+                        f"Detected colmap path {colmap_path}. Do you want to use this path?"
+                    ):
+                        self.config.colmap_path = path
+                        break
+
         assert colmap_path.exists(), f"Colmap path {colmap_path} does not exist."
 
         meta = self._get_all_images_and_cameras(colmap_path)
