@@ -260,7 +260,7 @@ class ColmapDataParser(DataParser):
                     from rich.prompt import Confirm
 
                     if Confirm.ask(f"Detected colmap path {potential_path}. Do you want to use this path?"):
-                        self.config.colmap_path = path
+                        self.config.colmap_path = Path(path)
                         colmap_path = potential_path
                         break
                     else:
