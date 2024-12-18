@@ -255,15 +255,16 @@ class ColmapDataParser(DataParser):
             # Try detecting the colmap path automatically
             possible_colmap_paths = ["colmap/sparse/0", "sparse/0", "sparse"]
             for path in possible_colmap_paths:
-                colmap_path = self.config.data / path
-                if colmap_path.exists():
+                potential_path = self.config.data / path
+                if potential_path.exists():
                     from rich.prompt import Confirm
 
-                    if Confirm.ask(
-                        f"Detected colmap path {colmap_path}. Do you want to use this path?"
-                    ):
+                    if Confirm.ask(f"Detected colmap path {potential_path}. Do you want to use this path?"):
                         self.config.colmap_path = path
+                        colmap_path = potential_path
                         break
+                    else:
+                        assert False, f"Colmap path {colmap_path} does not exist."
 
         assert colmap_path.exists(), f"Colmap path {colmap_path} does not exist."
 
