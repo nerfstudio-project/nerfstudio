@@ -251,21 +251,6 @@ class ColmapDataParser(DataParser):
     def _generate_dataparser_outputs(self, split: str = "train", **kwargs):
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
         colmap_path = self.config.data / self.config.colmap_path
-        if not colmap_path.exists():
-            # Try detecting the colmap path automatically
-            possible_colmap_paths = ["colmap/sparse/0", "sparse/0", "sparse"]
-            for path in possible_colmap_paths:
-                potential_path = self.config.data / path
-                if potential_path.exists():
-                    from rich.prompt import Confirm
-
-                    if Confirm.ask(f"Detected colmap path {potential_path}. Do you want to use this path?"):
-                        self.config.colmap_path = Path(path)
-                        colmap_path = potential_path
-                        break
-                    else:
-                        assert False, f"Colmap path {colmap_path} does not exist."
-
         assert colmap_path.exists(), f"Colmap path {colmap_path} does not exist."
 
         meta = self._get_all_images_and_cameras(colmap_path)
