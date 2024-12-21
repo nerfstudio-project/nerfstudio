@@ -85,6 +85,7 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         # now that iteration is complete, the image data items can be removed from the batch
         for key in topop:
             del data[key]
+
     new_batch = nerfstudio_collate(batch)
     new_batch["image"] = images
     new_batch.update(imgdata_lists)
