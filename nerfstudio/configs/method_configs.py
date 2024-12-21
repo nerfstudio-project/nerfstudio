@@ -721,8 +721,7 @@ method_configs["splatfacto-mcmc"] = TrainerConfig(
         ),
         model=SplatfactoModelConfig(
             strategy="mcmc",
-            mcmc_opacity_reg=0.01,
-            mcmc_scale_reg=0.01,
+            cull_alpha_thresh=0.005,
             stop_split_at=25000,
         ),
     ),
