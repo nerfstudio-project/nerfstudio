@@ -82,7 +82,6 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
-
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
@@ -90,7 +89,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
             self.exclude_batch_keys_from_device.remove("mask")
         if self.config.images_on_gpu is True and "image" in self.exclude_batch_keys_from_device:
             self.exclude_batch_keys_from_device.remove("image")
-
+        # Setup our collate function (same as base_datamanager.py)
         if self.train_dataparser_outputs is not None:
             cameras = self.train_dataparser_outputs.cameras
             if len(cameras) > 1:
@@ -127,14 +126,14 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return default
 
     def create_train_dataset(self) -> TDataset:
-        """Sets up the data loaders for training"""
+        """Sets up the data loaders for training."""
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
         )
 
     def create_eval_dataset(self) -> TDataset:
-        """Sets up the data loaders for evaluation"""
+        """Sets up the data loaders for evaluation."""
         return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
@@ -209,22 +208,26 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
+        """Retrieve the next eval image."""
         for camera, batch in self.image_eval_dataloader:
             assert camera.shape[0] == 1
             return camera, batch
         raise ValueError("No more eval images")
 
     def get_train_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for training."""
         if self.train_pixel_sampler is not None:
             return self.train_pixel_sampler.num_rays_per_batch
         return self.config.train_num_rays_per_batch
 
     def get_eval_rays_per_batch(self) -> int:
+        """Returns the number of rays per batch for evaluation."""
         if self.eval_pixel_sampler is not None:
             return self.eval_pixel_sampler.num_rays_per_batch
         return self.config.eval_num_rays_per_batch
 
     def get_datapath(self) -> Path:
+        """Returns the path to the data. This is used to determine where to save camera paths."""
         return self.config.dataparser.data
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
