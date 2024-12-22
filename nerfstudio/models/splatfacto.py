@@ -19,11 +19,9 @@ Gaussian Splatting implementation that combines many recent advancements.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
-import numpy as np
 import torch
 from gsplat.strategy import DefaultStrategy
 
@@ -42,70 +40,10 @@ from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.model_components.lib_bilagrid import BilateralGrid, color_correct, slice, total_variation_loss
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
+from nerfstudio.utils.math import k_nearest_sklearn, random_quat_tensor
 from nerfstudio.utils.misc import torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
-
-
-def num_sh_bases(degree: int) -> int:
-    """
-    Returns the number of spherical harmonic bases for a given degree.
-    """
-    assert degree <= 4, "We don't support degree greater than 4."
-    return (degree + 1) ** 2
-
-
-def quat_to_rotmat(quat):
-    assert quat.shape[-1] == 4, quat.shape
-    w, x, y, z = torch.unbind(quat, dim=-1)
-    mat = torch.stack(
-        [
-            1 - 2 * (y**2 + z**2),
-            2 * (x * y - w * z),
-            2 * (x * z + w * y),
-            2 * (x * y + w * z),
-            1 - 2 * (x**2 + z**2),
-            2 * (y * z - w * x),
-            2 * (x * z - w * y),
-            2 * (y * z + w * x),
-            1 - 2 * (x**2 + y**2),
-        ],
-        dim=-1,
-    )
-    return mat.reshape(quat.shape[:-1] + (3, 3))
-
-
-def random_quat_tensor(N):
-    """
-    Defines a random quaternion tensor of shape (N, 4)
-    """
-    u = torch.rand(N)
-    v = torch.rand(N)
-    w = torch.rand(N)
-    return torch.stack(
-        [
-            torch.sqrt(1 - u) * torch.sin(2 * math.pi * v),
-            torch.sqrt(1 - u) * torch.cos(2 * math.pi * v),
-            torch.sqrt(u) * torch.sin(2 * math.pi * w),
-            torch.sqrt(u) * torch.cos(2 * math.pi * w),
-        ],
-        dim=-1,
-    )
-
-
-def RGB2SH(rgb):
-    """
-    Converts from RGB values [0,1] to the 0th spherical harmonic coefficient
-    """
-    C0 = 0.28209479177387814
-    return (rgb - 0.5) / C0
-
-
-def SH2RGB(sh):
-    """
-    Converts from the 0th spherical harmonic coefficient to RGB values [0,1]
-    """
-    C0 = 0.28209479177387814
-    return sh * C0 + 0.5
+from nerfstudio.utils.spherical_harmonics import RGB2SH, SH2RGB, num_sh_bases
 
 
 def resize_image(image: torch.Tensor, d: int):
@@ -243,8 +181,7 @@ class SplatfactoModel(Model):
             means = torch.nn.Parameter(self.seed_points[0])  # (Location, Color)
         else:
             means = torch.nn.Parameter((torch.rand((self.config.num_random, 3)) - 0.5) * self.config.random_scale)
-        distances, _ = self.k_nearest_sklearn(means.data, 3)
-        distances = torch.from_numpy(distances)
+        distances, _ = k_nearest_sklearn(means.data, 3)
         # find the average of the three nearest neighbors for each point and use that as the scale
         avg_dist = distances.mean(dim=-1, keepdim=True)
         scales = torch.nn.Parameter(torch.log(avg_dist.repeat(1, 3)))
@@ -391,26 +328,6 @@ class SplatfactoModel(Model):
             new_shape = (newp,) + old_shape[1:]
             self.gauss_params[name] = torch.nn.Parameter(torch.zeros(new_shape, device=self.device))
         super().load_state_dict(dict, **kwargs)
-
-    def k_nearest_sklearn(self, x: torch.Tensor, k: int):
-        """
-            Find k-nearest neighbors using sklearn's NearestNeighbors.
-        x: The data tensor of shape [num_samples, num_features]
-        k: The number of neighbors to retrieve
-        """
-        # Convert tensor to numpy array
-        x_np = x.cpu().numpy()
-
-        # Build the nearest neighbors model
-        from sklearn.neighbors import NearestNeighbors
-
-        nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm="auto", metric="euclidean").fit(x_np)
-
-        # Find the k-nearest neighbors
-        distances, indices = nn_model.kneighbors(x_np)
-
-        # Exclude the point itself from the result and return
-        return distances[:, 1:].astype(np.float32), indices[:, 1:].astype(np.float32)
 
     def set_crop(self, crop_box: Optional[OrientedBox]):
         self.crop_box = crop_box
