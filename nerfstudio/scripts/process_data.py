@@ -49,6 +49,9 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
     2. Converts Record3D poses into the nerfstudio format.
     """
 
+    ply: Optional[Path] = None
+    """Path to the Record3D directory of point export ply files."""
+
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -101,7 +104,10 @@ class ProcessRecord3D(BaseConverterToNerfstudioDataset):
             )
 
         metadata_path = self.data / "metadata.json"
-        record3d_utils.record3d_to_json(copied_image_paths, metadata_path, self.output_dir, indices=idx)
+        ply_path = self.ply if hasattr(self, "ply") else None
+        record3d_utils.record3d_to_json(
+            copied_image_paths, metadata_path, self.output_dir, indices=idx, ply_dirname=ply_path
+        )
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
         for summary in summary_log:
