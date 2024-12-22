@@ -31,7 +31,8 @@ def record3d_to_json(
     metadata_path: Path,
     output_dir: Path,
     indices: np.ndarray,
-    ply_dirname: Optional[Path] = None,
+    ply_dirname: Optional[Path],
+    voxel_size: Optional[float],
 ) -> int:
     """Converts Record3D's metadata and image paths to a JSON file.
 
@@ -104,7 +105,7 @@ def record3d_to_json(
         pcd = o3d.geometry.PointCloud()
         for ply_filename in ply_dirname.iterdir():
             temp_pcd = o3d.io.read_point_cloud(str(ply_filename))
-            pcd += temp_pcd.voxel_down_sample(voxel_size=0.8)
+            pcd += temp_pcd.voxel_down_sample(voxel_size=voxel_size)
 
         # Save point cloud
         points3D = np.asarray(pcd.points)
