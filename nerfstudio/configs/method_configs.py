@@ -28,7 +28,7 @@ from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.external_methods import ExternalMethodDummyTrainerConfig, get_external_methods
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
-from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManagerConfig
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
 from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -37,6 +37,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.dataparsers.phototourism_dataparser import PhototourismDataParserConfig
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.datasets.depth_dataset import DepthDataset
 from nerfstudio.data.datasets.sdf_dataset import SDFDataset
 from nerfstudio.data.datasets.semantic_dataset import SemanticDataset
@@ -91,10 +92,13 @@ method_configs["nerfacto"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(
+        datamanager=VanillaDataManagerConfig(
+            _target=ParallelDataManager[InputDataset],
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
+            load_from_disk=True,
+            use_parallel_dataloader=True,
         ),
         model=NerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -127,10 +131,13 @@ method_configs["nerfacto-big"] = TrainerConfig(
     max_num_iterations=100000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(
+        datamanager=VanillaDataManagerConfig(
+            _target=ParallelDataManager[InputDataset],
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_batch=4096,
+            load_from_disk=True,
+            use_parallel_dataloader=True,
         ),
         model=NerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -171,7 +178,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
     max_num_iterations=100000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(
+        datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=16384,
             eval_num_rays_per_batch=4096,
@@ -302,7 +309,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
 method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
         model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -375,7 +382,7 @@ method_configs["tensorf"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(
+        datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
@@ -599,8 +606,10 @@ method_configs["splatfacto"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True, downscale_factor=1),
+            # dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
+            cache_images="disk",
         ),
         model=SplatfactoModelConfig(),
     ),
@@ -656,8 +665,10 @@ method_configs["splatfacto-big"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True, downscale_factor=1),
+            # dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
+            cache_images="disk",
         ),
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
