@@ -99,6 +99,7 @@ def run_colmap(
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
+    glomap_toggle: bool = False,
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -154,23 +155,26 @@ def run_colmap(
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
     mapper_cmd = [
-        f"{colmap_cmd} mapper",
+        f"{'glomap' if glomap_toggle else colmap_cmd} mapper",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
     ]
-    if colmap_version >= Version("3.7"):
+    if colmap_version >= Version("3.7") and not glomap_toggle:
         mapper_cmd.append("--Mapper.ba_global_function_tolerance=1e-6")
-
+    if glomap_toggle:
+        mapper_cmd.append("--TrackEstablishment.max_num_tracks 5000")
     mapper_cmd = " ".join(mapper_cmd)
 
     with status(
-        msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
+        msg="[bold yellow]Running GLOMAP bundle adjustment..."
+        if glomap_toggle
+        else "[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
         spinner="circle",
         verbose=verbose,
     ):
         run_command(mapper_cmd, verbose=verbose)
-    CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
+    CONSOLE.log(f"[bold green]:tada: Done {'GLOMAP' if glomap_toggle else 'COLMAP'} bundle adjustment.")
 
     if refine_intrinsics:
         with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
