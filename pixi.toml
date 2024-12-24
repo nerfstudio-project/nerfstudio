@@ -21,7 +21,7 @@ train-example-nerf = {cmd="ns-train nerfacto --data data/nerfstudio/dozer/", dep
 
 
 [dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.9,<3.11"
 pip = ">=24.0,<25"
 cuda = {version = "*", channel="nvidia/label/cuda-11.8.0"}
 pytorch-cuda = {version = "11.8.*", channel="pytorch"}
