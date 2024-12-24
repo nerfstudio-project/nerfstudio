@@ -153,6 +153,7 @@ This documentation is organized into 3 parts:
 - [SIGNeRF](nerfology/methods/signerf.md): Controlled Generative Editing of NeRF Scenes
 - [K-Planes](nerfology/methods/kplanes.md): Unified 3D and 4D Radiance Fields
 - [LERF](nerfology/methods/lerf.md): Language Embedded Radiance Fields
+- [Feature Splatting](nerfology/methods/feature_splatting.md): Gaussian Feature Splatting based on GSplats
 - [Nerfbusters](nerfology/methods/nerfbusters.md): Removing Ghostly Artifacts from Casually Captured NeRFs
 - [NeRFPlayer](nerfology/methods/nerfplayer.md): 4D Radiance Fields by Streaming Feature Channels
 - [Tetra-NeRF](nerfology/methods/tetranerf.md): Representing Neural Radiance Fields Using Tetrahedra
