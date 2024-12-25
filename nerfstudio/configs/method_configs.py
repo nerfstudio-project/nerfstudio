@@ -606,8 +606,7 @@ method_configs["splatfacto"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=NerfstudioDataParserConfig(load_3D_points=True, downscale_factor=1),
-            # dataparser=NerfstudioDataParserConfig(load_3D_points=True),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
             cache_images="disk",
         ),
