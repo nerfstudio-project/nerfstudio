@@ -75,9 +75,10 @@ def _render_trajectory_video(
     depth_near_plane: Optional[float] = None,
     depth_far_plane: Optional[float] = None,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
-    render_nearest_camera=False,
+    render_nearest_camera: bool = False,
     check_occlusions: bool = False,
-) -> None:
+    _kill_flag: List[bool] = [False],
+) -> bool:
     """Helper function to create a video of the spiral trajectory.
 
     Args:
@@ -137,6 +138,9 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
+                if _kill_flag[0]:
+                    return False
+
                 obb_box = None
                 if crop_data is not None:
                     obb_box = crop_data.obb
@@ -205,9 +209,13 @@ def _render_trajectory_video(
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
-                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
                         CONSOLE.print(
-                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
+                            f"Could not find {rendered_output_name} in the model outputs",
+                            justify="center",
+                        )
+                        CONSOLE.print(
+                            f"Please set --rendered_output_name to one of: {outputs.keys()}",
+                            justify="center",
                         )
                         sys.exit(1)
                     output_image = outputs[rendered_output_name]
@@ -261,10 +269,17 @@ def _render_trajectory_video(
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
                     if image_format == "png":
-                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image, fmt="png")
+                        media.write_image(
+                            output_image_dir / f"{camera_idx:05d}.png",
+                            render_image,
+                            fmt="png",
+                        )
                     if image_format == "jpeg":
                         media.write_image(
-                            output_image_dir / f"{camera_idx:05d}.jpg", render_image, fmt="jpeg", quality=jpeg_quality
+                            output_image_dir / f"{camera_idx:05d}.jpg",
+                            render_image,
+                            fmt="jpeg",
+                            quality=jpeg_quality,
                         )
                 if output_format == "video":
                     if writer is None:
@@ -292,7 +307,15 @@ def _render_trajectory_video(
         table.add_row("Video", str(output_filename))
     else:
         table.add_row("Images", str(output_image_dir))
-    CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
+    CONSOLE.print(
+        Panel(
+            table,
+            title="[bold][green]:tada: Render Complete :tada:[/bold]",
+            expand=False,
+        )
+    )
+
+    return True
 
 
 def insert_spherical_metadata_into_file(
@@ -437,6 +460,11 @@ class BaseRender:
     """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
     camera_idx: Optional[int] = None
     """Index of the training camera to render."""
+    _kill_flag: tyro.conf.Suppress[List[bool]] = field(default_factory=lambda: [False])
+    """Stop execution of render if set to True."""
+
+    def kill(self) -> None:
+        self._kill_flag[0] = True
 
 
 @dataclass
@@ -447,6 +475,8 @@ class RenderCameraPath(BaseRender):
     """Filename of the camera path to render."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
+    _complete: tyro.conf.Suppress[bool] = False
+    """Set to True when render is finished."""
 
     def main(self) -> None:
         """Main function."""
@@ -490,7 +520,7 @@ class RenderCameraPath(BaseRender):
         if self.camera_idx is not None:
             camera_path.metadata = {"cam_idx": self.camera_idx}
 
-        _render_trajectory_video(
+        self._complete = _render_trajectory_video(
             pipeline,
             camera_path,
             output_filename=self.output_path,
@@ -506,6 +536,7 @@ class RenderCameraPath(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
+            _kill_flag=self._kill_flag,
         )
 
         if (
@@ -541,6 +572,7 @@ class RenderCameraPath(BaseRender):
                 colormap_options=self.colormap_options,
                 render_nearest_camera=self.render_nearest_camera,
                 check_occlusions=self.check_occlusions,
+                _kill_flag=self._kill_flag,
             )
 
             self.output_path = Path(str(left_eye_path.parent)[:-5] + ".mp4")
@@ -644,6 +676,7 @@ class RenderInterpolated(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
+            _kill_flag=self._kill_flag,
         )
 
 
@@ -699,6 +732,7 @@ class SpiralRender(BaseRender):
             colormap_options=self.colormap_options,
             render_nearest_camera=self.render_nearest_camera,
             check_occlusions=self.check_occlusions,
+            _kill_flag=self._kill_flag,
         )
 
 
@@ -736,7 +770,10 @@ class DatasetRender(BaseRender):
 
         def update_config(config: TrainerConfig) -> TrainerConfig:
             data_manager_config = config.pipeline.datamanager
-            assert isinstance(data_manager_config, (VanillaDataManagerConfig, FullImageDatamanagerConfig))
+            assert isinstance(
+                data_manager_config,
+                (VanillaDataManagerConfig, FullImageDatamanagerConfig),
+            )
             data_manager_config.eval_num_images_to_sample_from = -1
             data_manager_config.eval_num_times_to_repeat_images = -1
             if isinstance(data_manager_config, VanillaDataManagerConfig):
@@ -746,7 +783,11 @@ class DatasetRender(BaseRender):
                 data_manager_config.data = self.data
             if self.downscale_factor is not None:
                 assert hasattr(data_manager_config.dataparser, "downscale_factor")
-                setattr(data_manager_config.dataparser, "downscale_factor", self.downscale_factor)
+                setattr(
+                    data_manager_config.dataparser,
+                    "downscale_factor",
+                    self.downscale_factor,
+                )
             return config
 
         config, pipeline, _, _ = eval_setup(
@@ -814,10 +855,12 @@ class DatasetRender(BaseRender):
                         if rendered_output_name not in all_outputs:
                             CONSOLE.rule("Error", style="red")
                             CONSOLE.print(
-                                f"Could not find {rendered_output_name} in the model outputs", justify="center"
+                                f"Could not find {rendered_output_name} in the model outputs",
+                                justify="center",
                             )
                             CONSOLE.print(
-                                f"Please set --rendered-output-name to one of: {all_outputs}", justify="center"
+                                f"Please set --rendered-output-name to one of: {all_outputs}",
+                                justify="center",
                             )
                             sys.exit(1)
 
@@ -885,7 +928,10 @@ class DatasetRender(BaseRender):
                             media.write_image(output_path.with_suffix(".png"), output_image, fmt="png")
                         elif self.image_format == "jpeg":
                             media.write_image(
-                                output_path.with_suffix(".jpg"), output_image, fmt="jpeg", quality=self.jpeg_quality
+                                output_path.with_suffix(".jpg"),
+                                output_image,
+                                fmt="jpeg",
+                                quality=self.jpeg_quality,
                             )
                         else:
                             raise ValueError(f"Unknown image format {self.image_format}")
@@ -898,7 +944,13 @@ class DatasetRender(BaseRender):
         )
         for split in self.split.split("+"):
             table.add_row(f"Outputs {split}", str(self.output_path / split))
-        CONSOLE.print(Panel(table, title="[bold][green]:tada: Render on split {} Complete :tada:[/bold]", expand=False))
+        CONSOLE.print(
+            Panel(
+                table,
+                title="[bold][green]:tada: Render on split {} Complete :tada:[/bold]",
+                expand=False,
+            )
+        )
 
 
 Commands = tyro.conf.FlagConversionOff[
