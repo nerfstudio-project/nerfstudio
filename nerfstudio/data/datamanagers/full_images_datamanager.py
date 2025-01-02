@@ -92,12 +92,16 @@ class FullImageDatamanagerConfig(DataManagerConfig):
 
     def __post_init__(self):
         if self.cache_images == "disk":
-            self.prefetch_factor = 4
             try:
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
                 pass
-            self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
+            if self.prefetch_factor == 0:
+                CONSOLE.log("cache_compressed_images set to True with no prefetch factor, defaulting to 4")
+                self.prefetch_factor = 4
+            if self.dataloader_num_workers == 0:
+                CONSOLE.log("cache_compressed_images set to True with 0 dataloader workers, defaulting to 4")
+                self.dataloader_num_workers = 4
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):

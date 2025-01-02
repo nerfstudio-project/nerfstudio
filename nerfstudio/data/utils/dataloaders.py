@@ -632,11 +632,9 @@ class ImageBatchStream(IterableDataset):
 
             i += 1
             camera = camera.to(self.device)
-            data['image'] = data['image'].to(self.device)
-            if 'mask' in data:
-                data['mask'] = data['mask'].to(self.device)
-            if 'depth_image' in data:
-                data['depth_image'] = data['depth_image'].to(self.device)
+            for k in data.keys():
+                if isinstance(data[k], torch.Tensor):
+                    data[k] = data[k].to(self.device)
             yield camera, data
 
 
