@@ -145,7 +145,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.eval_dataset = self.create_eval_dataset()
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print(
-                "Train dataset has over 500 images, overriding cache_images to cpu",
+                "Train dataset has over 500 images, overriding cache_images to cpu. If you still get OOM errors or segfault, please consider seting cache_images to 'disk'",
                 style="bold yellow",
             )
             self.config.cache_images = "cpu"

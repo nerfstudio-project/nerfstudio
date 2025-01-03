@@ -97,7 +97,6 @@ method_configs["nerfacto"] = TrainerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
-            load_from_disk=True,
             use_parallel_dataloader=True,
         ),
         model=NerfactoModelConfig(
@@ -136,7 +135,6 @@ method_configs["nerfacto-big"] = TrainerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_batch=4096,
-            load_from_disk=True,
             use_parallel_dataloader=True,
         ),
         model=NerfactoModelConfig(
@@ -608,7 +606,6 @@ method_configs["splatfacto"] = TrainerConfig(
         datamanager=FullImageDatamanagerConfig(
             dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
-            cache_images="disk",
         ),
         model=SplatfactoModelConfig(),
     ),
@@ -664,10 +661,8 @@ method_configs["splatfacto-big"] = TrainerConfig(
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=FullImageDatamanagerConfig(
-            dataparser=NerfstudioDataParserConfig(load_3D_points=True, downscale_factor=1),
-            # dataparser=NerfstudioDataParserConfig(load_3D_points=True),
+            dataparser=NerfstudioDataParserConfig(load_3D_points=True),
             cache_images_type="uint8",
-            cache_images="disk",
         ),
         model=SplatfactoModelConfig(
             cull_alpha_thresh=0.005,
