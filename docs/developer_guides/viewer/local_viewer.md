@@ -1,6 +1,6 @@
 # (Legacy Viewer) Local Server
 
-**Note:** this doc only applies to the legacy version of the viewer, which was the default in in Nerfstudio versions `<=0.3.4`. It was deprecated starting Nerfstudio version `1.0.0`, where it needs to be opted into via the `--vis viewer_legacy` argument.
+**Note:** this doc only applies to the legacy version of the viewer, which was the default in Nerfstudio versions `<=0.3.4`. It was deprecated starting Nerfstudio version `1.0.0`, where it needs to be opted into via the `--vis viewer_legacy` argument.
 
 ---
 
