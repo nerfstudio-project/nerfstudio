@@ -180,6 +180,7 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=16384,
             eval_num_rays_per_batch=4096,
+            use_parallel_dataloader=True,
         ),
         model=NerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
@@ -229,6 +230,7 @@ method_configs["depth-nerfacto"] = TrainerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
+            use_parallel_dataloader=True,
         ),
         model=DepthNerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
