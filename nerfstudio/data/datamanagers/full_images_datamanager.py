@@ -92,6 +92,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
 
     def __post_init__(self):
         if self.cache_images == "disk":
+            # If a user would like to load from disk, we pre-emptively set the number of workers and prefetch factor
+            # to parallelize the dataloading process.
             try:
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
