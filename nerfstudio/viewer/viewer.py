@@ -372,9 +372,7 @@ class Viewer:
         # TODO this fn accounts for like ~5% of total train time
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
-        if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
-            camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
-        elif hasattr(self.pipeline.model, "camera_optimizer"):
+        if hasattr(self.pipeline.model, "camera_optimizer"):
             camera_optimizer = self.pipeline.model.camera_optimizer
         else:
             return

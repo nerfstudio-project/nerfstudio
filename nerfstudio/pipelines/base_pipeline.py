@@ -263,7 +263,6 @@ class VanillaPipeline(Pipeline):
             pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
             pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
             seed_pts = (pts, pts_rgb)
-        self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
 
@@ -297,6 +296,9 @@ class VanillaPipeline(Pipeline):
             step: current iteration step to update sampler if using DDP (distributed)
         """
         ray_bundle, batch = self.datamanager.next_train(step)
+        ray_bundle = ray_bundle.to(
+            self.device
+        )  # for some reason this line of code is needed otherwise viewmats will not be invertible?
         model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)

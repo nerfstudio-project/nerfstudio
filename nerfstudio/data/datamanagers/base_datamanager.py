@@ -42,7 +42,6 @@ from typing import (
 
 import torch
 import tyro
-from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
@@ -111,7 +110,7 @@ class DataManagerConfig(InstantiateConfig):
     """Process images on GPU for speed at the expense of memory, if True."""
 
 
-class DataManager(nn.Module):
+class DataManager:
     """Generic data manager's abstract class
 
     This version of the data manager is designed be a monolithic way to load data and latents,
@@ -164,6 +163,7 @@ class DataManager(nn.Module):
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
     includes_time: bool = False
+    test_mode: Literal["test", "val", "inference"] = "val"
 
     def __init__(self):
         """Constructor for the DataManager class.
@@ -311,6 +311,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)
     """Specifies the dataparser used to unpack the data."""
+    cache_images_type: Literal["uint8", "float32"] = "float32"
+    """The image type returned from manager, caching images in uint8 saves memory"""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = -1
@@ -331,10 +333,22 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
-    along with relevant information about camera intrinsics
-    """
+    along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
+    use_parallel_dataloader: bool = False
+    """Allows parallelization of the dataloading process with multiple workers prefetching RayBundles."""
+    load_from_disk: bool = False
+    """If True, conserves RAM memory by loading images from disk.
+    If False, caches all the images as tensors to RAM and loads from RAM."""
+    dataloader_num_workers: int = 0
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes collating, pixel sampling, unprojecting, ray generation etc."""
+    prefetch_factor: int | None = None
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
+    cache_compressed_images: bool = False
+    """If True, cache raw image files as byte strings to RAM."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -351,6 +365,26 @@ class VanillaDataManagerConfig(DataManagerConfig):
                 "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
             )
             warnings.warn("above message coming from", FutureWarning, stacklevel=3)
+
+        """
+        These heuristics allow the CPU dataloading bottleneck to equal the GPU bottleneck when training, but can be adjusted
+        Note: decreasing train_num_images_to_sample_from and increasing train_num_times_to_repeat_images alleviates CPU bottleneck.
+        """
+        if self.load_from_disk:
+            self.train_num_images_to_sample_from = (
+                50 if self.train_num_images_to_sample_from == -1 else self.train_num_images_to_sample_from
+            )
+            self.train_num_times_to_repeat_images = (
+                10 if self.train_num_times_to_repeat_images == -1 else self.train_num_times_to_repeat_images
+            )
+            self.prefetch_factor = self.train_num_times_to_repeat_images if self.use_parallel_dataloader else None
+
+        if self.use_parallel_dataloader:
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                pass
+            self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
 
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
@@ -451,6 +485,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
+            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def create_eval_dataset(self) -> TDataset:
@@ -458,6 +493,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
+            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:
