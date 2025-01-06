@@ -295,7 +295,6 @@ class VanillaPipeline(Pipeline):
         Args:
             step: current iteration step to update sampler if using DDP (distributed)
         """
-        breakpoint()
         ray_bundle, batch = self.datamanager.next_train(step)
         ray_bundle = ray_bundle.to(
             self.device
