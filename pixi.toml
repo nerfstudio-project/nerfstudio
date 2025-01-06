@@ -11,13 +11,13 @@ libc = { family="glibc", version="2.30" }
 # || operator in pixi allows running a command after only if the command before || fails
 tcnn-install = "python -c 'import tinycudann as tcnn' || python -m pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
 make-third_party-dir = {cmd="ls third_party || mkdir third_party"}
-clone-hloc = {cmd="ls Hierarchical-Localization || git clone --recursive https://github.com/cvg/Hierarchical-Localization/", cwd = "third_party", depends_on=["make-third_party-dir"] }
-hloc-install = {cmd="python -m pip install -e .", cwd = "third_party/Hierarchical-Localization" , depends_on=["clone-hloc"], outputs=["third_party/Hierarchical-Localization/hloc.egg-info/PKG-INFO"]}
-post-install = {cmd="pwd", depends_on=["hloc-install", "tcnn-install"]}
+clone-hloc = {cmd="ls Hierarchical-Localization || git clone --recursive https://github.com/cvg/Hierarchical-Localization/", cwd = "third_party", depends-on=["make-third_party-dir"] }
+hloc-install = {cmd="python -m pip install -e .", cwd = "third_party/Hierarchical-Localization" , depends-on=["clone-hloc"], outputs=["third_party/Hierarchical-Localization/hloc.egg-info/PKG-INFO"]}
+post-install = {cmd="pwd", depends-on=["hloc-install", "tcnn-install"]}
 
 download-dozer-data = {cmd="ls data/nerfstudio/dozer || ns-download-data nerfstudio --capture-name dozer"}
-train-example-splat = {cmd="ns-train splatfacto --data data/nerfstudio/dozer/", depends_on=["post-install", "download-dozer-data"]}
-train-example-nerf = {cmd="ns-train nerfacto --data data/nerfstudio/dozer/", depends_on=["post-install", "download-dozer-data"]}
+train-example-splat = {cmd="ns-train splatfacto --data data/nerfstudio/dozer/", depends-on=["post-install", "download-dozer-data"]}
+train-example-nerf = {cmd="ns-train nerfacto --data data/nerfstudio/dozer/", depends-on=["post-install", "download-dozer-data"]}
 
 
 [dependencies]
