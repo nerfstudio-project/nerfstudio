@@ -279,6 +279,8 @@ class DataManager:
 
 @dataclass
 class VanillaDataManagerConfig(DataManagerConfig):
+    """A basic data manager for a ray-based model"""
+
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)
