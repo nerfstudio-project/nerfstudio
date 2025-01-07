@@ -99,10 +99,10 @@ class FullImageDatamanagerConfig(DataManagerConfig):
             except RuntimeError:
                 pass
             if self.prefetch_factor == 0:
-                CONSOLE.log("cache_compressed_images set to True with no prefetch factor, defaulting to 4")
+                CONSOLE.log("caching set to disk with no prefetch factor, defaulting to 4")
                 self.prefetch_factor = 4
             if self.dataloader_num_workers == 0:
-                CONSOLE.log("cache_compressed_images set to True with 0 dataloader workers, defaulting to 4")
+                CONSOLE.log("caching set to disk with 0 dataloader workers, defaulting to 4")
                 self.dataloader_num_workers = 4
 
 
