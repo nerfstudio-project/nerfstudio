@@ -19,7 +19,6 @@ Datamanager.
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -55,42 +54,17 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import (
+    CacheDataloader,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+    variable_res_collate,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
-
-
-def variable_res_collate(batch: List[Dict]) -> Dict:
-    """Default collate function for the cached dataloader.
-    Args:
-        batch: Batch of samples from the dataset.
-    Returns:
-        Collated batch.
-    """
-    images = []
-    imgdata_lists = defaultdict(list)
-    for data in batch:
-        image = data.pop("image")
-        images.append(image)
-        topop = []
-        for key, val in data.items():
-            if isinstance(val, torch.Tensor):
-                # if the value has same height and width as the image, assume that it should be collated accordingly.
-                if len(val.shape) >= 2 and val.shape[:2] == image.shape[:2]:
-                    imgdata_lists[key].append(val)
-                    topop.append(key)
-        # now that iteration is complete, the image data items can be removed from the batch
-        for key in topop:
-            del data[key]
-
-    new_batch = nerfstudio_collate(batch)
-    new_batch["image"] = images
-    new_batch.update(imgdata_lists)
-
-    return new_batch
 
 
 @dataclass
@@ -305,8 +279,6 @@ class DataManager:
 
 @dataclass
 class VanillaDataManagerConfig(DataManagerConfig):
-    """A basic data manager for a ray-based model"""
-
     _target: Type = field(default_factory=lambda: VanillaDataManager)
     """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)

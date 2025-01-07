@@ -524,14 +524,16 @@ class RayBatchStream(IterableDataset):
         """This implementation allows every worker only cache the indices of the images they will use to generate rays to conserve RAM memory."""
         worker_info = get_worker_info()
         if worker_info is not None:  # if we have multiple processes
-            per_worker = int(math.ceil(len(self.input_dataset) / float(worker_info.num_workers)))
-            slice_start = worker_info.id * per_worker
-        else:  # we only have a single process
-            per_worker = len(self.input_dataset)
-            slice_start = 0
-        dataset_indices = list(range(len(self.input_dataset)))
-        # the indices of the datapoints in the dataset this worker will load
-        worker_indices = dataset_indices[slice_start : slice_start + per_worker]
+            if len(self.input_dataset) < worker_info.num_workers:
+                # if there's fewer datapoints than workers, each worker receives all datapoints
+                worker_indices = list(range(len(self.input_dataset)))
+            else:
+                per_worker = int(math.ceil(len(self.input_dataset) / float(worker_info.num_workers)))
+                slice_start = worker_info.id * per_worker
+                dataset_indices = list(range(len(self.input_dataset)))
+                worker_indices = dataset_indices[slice_start : slice_start + per_worker]
+        else:  # if we only have a single process
+            worker_indices = list(range(len(self.input_dataset)))
         if not self.load_from_disk:
             self._cached_collated_batch = self._get_collated_batch(worker_indices)
         r = random.Random(3301)
@@ -549,7 +551,6 @@ class RayBatchStream(IterableDataset):
                 collated_batch = self._cached_collated_batch
             elif i % self.num_times_to_repeat_images == 0:
                 r.shuffle(worker_indices)
-
                 if self.num_images_to_sample_from == -1:
                     # if -1, the worker gets all available indices in its partition
                     image_indices = worker_indices
@@ -562,10 +563,12 @@ class RayBatchStream(IterableDataset):
             """
             Here, the variable 'batch' refers to the output of our pixel sampler.
                 - batch is a dict_keys(['image', 'indices'])
-                - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. The info of what specific image index that pixel belongs to is stored within batch[’indices’]
-                - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_index=camera_index, pixelRow, pixelCol)
-            What the pixel_sampler does (for variable_res_collate) is that it loops though each image, samples pixel within the mask, 
-            and returns them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
+                - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. 
+                    - Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. 
+                    - The info of what specific image index that pixel belongs to is stored within batch[’indices’]
+                - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_idx, pixelRow, pixelCol)
+            pixel_sampler (for variable_res_collate) will loop though each image, samples pixel within the mask, and returns 
+            them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
             """
             batch = worker_pixel_sampler.sample(collated_batch)  # type: ignore
             # collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
@@ -632,9 +635,9 @@ class ImageBatchStream(IterableDataset):
 
             i += 1
             camera = camera.to(self.device)
-            for k in data.keys():
-                if isinstance(data[k], torch.Tensor):
-                    data[k] = data[k].to(self.device)
+            # for k in data.keys():
+            #     if isinstance(data[k], torch.Tensor):
+            #         data[k] = data[k].to(self.device)
             yield camera, data
 
 
