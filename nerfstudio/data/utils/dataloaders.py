@@ -635,9 +635,9 @@ class ImageBatchStream(IterableDataset):
 
             i += 1
             camera = camera.to(self.device)
-            # for k in data.keys():
-            #     if isinstance(data[k], torch.Tensor):
-            #         data[k] = data[k].to(self.device)
+            for k in data.keys():
+                if isinstance(data[k], torch.Tensor):
+                    data[k] = data[k].to(self.device)
             yield camera, data
 
 
