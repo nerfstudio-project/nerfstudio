@@ -352,7 +352,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.eval_image_dataloader = DataLoader(
                 self.eval_imagebatch_stream,
                 batch_size=1,
-                num_workers=0, # This must be 0 otherwise there is a crash when trying to pickle custom_view_processor
+                num_workers=0,  # This must be 0 otherwise there is a crash when trying to pickle custom_view_processor
                 collate_fn=identity_collate,
             )
             self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)

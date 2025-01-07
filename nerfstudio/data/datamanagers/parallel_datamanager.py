@@ -174,7 +174,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.eval_ray_dataloader = DataLoader(
             self.eval_raybatchstream,
             batch_size=1,
-            num_workers=0, # This must be 0 otherwise there is a crash when trying to pickle custom_view_processor
+            num_workers=0,  # This must be 0 otherwise there is a crash when trying to pickle custom_view_processor
             shuffle=False,
             collate_fn=identity_collate,  # Our dataset handles batching / collation of rays
         )
