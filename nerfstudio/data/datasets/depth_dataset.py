@@ -43,7 +43,9 @@ class DepthDataset(InputDataset):
 
     exclude_batch_keys_from_device = InputDataset.exclude_batch_keys_from_device + ["depth_image"]
 
-    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
+    def __init__(
+        self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0, cache_compressed_images: bool = False
+    ):
         super().__init__(dataparser_outputs, scale_factor)
         # if there are no depth images than we want to generate them all with zoe depth
 
