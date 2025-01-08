@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import torch
-from gsplat.strategy import DefaultStrategy
+from gsplat.strategy import DefaultStrategy, MCMCStrategy
 
 try:
     from gsplat.rendering import rasterization
@@ -156,6 +156,16 @@ class SplatfactoModelConfig(ModelConfig):
     """Shape of the bilateral grid (X, Y, W)"""
     color_corrected_metrics: bool = False
     """If True, apply color correction to the rendered images before computing the metrics."""
+    strategy: Literal["default", "mcmc"] = "default"
+    """The default strategy will be used if strategy is not specified. Other strategies, e.g. mcmc, can be used."""
+    max_gs_num: int = 1_000_000
+    """Maximum number of GSs. Default to 1_000_000."""
+    noise_lr: float = 5e5
+    """MCMC samping noise learning rate. Default to 5e5."""
+    mcmc_opacity_reg: float = 0.01
+    """Regularization term for opacity in MCMC strategy. Only enabled when using MCMC strategy"""
+    mcmc_scale_reg: float = 0.01
+    """Regularization term for scale in MCMC strategy. Only enabled when using MCMC strategy"""
 
 
 class SplatfactoModel(Model):
@@ -249,24 +259,40 @@ class SplatfactoModel(Model):
             )
 
         # Strategy for GS densification
-        self.strategy = DefaultStrategy(
-            prune_opa=self.config.cull_alpha_thresh,
-            grow_grad2d=self.config.densify_grad_thresh,
-            grow_scale3d=self.config.densify_size_thresh,
-            grow_scale2d=self.config.split_screen_size,
-            prune_scale3d=self.config.cull_scale_thresh,
-            prune_scale2d=self.config.cull_screen_size,
-            refine_scale2d_stop_iter=self.config.stop_screen_size_at,
-            refine_start_iter=self.config.warmup_length,
-            refine_stop_iter=self.config.stop_split_at,
-            reset_every=self.config.reset_alpha_every * self.config.refine_every,
-            refine_every=self.config.refine_every,
-            pause_refine_after_reset=self.num_train_data + self.config.refine_every,
-            absgrad=self.config.use_absgrad,
-            revised_opacity=False,
-            verbose=True,
-        )
-        self.strategy_state = self.strategy.initialize_state(scene_scale=1.0)
+        if self.config.strategy == "default":
+            # Strategy for GS densification
+            self.strategy = DefaultStrategy(
+                prune_opa=self.config.cull_alpha_thresh,
+                grow_grad2d=self.config.densify_grad_thresh,
+                grow_scale3d=self.config.densify_size_thresh,
+                grow_scale2d=self.config.split_screen_size,
+                prune_scale3d=self.config.cull_scale_thresh,
+                prune_scale2d=self.config.cull_screen_size,
+                refine_scale2d_stop_iter=self.config.stop_screen_size_at,
+                refine_start_iter=self.config.warmup_length,
+                refine_stop_iter=self.config.stop_split_at,
+                reset_every=self.config.reset_alpha_every * self.config.refine_every,
+                refine_every=self.config.refine_every,
+                pause_refine_after_reset=self.num_train_data + self.config.refine_every,
+                absgrad=self.config.use_absgrad,
+                revised_opacity=False,
+                verbose=True,
+            )
+            self.strategy_state = self.strategy.initialize_state(scene_scale=1.0)
+        elif self.config.strategy == "mcmc":
+            self.strategy = MCMCStrategy(
+                cap_max=self.config.max_gs_num,
+                noise_lr=self.config.noise_lr,
+                refine_start_iter=self.config.warmup_length,
+                refine_stop_iter=self.config.stop_split_at,
+                refine_every=self.config.refine_every,
+                min_opacity=self.config.cull_alpha_thresh,
+                verbose=False,
+            )
+            self.strategy_state = self.strategy.initialize_state()
+        else:
+            raise ValueError(f"""Splatfacto does not support strategy {self.config.strategy} 
+                             Currently, the supported strategies include default and mcmc.""")
 
     @property
     def colors(self):
@@ -338,14 +364,26 @@ class SplatfactoModel(Model):
 
     def step_post_backward(self, step):
         assert step == self.step
-        self.strategy.step_post_backward(
-            params=self.gauss_params,
-            optimizers=self.optimizers,
-            state=self.strategy_state,
-            step=self.step,
-            info=self.info,
-            packed=False,
-        )
+        if isinstance(self.strategy, DefaultStrategy):
+            self.strategy.step_post_backward(
+                params=self.gauss_params,
+                optimizers=self.optimizers,
+                state=self.strategy_state,
+                step=self.step,
+                info=self.info,
+                packed=False,
+            )
+        elif isinstance(self.strategy, MCMCStrategy):
+            self.strategy.step_post_backward(
+                params=self.gauss_params,
+                optimizers=self.optimizers,
+                state=self.strategy_state,
+                step=step,
+                info=self.info,
+                lr=self.schedulers["means"].get_last_lr()[0],  # the learning rate for the "means" attribute of the GS
+            )
+        else:
+            raise ValueError(f"Unknown strategy {self.strategy}")
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
@@ -369,6 +407,7 @@ class SplatfactoModel(Model):
     def step_cb(self, optimizers: Optimizers, step):
         self.step = step
         self.optimizers = optimizers.optimizers
+        self.schedulers = optimizers.schedulers
 
     def get_gaussian_param_groups(self) -> Dict[str, List[Parameter]]:
         # Here we explicitly use the means, scales as parameters so that the user can override this function and
@@ -529,7 +568,7 @@ class SplatfactoModel(Model):
             render_mode=render_mode,
             sh_degree=sh_degree_to_use,
             sparse_grad=False,
-            absgrad=self.strategy.absgrad,
+            absgrad=self.strategy.absgrad if isinstance(self.strategy, DefaultStrategy) else False,
             rasterize_mode=self.config.rasterize_mode,
             # set some threshold to disregrad small gaussians for faster rendering.
             # radius_clip=3.0,
@@ -650,6 +689,17 @@ class SplatfactoModel(Model):
             "main_loss": (1 - self.config.ssim_lambda) * Ll1 + self.config.ssim_lambda * simloss,
             "scale_reg": scale_reg,
         }
+
+        # Losses for mcmc
+        if self.config.strategy == "mcmc":
+            if self.config.mcmc_opacity_reg > 0.0:
+                mcmc_opacity_reg = (
+                    self.config.mcmc_opacity_reg * torch.abs(torch.sigmoid(self.gauss_params["opacities"])).mean()
+                )
+                loss_dict["mcmc_opacity_reg"] = mcmc_opacity_reg
+            if self.config.mcmc_scale_reg > 0.0:
+                mcmc_scale_reg = self.config.mcmc_scale_reg * torch.abs(torch.exp(self.gauss_params["scales"])).mean()
+                loss_dict["mcmc_scale_reg"] = mcmc_scale_reg
 
         if self.training:
             # Add loss from camera optimizer
