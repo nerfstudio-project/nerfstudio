@@ -357,7 +357,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
             try:
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
-                assert torch.multiprocessing.get_start_method() == "spawn",'start method must be "spawn"'
+                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
             self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
 
 

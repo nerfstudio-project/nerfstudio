@@ -97,7 +97,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
             try:
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
-                assert torch.multiprocessing.get_start_method() == "spawn",'start method must be "spawn"'
+                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
             if self.prefetch_factor == 0:
                 CONSOLE.log('cache_images set to "disk" with no prefetch factor, defaulting to 4')
                 self.prefetch_factor = 4
