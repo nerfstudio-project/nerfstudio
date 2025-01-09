@@ -34,6 +34,7 @@ The following methods are supported in nerfstudio:
     SIGNeRF<signerf.md>
     K-Planes<kplanes.md>
     LERF<lerf.md>
+    Feature-Splatting<feature_splatting.md>
     Mip-NeRF<mipnerf.md>
     NeRF<nerf.md>
     Nerfacto<nerfacto.md>

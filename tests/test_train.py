@@ -28,6 +28,7 @@ BLACKLIST = [
     "neus-facto",
     "splatfacto",
     "splatfacto-big",
+    "splatfacto-mcmc",
 ]
 
 
