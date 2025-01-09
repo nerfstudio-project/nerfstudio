@@ -94,3 +94,106 @@ See the code!
 ## Creating Your Own
 
 We currently don't have other implementations because most papers follow the VanillaDataManager implementation. However, it should be straightforward to add a VanillaDataManager with logic that progressively adds cameras, for instance, by relying on the step and modifying RayBundle and RayGT generation logic.
+
+## Migrating Your Datamanager to the New Datamanager 
+
+As of January 2025, the FullImageDatamanager and ParallelImageDatamanager implementation now supports parallelized dataloading and dataloading from disk to preserve CPU RAM. If you would like your custom datamanager to also support these new features, you can migrate any custom dataloading logic to the `custom_view_processor` API. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. 
+
+```python
+class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
+    """Basic stored data manager implementation.
+
+    This is pretty much a port over from our old dataloading utilities, and is a little jank
+    under the hood. We may clean this up a little bit under the hood with more standard dataloading
+    components that can be strung together, but it can be just used as a black box for now since
+    only the constructor is likely to change in the future, or maybe passing in step number to the
+    next_train and next_eval functions.
+
+    Args:
+        config: the DataManagerConfig used to instantiate class
+    """
+
+    config: LERFDataManagerConfig
+
+    def __init__(
+        self,
+        config: LERFDataManagerConfig,
+        device: Union[torch.device, str] = "cpu",
+        test_mode: Literal["test", "val", "inference"] = "val",
+        world_size: int = 1,
+        local_rank: int = 0,
+        **kwargs,  # pylint: disable=unused-argument
+    ):
+        super().__init__(
+            config=config, device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank, **kwargs
+        )
+        self.image_encoder: BaseImageEncoder = kwargs["image_encoder"]
+        images = [self.train_dataset[i]["image"].permute(2, 0, 1)[None, ...] for i in range(len(self.train_dataset))]
+        images = torch.cat(images)
+
+        cache_dir = f"outputs/{self.config.dataparser.data.name}"
+        clip_cache_path = Path(osp.join(cache_dir, f"clip_{self.image_encoder.name}"))
+        dino_cache_path = Path(osp.join(cache_dir, "dino.npy"))
+        # NOTE: cache config is sensitive to list vs. tuple, because it checks for dict equality
+        self.dino_dataloader = DinoDataloader(
+            image_list=images,
+            device=self.device,
+            cfg={"image_shape": list(images.shape[2:4])},
+            cache_path=dino_cache_path,
+        )
+        torch.cuda.empty_cache()
+        self.clip_interpolator = PyramidEmbeddingDataloader(
+            image_list=images,
+            device=self.device,
+            cfg={
+                "tile_size_range": [0.05, 0.5],
+                "tile_size_res": 7,
+                "stride_scaler": 0.5,
+                "image_shape": list(images.shape[2:4]),
+                "model_name": self.image_encoder.name,
+            },
+            cache_path=clip_cache_path,
+            model=self.image_encoder,
+        )
+
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+        """Returns the next batch of data from the train dataloader."""
+        self.train_count += 1
+        image_batch = next(self.iter_train_image_dataloader)
+        assert self.train_pixel_sampler is not None
+        batch = self.train_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.train_ray_generator(ray_indices)
+        batch["clip"], clip_scale = self.clip_interpolator(ray_indices)
+        batch["dino"] = self.dino_dataloader(ray_indices)
+        ray_bundle.metadata["clip_scales"] = clip_scale
+        # assume all cameras have the same focal length and image width
+        ray_bundle.metadata["fx"] = self.train_dataset.cameras[0].fx.item()
+        ray_bundle.metadata["width"] = self.train_dataset.cameras[0].width.item()
+        ray_bundle.metadata["fy"] = self.train_dataset.cameras[0].fy.item()
+        ray_bundle.metadata["height"] = self.train_dataset.cameras[0].height.item()
+        return ray_bundle, batch
+```
+
+To migrate this custom datamanager to the new datamanager, we can shift the data customization process in `next_train()` to `custom_view_processor()`.
+
+```python
+class LERFDataManager(ParallelDataManager, Generic[TDataset]):
+
+    ...
+
+    def custom_ray_processor(
+            self, ray_bundle: RayBundle, batch: Dict
+        ) -> Tuple[RayBundle, Dict]:
+            """An API to add latents, metadata, or other further customization to the RayBundle dataloading process that is parallelized"""
+            ray_indices = batch["indices"]
+            batch["clip"], clip_scale = self.clip_interpolator(ray_indices)
+            batch["dino"] = self.dino_dataloader(ray_indices)
+            ray_bundle.metadata["clip_scales"] = clip_scale
+            # assume all cameras have the same focal length and image width
+            ray_bundle.metadata["fx"] = self.train_dataset.cameras[0].fx.item()
+            ray_bundle.metadata["width"] = self.train_dataset.cameras[0].width.item()
+            ray_bundle.metadata["fy"] = self.train_dataset.cameras[0].fy.item()
+            ray_bundle.metadata["height"] = self.train_dataset.cameras[0].height.item()
+            return ray_bundle, batch
+```
