@@ -97,7 +97,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
             try:
                 torch.multiprocessing.set_start_method("spawn")
             except RuntimeError:
-                pass
+                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
             if self.prefetch_factor == 0:
                 CONSOLE.log('cache_images set to "disk" with no prefetch factor, defaulting to 4')
                 self.prefetch_factor = 4
@@ -352,7 +352,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             self.eval_image_dataloader = DataLoader(
                 self.eval_imagebatch_stream,
                 batch_size=1,
-                num_workers=0,
+                num_workers=0,  # This must be 0 otherwise there is a crash when trying to pickle custom_view_processor
                 collate_fn=identity_collate,
             )
             self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
@@ -434,6 +434,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """Returns the next evaluation batch
         Returns a Camera instead of raybundle
         TODO: Make sure this logic is consistent with the vanilladatamanager"""
+        if self.config.cache_images == "disk":
+            camera, data = next(self.iter_eval_image_dataloader)[0]
+            return camera, data
         image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
