@@ -121,6 +121,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         self,
         num_frames: int,
         image_id_to_depth_path: Optional[Dict[int, Path]] = None,
+        mask_path: Optional[Path] = None,
         camera_mask_path: Optional[Path] = None,
         image_rename_map: Optional[Dict[str, str]] = None,
     ) -> List[str]:
@@ -137,6 +138,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                     recon_dir=self.absolute_colmap_model_path,
                     output_dir=self.output_dir,
                     image_id_to_depth_path=image_id_to_depth_path,
+                    mask_path=mask_path,
                     camera_mask_path=camera_mask_path,
                     image_rename_map=image_rename_map,
                     use_single_camera_mode=self.use_single_camera_mode,
@@ -182,10 +184,11 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             return image_id_to_depth_path, summary_log
         return None, summary_log
 
-    def _run_colmap(self, mask_path: Optional[Path] = None):
+    def _run_colmap(self, camera_mask_path: Optional[Path] = None, mask_path: Optional[Path] = None):
         """
         Args:
-            mask_path: Path to the camera mask. Defaults to None.
+            camera_mask_path: Path to the camera mask. Defaults to None.
+            mask_path: Path to the mask folder. Defaults to None.
         """
         self.absolute_colmap_path.mkdir(parents=True, exist_ok=True)
 
@@ -215,7 +218,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
-                camera_mask_path=mask_path,
+                camera_mask_path=camera_mask_path,
+                mask_path=mask_path,
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
@@ -223,7 +227,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 colmap_cmd=self.colmap_cmd,
             )
         elif sfm_tool == "hloc":
-            if mask_path is not None:
+            if camera_mask_path is not None or mask_path is not None:
                 raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
 
             assert feature_type is not None

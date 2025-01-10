@@ -21,7 +21,7 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, OrderedDict, Tuple, Union
+from typing import Dict, List, Literal, Optional, OrderedDict, Tuple, Union
 
 import cv2
 import imageio
@@ -692,3 +692,45 @@ def save_mask(
         cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"
+
+
+def process_mask_images(
+    output_dir: Path,
+    mask_path: Path,
+    image_rename_map: Dict[str, str],
+    num_downscales: int,
+) -> Path:
+    """Process all mask images in a directory.
+
+    Args:
+        output_dir: The directory to save the downscaled mask images.
+        mask_path: The directory containing the mask images.
+        image_rename_map: A mapping from the original image filenames to the new ones.
+        num_downscales: The number of downscaling levels.
+    Returns:
+        The path to the mask directory.
+    """
+    mask_paths = list(mask_path.glob("*.png"))
+    output_mask_dir = output_dir / "masks"
+    output_mask_dir.mkdir(exist_ok=True)
+
+    for mask_path in mask_paths:
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        new_mask_name = image_rename_map[mask_path.stem] + ".png"
+
+        cv2.imwrite(str(output_mask_dir / new_mask_name), mask)
+        height, width = mask.shape
+        downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
+        for downscale in downscale_factors:
+            mask_path_i = output_dir / f"masks_{downscale}"
+            mask_path_i.mkdir(exist_ok=True)
+            mask_path_i = mask_path_i / new_mask_name
+            mask_i = cv2.resize(
+                mask,
+                (width // downscale, height // downscale),
+                interpolation=cv2.INTER_NEAREST,
+            )
+            cv2.imwrite(str(mask_path_i), mask_i)
+    print(":tada: Downscaled and saved mask images.")
+
+    return output_mask_dir
