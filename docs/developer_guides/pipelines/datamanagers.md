@@ -95,9 +95,9 @@ See the code!
 
 We currently don't have other implementations because most papers follow the VanillaDataManager implementation. However, it should be straightforward to add a VanillaDataManager with logic that progressively adds cameras, for instance, by relying on the step and modifying RayBundle and RayGT generation logic.
 
-## Migrating Your Datamanager to the New Datamanager 
+## Migrating Your DataManager to the New DataManager 
 
-As of January 2025, the FullImageDatamanager and ParallelImageDatamanager implementation now supports parallelized dataloading and dataloading from disk to preserve CPU RAM. If you would like your custom datamanager to also support these new features, you can migrate any custom dataloading logic to the `custom_view_processor` API. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. 
+As of January 2025, the FullImageDatamanager and ParallelImageDatamanager implementations now support parallelized dataloading and dataloading from disk to avoid Out-Of-Memory errors. If you would like your custom datamanager to also support these new features, you can migrate any custom dataloading logic to the new `custom_view_processor()` API. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. 
 
 ```python
 class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
@@ -175,7 +175,7 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         return ray_bundle, batch
 ```
 
-To migrate this custom datamanager to the new datamanager, we can shift the data customization process in `next_train()` to `custom_view_processor()`.
+To migrate this custom datamanager to the new datamanager, we'll subclass the new ParallelDataManager and shift the data customization process from `next_train()` to `custom_view_processor()`.
 
 ```python
 class LERFDataManager(ParallelDataManager, Generic[TDataset]):
@@ -185,7 +185,7 @@ class LERFDataManager(ParallelDataManager, Generic[TDataset]):
     def custom_ray_processor(
             self, ray_bundle: RayBundle, batch: Dict
         ) -> Tuple[RayBundle, Dict]:
-            """An API to add latents, metadata, or other further customization to the RayBundle dataloading process that is parallelized"""
+            """An API to add latents, metadata, or other further customization to the RayBundle dataloading process that is parallelized."""
             ray_indices = batch["indices"]
             batch["clip"], clip_scale = self.clip_interpolator(ray_indices)
             batch["dino"] = self.dino_dataloader(ray_indices)
@@ -196,4 +196,16 @@ class LERFDataManager(ParallelDataManager, Generic[TDataset]):
             ray_bundle.metadata["fy"] = self.train_dataset.cameras[0].fy.item()
             ray_bundle.metadata["height"] = self.train_dataset.cameras[0].height.item()
             return ray_bundle, batch
+```
+
+## How to Use the New DataManagers
+
+To train a NeRF-based method with a large dataset that's unable to fit in memory, please add the `load_from_disk` flag to your `ns-train` command. For example with nerfacto:
+```bash
+ns-train nerfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.load_from_disk
+```
+
+To train a Gaussian Splatting method with a large dataset that's unable to fit in memory, please set the device of `cache_images` to disk. For example with splatfacto:
+```bash
+ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache_images disk
 ```
