@@ -296,9 +296,6 @@ class VanillaPipeline(Pipeline):
             step: current iteration step to update sampler if using DDP (distributed)
         """
         ray_bundle, batch = self.datamanager.next_train(step)
-        ray_bundle = ray_bundle.to(
-            self.device
-        )  # for some reason this line of code is needed otherwise viewmats will not be invertible?
         model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
