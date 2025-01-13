@@ -14,7 +14,7 @@
 
 ## What is a DataManager?
 
-The DataManager returns RayBundle and RayGT objects. Let's first take a look at the most important abstract methods required by the DataManager.
+The DataManager returns a RayBundle and a dictionary of ground truth data. Let's first take a look at the most important abstract methods required by the DataManager. Splatting methods (`FullImageDataManager`) return a Cameras object and a dictionary of ground truth containing complete images, while ray sampling methods (`VanillaDataManager`) return a RayBundle and dictionay of ground truth containing data per-ray. 
 
 ```python
 class DataManager(nn.Module):
@@ -22,11 +22,11 @@ class DataManager(nn.Module):
     """
 
     @abstractmethod
-    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
+    def next_train(self, step: int) -> Tuple[Union[RayBundle, Cameras], Dict]:
         """Returns the next batch of data for train."""
 
     @abstractmethod
-    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
+    def next_eval(self, step: int) -> Tuple[Union[RayBundle, Cameras], Dict]:
         """Returns the next batch of data for eval."""
 
     @abstractmethod
@@ -95,20 +95,26 @@ See the code!
 
 We currently don't have other implementations because most papers follow the VanillaDataManager implementation. However, it should be straightforward to add a VanillaDataManager with logic that progressively adds cameras, for instance, by relying on the step and modifying RayBundle and RayGT generation logic.
 
-## Migrating Your DataManager to the New DataManager 
+## Disk Caching for Large Datasets
+As of January 2025, the FullImageDatamanager and ParallelImageDatamanager implementations now support parallelized dataloading and dataloading from disk to avoid Out-Of-Memory errors and support very large datasets. To train a NeRF-based method with a large dataset that's unable to fit in memory, please add the `load_from_disk` flag to your `ns-train` command. For example with nerfacto:
+```bash
+ns-train nerfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.load_from_disk
+```
 
-As of January 2025, the FullImageDatamanager and ParallelImageDatamanager implementations now support parallelized dataloading and dataloading from disk to avoid Out-Of-Memory errors. If you would like your custom datamanager to also support these new features, you can migrate any custom dataloading logic to the new `custom_view_processor()` API. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. 
+To train splatfacto with a large dataset that's unable to fit in memory, please set the device of `cache_images` to disk. For example with splatfacto:
+```bash
+ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache_images disk
+```
+
+## Migrating Your DataManager to the new DataManager 
+Many methods subclass a DataManager and add extra data to it. If you would like your custom datamanager to also support new parallel features, you can migrate any custom dataloading logic to the new `custom_view_processor()` API. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. This API provides an interface to attach new information to the RayBundle (for ray based methods), Cameras object (for splatting based methods), or ground truth dictionary. It runs in a background process if disk caching is enabled, otherwise it runs in the main process.
+
+**Note**: naively transfering code to `custom_view_processor` may still OOM on very large datasets if initialization code requires computing something over the whole dataset. To fully take advantage of parallelization make sure your subclassed datamanager computes new information inside the `custom_view_processor`, or caches a subset of the whole dataset. This can also still be slow if pre-computation requires GPU-heavy steps on the same GPU used for training.
 
 ```python
-class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
-    """Basic stored data manager implementation.
-
-    This is pretty much a port over from our old dataloading utilities, and is a little jank
-    under the hood. We may clean this up a little bit under the hood with more standard dataloading
-    components that can be strung together, but it can be just used as a black box for now since
-    only the constructor is likely to change in the future, or maybe passing in step number to the
-    next_train and next_eval functions.
-
+class LERFDataManager(VanillaDataManager):
+    """Subclass VanillaDataManager to add extra data processing
+    
     Args:
         config: the DataManagerConfig used to instantiate class
     """
@@ -122,42 +128,24 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
-        **kwargs,  # pylint: disable=unused-argument
+        **kwargs,
     ):
         super().__init__(
             config=config, device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank, **kwargs
         )
+        """
+        Some code to initialize all the CLIP and DINO feature encoders
+        """
         self.image_encoder: BaseImageEncoder = kwargs["image_encoder"]
-        images = [self.train_dataset[i]["image"].permute(2, 0, 1)[None, ...] for i in range(len(self.train_dataset))]
-        images = torch.cat(images)
-
-        cache_dir = f"outputs/{self.config.dataparser.data.name}"
-        clip_cache_path = Path(osp.join(cache_dir, f"clip_{self.image_encoder.name}"))
-        dino_cache_path = Path(osp.join(cache_dir, "dino.npy"))
-        # NOTE: cache config is sensitive to list vs. tuple, because it checks for dict equality
-        self.dino_dataloader = DinoDataloader(
-            image_list=images,
-            device=self.device,
-            cfg={"image_shape": list(images.shape[2:4])},
-            cache_path=dino_cache_path,
-        )
-        torch.cuda.empty_cache()
-        self.clip_interpolator = PyramidEmbeddingDataloader(
-            image_list=images,
-            device=self.device,
-            cfg={
-                "tile_size_range": [0.05, 0.5],
-                "tile_size_res": 7,
-                "stride_scaler": 0.5,
-                "image_shape": list(images.shape[2:4]),
-                "model_name": self.image_encoder.name,
-            },
-            cache_path=clip_cache_path,
-            model=self.image_encoder,
-        )
+        self.dino_dataloader = ...
+        self.clip_interpolator = ...
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the train dataloader."""
+        """
+        Returns the next batch of data from the train dataloader.
+
+        In this custom DataManager we need to add on the data that LERF needs, namely CLIP and DINO features
+        """
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         assert self.train_pixel_sampler is not None
@@ -175,10 +163,14 @@ class LERFDataManager(VanillaDataManager):  # pylint: disable=abstract-method
         return ray_bundle, batch
 ```
 
-To migrate this custom datamanager to the new datamanager, we'll subclass the new ParallelDataManager and shift the data customization process from `next_train()` to `custom_view_processor()`.
+To migrate this custom datamanager to the new datamanager, we'll subclass the new ParallelDataManager and shift the data customization process from `next_train()` to `custom_view_processor()`. 
+The function `custom_view_processor()` is called with a fully populated ray bundle and ground truth batch, just like the subclassed `next_train` in the above code. This code, however, is run in a background process.
 
 ```python
 class LERFDataManager(ParallelDataManager, Generic[TDataset]):
+    """
+    __init__ stays the same
+    """
 
     ...
 
@@ -196,16 +188,4 @@ class LERFDataManager(ParallelDataManager, Generic[TDataset]):
             ray_bundle.metadata["fy"] = self.train_dataset.cameras[0].fy.item()
             ray_bundle.metadata["height"] = self.train_dataset.cameras[0].height.item()
             return ray_bundle, batch
-```
-
-## How to Use the New DataManagers
-
-To train a NeRF-based method with a large dataset that's unable to fit in memory, please add the `load_from_disk` flag to your `ns-train` command. For example with nerfacto:
-```bash
-ns-train nerfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.load_from_disk
-```
-
-To train a Gaussian Splatting method with a large dataset that's unable to fit in memory, please set the device of `cache_images` to disk. For example with splatfacto:
-```bash
-ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache_images disk
 ```
