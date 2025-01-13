@@ -335,7 +335,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 batch_size=1,
                 num_workers=self.config.dataloader_num_workers,
                 collate_fn=identity_collate,
-                # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work
             )
             self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
