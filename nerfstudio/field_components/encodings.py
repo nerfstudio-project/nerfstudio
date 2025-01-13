@@ -369,9 +369,9 @@ class HashEncoding(Encoding):
             )
 
         if self.tcnn_encoding is None:
-            assert (
-                interpolation is None or interpolation == "Linear"
-            ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
+            assert interpolation is None or interpolation == "Linear", (
+                f"interpolation '{interpolation}' is not supported for torch encoding backend"
+            )
 
     def build_nn_modules(self) -> None:
         """Initialize the torch version of the hash encoding."""

@@ -148,9 +148,9 @@ def generate_point_cloud(
                     CONSOLE.print(f"Please set --normal_output_name to one of: {outputs.keys()}", justify="center")
                     sys.exit(1)
                 normal = outputs[normal_output_name]
-                assert (
-                    torch.min(normal) >= 0.0 and torch.max(normal) <= 1.0
-                ), "Normal values from method output must be in [0, 1]"
+                assert torch.min(normal) >= 0.0 and torch.max(normal) <= 1.0, (
+                    "Normal values from method output must be in [0, 1]"
+                )
                 normal = (normal * 2.0) - 1.0
             point = ray_bundle.origins + ray_bundle.directions * depth
             view_direction = ray_bundle.directions

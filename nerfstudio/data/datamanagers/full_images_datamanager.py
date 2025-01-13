@@ -205,8 +205,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             data = dataset.get_data(idx, image_type=self.config.cache_images_type)
             camera = dataset.cameras[idx].reshape(())
             assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
-                f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
-                f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+                f"The size of image ({data['image'].shape[1]}, {data['image'].shape[0]}) loaded "
+                f"does not match the camera parameters ({camera.width.item(), camera.height.item()})"
             )
             if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
                 return data
