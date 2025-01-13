@@ -327,9 +327,9 @@ class TensoRFModel(Model):
         elif self.config.regularization == "tv":
             density_plane_coef = self.field.density_encoding.plane_coef
             color_plane_coef = self.field.color_encoding.plane_coef
-            assert isinstance(color_plane_coef, torch.Tensor) and isinstance(
-                density_plane_coef, torch.Tensor
-            ), "TV reg only supported for TensoRF encoding types with plane_coef attribute"
+            assert isinstance(color_plane_coef, torch.Tensor) and isinstance(density_plane_coef, torch.Tensor), (
+                "TV reg only supported for TensoRF encoding types with plane_coef attribute"
+            )
             loss_dict["tv_reg_density"] = tv_loss(density_plane_coef)
             loss_dict["tv_reg_color"] = tv_loss(color_plane_coef)
         elif self.config.regularization == "none":

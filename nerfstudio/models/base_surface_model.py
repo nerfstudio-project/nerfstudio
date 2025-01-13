@@ -193,9 +193,9 @@ class SurfaceModel(Model):
         Returns:
             Outputs of model. (ie. rendered colors)
         """
-        assert (
-            ray_bundle.metadata is not None and "directions_norm" in ray_bundle.metadata
-        ), "directions_norm is required in ray_bundle.metadata"
+        assert ray_bundle.metadata is not None and "directions_norm" in ray_bundle.metadata, (
+            "directions_norm is required in ray_bundle.metadata"
+        )
 
         samples_and_field_outputs = self.sample_and_forward_field(ray_bundle=ray_bundle)
 
