@@ -40,9 +40,7 @@ class CreateJSONCameraPath:
         self.transformed_camera_path_mat = []  # final transformed world matrix of the camera at each frame
 
         self.complete_json_obj = {}  # full Nerfstudio input json object
-        self.file_path_json = cmds.textField(
-            jsonfp, query=True, text=True
-        )  # file path input
+        self.file_path_json = cmds.textField(jsonfp, query=True, text=True)  # file path input
 
     def get_camera_coordinates(self):
         """Create a list of transformed camera coordinates and converted FOV.
@@ -64,34 +62,26 @@ class CreateJSONCameraPath:
             cmds.currentTime(curr_frame, edit=True)
             cam_mat_list = cmds.xform(self.cam_obj, query=True, matrix=True, ws=True)
 
-            org_camera_path_mat += [
-                transformation_mat * (om.MMatrix(cam_mat_list)).transpose()
-            ]
+            org_camera_path_mat += [transformation_mat * (om.MMatrix(cam_mat_list)).transpose()]
 
             self.fov_list += [self.getFOV()]
 
             curr_frame += self.framestep
 
             nerf_mat_list = cmds.xform(self.NeRF, query=True, matrix=True, ws=True)
-            nerf_mesh_mat_list += [
-                transformation_mat * om.MMatrix(nerf_mat_list).transpose()
-            ]
+            nerf_mesh_mat_list += [transformation_mat * om.MMatrix(nerf_mat_list).transpose()]
 
             if self.framestep == 0:  # only one frame
                 break
 
         # transform the camera world matrix based on the NeRF mesh transformation
         for i, org_cam_path_mat_val in enumerate(org_camera_path_mat):
-            self.transformed_camera_path_mat += [
-                nerf_mesh_mat_list[i].inverse() * org_cam_path_mat_val
-            ]
+            self.transformed_camera_path_mat += [nerf_mesh_mat_list[i].inverse() * org_cam_path_mat_val]
 
     def getFOV(self):
         """Get the vertical field of view depending on the fit resolution gate."""
 
-        renderratio = cmds.getAttr("defaultResolution.width") / cmds.getAttr(
-            "defaultResolution.height"
-        )
+        renderratio = cmds.getAttr("defaultResolution.width") / cmds.getAttr("defaultResolution.height")
         fitresgate = cmds.getAttr(self.cam_obj + ".filmFit")
 
         f = cmds.camera(self.cam_obj, query=True, focalLength=True)  # in mm
@@ -106,17 +96,12 @@ class CreateJSONCameraPath:
                 fitresgate = 2
         if fitresgate in (1, 3):
             # horizontal or overscan
-            hfa = (
-                cmds.camera(self.cam_obj, query=True, horizontalFilmAperture=True)
-                * 25.4
-            )  # in mm
+            hfa = cmds.camera(self.cam_obj, query=True, horizontalFilmAperture=True) * 25.4  # in mm
             fov = math.degrees(2 * math.atan(hfa / (2 * f * renderratio)))
 
         else:
             # vertical
-            vfa = (
-                cmds.camera(self.cam_obj, query=True, verticalFilmAperture=True) * 25.4
-            )  # in mm
+            vfa = cmds.camera(self.cam_obj, query=True, verticalFilmAperture=True) * 25.4  # in mm
             fov = math.degrees(2 * math.atan(vfa / (2 * f)))
 
         return fov
@@ -138,9 +123,7 @@ class CreateJSONCameraPath:
             output_json_camera_path.write(self.complete_json_obj)
 
         self.complete_json_obj = {}
-        print(
-            "\nFinished creating camera path json file at " + full_abs_file_path + "\n"
-        )
+        print("\nFinished creating camera path json file at " + full_abs_file_path + "\n")
 
     def construct_json_obj(self):
         """Get fields for JSON camera path. Supports only perspective cameras for now.
@@ -167,9 +150,7 @@ class CreateJSONCameraPath:
         if self.framestep == 0:
             render_seconds = 1 / render_fps
         else:
-            render_seconds = (
-                (self.frame_end - self.frame_start) // (self.framestep) + 1
-            ) / render_fps
+            render_seconds = ((self.frame_end - self.frame_start) // (self.framestep) + 1) / render_fps
 
         smoothness_value = 0
         is_cycle = False
@@ -177,13 +158,9 @@ class CreateJSONCameraPath:
         # construct camera path
         final_camera_path = []
 
-        for i, transformed_camera_path_mat_val in enumerate(
-            self.transformed_camera_path_mat
-        ):
+        for i, transformed_camera_path_mat_val in enumerate(self.transformed_camera_path_mat):
             camera_path_elem = {
-                "camera_to_world": self.get_list_from_matrix_path(
-                    transformed_camera_path_mat_val
-                ),
+                "camera_to_world": self.get_list_from_matrix_path(transformed_camera_path_mat_val),
                 "fov": self.fov_list[i],
                 "aspect": cmds.camera(self.cam_obj, query=True, aspectRatio=True),
             }
@@ -191,9 +168,7 @@ class CreateJSONCameraPath:
         # construct keyframes
         keyframe_list = []
 
-        for i, transformed_camera_path_mat_val in enumerate(
-            self.transformed_camera_path_mat
-        ):
+        for i, transformed_camera_path_mat_val in enumerate(self.transformed_camera_path_mat):
             curr_properties = (
                 '[["FOV",'
                 + str(self.fov_list[i])
@@ -204,11 +179,7 @@ class CreateJSONCameraPath:
                 + "]]"
             )
             keyframe_elem = {
-                "matrix": str(
-                    self.get_list_from_matrix_keyframe(
-                        self.transformed_camera_path_mat[i]
-                    )
-                ),
+                "matrix": str(self.get_list_from_matrix_keyframe(self.transformed_camera_path_mat[i])),
                 "fov": self.fov_list[i],
                 "aspect": cmds.camera(self.cam_obj, query=True, aspectRatio=True),
                 "properties": curr_properties,
@@ -271,8 +242,7 @@ class ReadJSONinputCameraPath:
 
             orig_cam_mat = om.MMatrix(cam_to_world)
             self.transformed_camera_path_mat += [
-                orig_cam_mat.transpose()
-                * om.MMatrix(cmds.xform(self.NeRF, query=True, matrix=True, ws=True))
+                orig_cam_mat.transpose() * om.MMatrix(cmds.xform(self.NeRF, query=True, matrix=True, ws=True))
             ]
 
             self.fov_list += [cam_keyframe["fov"]]
@@ -291,9 +261,7 @@ class ReadJSONinputCameraPath:
             # animate camera transform
             cmds.currentTime(curr_frame, edit=True)
             world_matrix_list = [
-                self.transformed_camera_path_mat[curr_frame].getElement(i, j)
-                for i in range(4)
-                for j in range(4)
+                self.transformed_camera_path_mat[curr_frame].getElement(i, j) for i in range(4) for j in range(4)
             ]
 
             cmds.xform(
@@ -306,26 +274,18 @@ class ReadJSONinputCameraPath:
             cmds.setKeyframe(self.cam_obj[0], attribute="rotate")
 
             # animate fov
-            cmds.camera(
-                self.cam_obj[0], edit=True, vfv=self.fov_list[curr_frame]
-            )  # set fov
-            cmds.setKeyframe(
-                self.cam_obj[0], attribute="verticalFieldOfView", t=curr_frame
-            )
+            cmds.camera(self.cam_obj[0], edit=True, vfv=self.fov_list[curr_frame])
++           cmds.setKeyframe(self.cam_obj[0], attribute="verticalFieldOfView", t=curr_frame)  # set fov
 
             cmds.setAttr(f"{self.cam_obj[0]}.filmFit", 2)  # set film gate to vertical
             cmds.setKeyframe(self.cam_obj[0], attribute="filmFit", t=curr_frame)
 
             # focal length
-            hfa = (
-                cmds.camera(self.cam_obj[0], query=True, horizontalFilmAperture=True)
-                * 25.4
-            )  # mm
+            hfa = cmds.camera(self.cam_obj[0], query=True, horizontalFilmAperture=True) * 25.4  # mm
             cmds.camera(
                 self.cam_obj[0],
                 edit=True,
-                focalLength=hfa
-                / (2 * aspect * math.tan(math.radians(self.fov_list[curr_frame] / 2))),
+                focalLength=hfa / (2 * aspect * math.tan(math.radians(self.fov_list[curr_frame] / 2))),
             )
             cmds.setKeyframe(self.cam_obj[0], attribute="focalLength", t=curr_frame)
 
@@ -425,9 +385,7 @@ class Window:
         if cmds.window("NeRF VFX Settings", exists=True):
             cmds.deleteUI("NeRF VFX Settings", window=True)
 
-        self.window = cmds.window(
-            "NeRF VFX Settings", title=self.title, widthHeight=self.size, sizeable=True
-        )
+        self.window = cmds.window("NeRF VFX Settings", title=self.title, widthHeight=self.size, sizeable=True)
         cmds.columnLayout(adjustableColumn=True, columnAttach=("both", 5), rowSpacing=5)
 
         cmds.separator(h=10)  # Below: Select nerf button
@@ -464,9 +422,7 @@ class Window:
         cmds.setParent("..")
         cmds.button(
             label="Generate JSON File",
-            command=lambda *args: CreateJSONCameraPath(
-                meshtxtfield, camtxtfield, file_path_field
-            ).execute(),
+            command=lambda *args: CreateJSONCameraPath(meshtxtfield, camtxtfield, file_path_field).execute(),
         )
 
         cmds.separator(h=10)  # Below: Upload JSON file and import into Maya
@@ -487,16 +443,12 @@ class Window:
         cmds.setParent("..")
         cmds.button(
             label="Create Camera From JSON",
-            command=lambda *args: ReadJSONinputCameraPath(
-                meshtxtfield, file_path_field2
-            ).execute(),
+            command=lambda *args: ReadJSONinputCameraPath(meshtxtfield, file_path_field2).execute(),
         )
 
         cmds.separator(h=10)
 
-        cmds.button(
-            label="Close", command=lambda *args: cmds.deleteUI(self.window, window=True)
-        )
+        cmds.button(label="Close", command=lambda *args: cmds.deleteUI(self.window, window=True))
 
         cmds.showWindow(self.window)
 
@@ -533,8 +485,6 @@ class Window:
             cmds.textField(file_path_field, edit=True, text=file_path[0])
 
     def open_file_browser_json(self, file_path_field):
-        file_path = cmds.fileDialog2(
-            fileMode=1, caption="Select a JSON File", fileFilter="JSON Files (*.json)"
-        )
+        file_path = cmds.fileDialog2(fileMode=1, caption="Select a JSON File", fileFilter="JSON Files (*.json)")
         if file_path:
             cmds.textField(file_path_field, edit=True, text=file_path[0])
