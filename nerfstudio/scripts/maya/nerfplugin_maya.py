@@ -15,13 +15,11 @@
 # limitations under the License.
 
 import maya.api.OpenMaya as om
-import maya.cmds as mc
-import maya.mel as mel
+from maya import mel, cmds
 import sys
 import os
 import math
-import json 
-
+import json
 
 """
 nerfplugin.py
@@ -31,16 +29,16 @@ class CreateJSONCameraPath():
     """Create a JSON camera path from the Maya camera animation."""
     
     def __init__(self, nerf, camera, jsonfp):
-        self.NeRF = mc.textField(nerf, query=True, text=True)
-        self.cam_obj = mc.textField(camera, query=True, text=True)
+        self.NeRF = cmds.textField(nerf, query=True, text=True)
+        self.cam_obj = cmds.textField(camera, query=True, text=True)
         self.framestep = 1
-        self.frame_start = mc.playbackOptions(query=True, min=True)
-        self.frame_end = mc.playbackOptions(query=True, max=True)
+        self.frame_start = cmds.playbackOptions(query=True, min=True)
+        self.frame_end = cmds.playbackOptions(query=True, max=True)
         self.fov_list = [] # list of FOV at every frame
         self.transformed_camera_path_mat = [] # final transformed world matrix of the camera at each frame
         
         self.complete_json_obj = {}  # full Nerfstudio input json object
-        self.file_path_json = mc.textField(jsonfp, query=True, text=True) # file path input
+        self.file_path_json = cmds.textField(jsonfp, query=True, text=True) # file path input
 
     
     def get_camera_coordinates(self):
@@ -61,8 +59,8 @@ class CreateJSONCameraPath():
                                   0,0,0,1]) # change of basis from Maya coordinates to Nerfstudio coordinates
         
         while curr_frame <= self.frame_end:
-            mc.currentTime(curr_frame, edit=True)
-            cam_mat_list = mc.xform(self.cam_obj, query=True, matrix=True, ws=True)
+            cmds.currentTime(curr_frame, edit=True)
+            cam_mat_list = cmds.xform(self.cam_obj, query=True, matrix=True, ws=True)
             
             org_camera_path_mat += [ transformation_mat * (om.MMatrix(cam_mat_list)).transpose()]
             
@@ -70,7 +68,7 @@ class CreateJSONCameraPath():
 
             curr_frame += self.framestep
 
-            nerf_mat_list = mc.xform(self.NeRF, query=True, matrix=True, ws=True)
+            nerf_mat_list = cmds.xform(self.NeRF, query=True, matrix=True, ws=True)
             nerf_mesh_mat_list += [transformation_mat * om.MMatrix(nerf_mat_list).transpose()]
           
             if self.framestep == 0: # only one frame
@@ -83,10 +81,10 @@ class CreateJSONCameraPath():
     def getFOV(self):
         """ Get the vertical field of view depending on the fit resolution gate."""
 
-        renderratio = mc.getAttr("defaultResolution.width")/mc.getAttr("defaultResolution.height")
-        fitresgate = mc.getAttr(self.cam_obj + ".filmFit")
+        renderratio = cmds.getAttr("defaultResolution.width")/cmds.getAttr("defaultResolution.height")
+        fitresgate = cmds.getAttr(self.cam_obj + ".filmFit")
 
-        f = mc.camera(self.cam_obj, query=True, focalLength=True) # in mm
+        f = cmds.camera(self.cam_obj, query=True, focalLength=True) # in mm
 
         if fitresgate == 0:
             # full
@@ -96,14 +94,14 @@ class CreateJSONCameraPath():
             else:
                 # vertical
                 fitresgate = 2
-        if fitresgate == 1  or fitresgate == 3:
+        if fitresgate in (1, 3):
             # horizontal or overscan
-            hfa = mc.camera(self.cam_obj, query=True, horizontalFilmAperture=True) * 25.4 # in mm
+            hfa = cmds.camera(self.cam_obj, query=True, horizontalFilmAperture=True) * 25.4 # in mm
             fov = math.degrees(2 * math.atan(hfa  / (2 * f * renderratio)))
             
         else:
             # vertical
-            vfa = mc.camera(self.cam_obj, query=True, verticalFilmAperture=True) * 25.4 # in mm
+            vfa = cmds.camera(self.cam_obj, query=True, verticalFilmAperture=True) * 25.4 # in mm
             fov = math.degrees(2 * math.atan( vfa / (2 * f)))
 
         return fov
@@ -132,8 +130,8 @@ class CreateJSONCameraPath():
         Maybe other cameras later"""
 
         # Only support perspective cameras
-        cam_type = mc.camera(self.cam_obj, query=True, orthographic=True)
-        if cam_type == False:
+        cam_type = cmds.camera(self.cam_obj, query=True, orthographic=True)
+        if not cam_type:
             cam_type = "perspective"
         else:
             self.report(
@@ -142,7 +140,7 @@ class CreateJSONCameraPath():
             cam_type = "perspective"
 
         # get FPS of scene
-        time_unit = mc.currentUnit(query=1, t=1)
+        time_unit = cmds.currentUnit(query=1, t=1)
         index = mel.eval(f'getIndexFromCurrentUnitCmdValue("{time_unit}")') - 1
         fps_name = mel.eval(f'getTimeUnitDisplayString({index});')
         render_fps = float(fps_name.split(' ')[0])
@@ -166,7 +164,7 @@ class CreateJSONCameraPath():
             camera_path_elem = {
                 "camera_to_world": self.get_list_from_matrix_path(transformed_camera_path_mat_val),
                 "fov": self.fov_list[i],
-                "aspect": mc.camera(self.cam_obj, query=True, aspectRatio=True),
+                "aspect": cmds.camera(self.cam_obj, query=True, aspectRatio=True),
             }
             final_camera_path += [camera_path_elem]
         # construct keyframes
@@ -185,13 +183,13 @@ class CreateJSONCameraPath():
             keyframe_elem = {
                 "matrix": str(self.get_list_from_matrix_keyframe(self.transformed_camera_path_mat[i])),
                 "fov": self.fov_list[i],
-                "aspect": mc.camera(self.cam_obj, query=True, aspectRatio=True),
+                "aspect": cmds.camera(self.cam_obj, query=True, aspectRatio=True),
                 "properties": curr_properties,
             }
             keyframe_list += [keyframe_elem]
         
-        render_height = int(mc.getAttr("defaultResolution.height"))
-        render_width = int(mc.getAttr("defaultResolution.width"))
+        render_height = int(cmds.getAttr("defaultResolution.height"))
+        render_width = int(cmds.getAttr("defaultResolution.width"))
 
         overall_json = {
             "keyframes": keyframe_list,
@@ -209,7 +207,7 @@ class CreateJSONCameraPath():
         
     def execute(self):
 
-        if self.NeRF==None or self.cam_obj==None:
+        if self.NeRF is None or self.cam_obj is None:
             sys.stderr.write(" Please input NeRF representation or camera object")
         
         if self.file_path_json == "":
@@ -225,10 +223,10 @@ class  ReadJSONinputCameraPath():
     """Create a camera with an animation path based on an input Nerfstudio JSON."""
     
     def __init__(self, nerf, fptxt):
-        self.NeRF = mc.textField(nerf, query=True, text=True)
+        self.NeRF = cmds.textField(nerf, query=True, text=True)
         self.cam_obj = None
   
-        self.file_path_json = mc.textField(fptxt, query=True, text=True)
+        self.file_path_json = cmds.textField(fptxt, query=True, text=True)
 
         self.fov_list = []  # list of FOV at each frame
         self.transformed_camera_path_mat = []  # final transformed world matrix of the camera at each frame
@@ -245,7 +243,7 @@ class  ReadJSONinputCameraPath():
             cam_to_world = cam_keyframe["camera_to_world"]
 
             orig_cam_mat = om.MMatrix(cam_to_world)
-            self.transformed_camera_path_mat += [ orig_cam_mat.transpose() * om.MMatrix(mc.xform(self.NeRF, query=True, matrix=True, ws=True))]
+            self.transformed_camera_path_mat += [ orig_cam_mat.transpose() * om.MMatrix(cmds.xform(self.NeRF, query=True, matrix=True, ws=True))]
             
             self.fov_list += [cam_keyframe["fov"]]
 
@@ -255,38 +253,38 @@ class  ReadJSONinputCameraPath():
         """Create a new camera with the animation (position and fov) and the corresponding type."""
 
         json_cam_path = self.input_json["camera_path"]
-        self.cam_obj = mc.camera(name="nerfstudioCam")
+        self.cam_obj = cmds.camera(name="nerfstudioCam")
         curr_frame = 0
-        aspect = mc.camera(self.cam_obj[0], query=True, aspectRatio=True)
+        aspect = cmds.camera(self.cam_obj[0], query=True, aspectRatio=True)
         
         while curr_frame < len(json_cam_path):
 
             # animate camera transform
-            mc.currentTime(curr_frame, edit=True)
+            cmds.currentTime(curr_frame, edit=True)
             world_matrix_list = [self.transformed_camera_path_mat[curr_frame].getElement(i, j) for i in range(4) for j in range(4)]
             
-            mc.xform(self.cam_obj[0], matrix=world_matrix_list, worldSpace=True, scale=[1,1,1])
-            mc.setKeyframe(self.cam_obj[0], attribute="translate")
-            mc.setKeyframe(self.cam_obj[0], attribute="rotate")
+            cmds.xform(self.cam_obj[0], matrix=world_matrix_list, worldSpace=True, scale=[1,1,1])
+            cmds.setKeyframe(self.cam_obj[0], attribute="translate")
+            cmds.setKeyframe(self.cam_obj[0], attribute="rotate")
 
             # animate fov 
-            mc.camera(self.cam_obj[0], edit=True, vfv = self.fov_list[curr_frame]) #set fov
-            mc.setKeyframe(self.cam_obj[0], attribute="verticalFieldOfView", t=curr_frame)
+            cmds.camera(self.cam_obj[0], edit=True, vfv = self.fov_list[curr_frame]) #set fov
+            cmds.setKeyframe(self.cam_obj[0], attribute="verticalFieldOfView", t=curr_frame)
             
-            mc.setAttr(f"{self.cam_obj[0]}.filmFit", 2) # set film gate to vertical
-            mc.setKeyframe(self.cam_obj[0], attribute="filmFit", t=curr_frame)
+            cmds.setAttr(f"{self.cam_obj[0]}.filmFit", 2) # set film gate to vertical
+            cmds.setKeyframe(self.cam_obj[0], attribute="filmFit", t=curr_frame)
            
             #focal length
-            hfa = mc.camera(self.cam_obj[0], query=True, horizontalFilmAperture=True) * 25.4 # mm
-            mc.camera(self.cam_obj[0], edit=True, focalLength = hfa / (2 * aspect * math.tan( math.radians(self.fov_list[curr_frame] / 2))))
-            mc.setKeyframe(self.cam_obj[0], attribute="focalLength", t=curr_frame)
+            hfa = cmds.camera(self.cam_obj[0], query=True, horizontalFilmAperture=True) * 25.4 # mm
+            cmds.camera(self.cam_obj[0], edit=True, focalLength = hfa / (2 * aspect * math.tan( math.radians(self.fov_list[curr_frame] / 2))))
+            cmds.setKeyframe(self.cam_obj[0], attribute="focalLength", t=curr_frame)
 
             curr_frame += 1
 
     def execute(self):
         """Execute camera creation process."""
         # check input
-        if self.NeRF==None or self.cam_obj==None:
+        if self.NeRF is None or self.cam_obj is None:
             sys.stderr.write(" Please input NeRF representation or camera object")
         
         
@@ -329,34 +327,36 @@ def initializePlugin(mobject):
     try:
         mplugin.registerCommand(commandName, pluginCommand.cmdCreator)
         
-    except:
+    except RuntimeError as e:
         sys.stderr.write("Failed to register command:" + commandName)
+        raise
     addNewShelf()
 
 def uninitializePlugin(mobject):
     mplugin = om.MFnPlugin(mobject)
     try:
         mplugin.deregisterCommand(commandName)
-    except:
+    except RuntimeError as e:
         sys.stderr.write("Failed to deregister command:" + commandName)
+        raise
 
 def addNewShelf(): # initializing a new shelf for Nerfstudio stuff
     def replacebuttons(shelf_name):
-        shelf_buttons = mc.shelfLayout(shelf_name, query=True, childArray=True) or []
+        shelf_buttons = cmds.shelfLayout(shelf_name, query=True, childArray=True) or []
         
         for button in shelf_buttons:
-            mc.deleteUI(button)
+            cmds.deleteUI(button)
             
-        mc.shelfButton(
+        cmds.shelfButton(
             label='Nerfstudio Camera Path',
-            command=lambda *args: mc.nerfCommand(),
+            command=lambda *args: cmds.nerfCommand(),
             annotation='Camera path json generator for nerfstudio viewer, or load camera path json into maya scene',
             image1='pythonFamily.png',
             parent='Nerfstudio'
         )
     
-    if not mc.shelfLayout('Nerfstudio', exists=True):
-        mc.shelfLayout('Nerfstudio', parent='ShelfLayout')
+    if not cmds.shelfLayout('Nerfstudio', exists=True):
+        cmds.shelfLayout('Nerfstudio', parent='ShelfLayout')
    
     replacebuttons('Nerfstudio')
 
@@ -367,85 +367,85 @@ class Window():
         self.size = (350, 300)
     
     def createWindow(self):
-        if mc.window("NeRF VFX Settings", exists=True):
-            mc.deleteUI("NeRF VFX Settings", window=True)
+        if cmds.window("NeRF VFX Settings", exists=True):
+            cmds.deleteUI("NeRF VFX Settings", window=True)
 
-        self.window = mc.window("NeRF VFX Settings", title=self.title, widthHeight= self.size, sizeable = True)
-        mc.columnLayout(adjustableColumn = True, columnAttach=('both', 5), rowSpacing=5)
+        self.window = cmds.window("NeRF VFX Settings", title=self.title, widthHeight= self.size, sizeable = True)
+        cmds.columnLayout(adjustableColumn = True, columnAttach=('both', 5), rowSpacing=5)
         
-        mc.separator(h=10) # Below: Select nerf button
+        cmds.separator(h=10) # Below: Select nerf button
 
-        mc.text("NeRF Representation (mesh)")
-        mc.rowLayout(adjustableColumn=1, numberOfColumns=2)
-        meshtxtfield = mc.textField(editable=False)
-        mc.button(label='Store', command=lambda *args: self.store_nerf(meshtxtfield))
-        mc.setParent('..')
+        cmds.text("NeRF Representation (mesh)")
+        cmds.rowLayout(adjustableColumn=1, numberOfColumns=2)
+        meshtxtfield = cmds.textField(editable=False)
+        cmds.button(label='Store', command=lambda *args: self.store_nerf(meshtxtfield))
+        cmds.setParent('..')
 
-        mc.separator(h=10) # Below: Select camera to render button
+        cmds.separator(h=10) # Below: Select camera to render button
         
-        mc.text("Camera object")
-        mc.rowLayout(adjustableColumn=1, numberOfColumns=2)
-        camtxtfield = mc.textField(editable=False)
-        mc.button(label='Store', command=lambda *args: self.store_cam(camtxtfield))
-        mc.setParent('..')
+        cmds.text("Camera object")
+        cmds.rowLayout(adjustableColumn=1, numberOfColumns=2)
+        camtxtfield = cmds.textField(editable=False)
+        cmds.button(label='Store', command=lambda *args: self.store_cam(camtxtfield))
+        cmds.setParent('..')
 
-        mc.separator(h=10) #Below: Create a Nerfstudio JSON
+        cmds.separator(h=10) #Below: Create a Nerfstudio JSON
 
-        mc.text("Camera path for NerfStudio")
-        mc.rowLayout(numberOfColumns=2, adjustableColumn=1, columnAlign=(1, 'left'), columnAttach=(1, 'both', 5))
-        file_path_field = mc.textField(editable=False)
-        mc.iconTextButton(style='iconOnly', image1='fileOpen.png', command=lambda *args: self.open_file_browser(file_path_field))
-        mc.setParent('..')
-        mc.button(label="Generate JSON File", command= lambda *args: CreateJSONCameraPath(meshtxtfield, camtxtfield, file_path_field).execute())
+        cmds.text("Camera path for NerfStudio")
+        cmds.rowLayout(numberOfColumns=2, adjustableColumn=1, columnAlign=(1, 'left'), columnAttach=(1, 'both', 5))
+        file_path_field = cmds.textField(editable=False)
+        cmds.iconTextButton(style='iconOnly', image1='fileOpen.png', command=lambda *args: self.open_file_browser(file_path_field))
+        cmds.setParent('..')
+        cmds.button(label="Generate JSON File", command= lambda *args: CreateJSONCameraPath(meshtxtfield, camtxtfield, file_path_field).execute())
 
-        mc.separator(h=10) # Below: Upload JSON file and import into Maya
+        cmds.separator(h=10) # Below: Upload JSON file and import into Maya
 
-        mc.text("Create camera from NerfStudio JSON")
-        mc.rowLayout(numberOfColumns=2, adjustableColumn=1, columnAlign=(1, 'left'), columnAttach=(1, 'both', 5))
-        file_path_field2 = mc.textField(editable=False)
-        mc.iconTextButton(style='iconOnly', image1='fileOpen.png', command=lambda *args: self.open_file_browser_json(file_path_field2))
-        mc.setParent('..')
-        mc.button(label="Create Camera From JSON", command= lambda *args: ReadJSONinputCameraPath(meshtxtfield, file_path_field2).execute())
+        cmds.text("Create camera from NerfStudio JSON")
+        cmds.rowLayout(numberOfColumns=2, adjustableColumn=1, columnAlign=(1, 'left'), columnAttach=(1, 'both', 5))
+        file_path_field2 = cmds.textField(editable=False)
+        cmds.iconTextButton(style='iconOnly', image1='fileOpen.png', command=lambda *args: self.open_file_browser_json(file_path_field2))
+        cmds.setParent('..')
+        cmds.button(label="Create Camera From JSON", command= lambda *args: ReadJSONinputCameraPath(meshtxtfield, file_path_field2).execute())
 
-        mc.separator(h=10)
+        cmds.separator(h=10)
         
-        mc.button(label="Close", command= lambda *args: mc.deleteUI(self.window, window=True))
+        cmds.button(label="Close", command= lambda *args: cmds.deleteUI(self.window, window=True))
         
-        mc.showWindow(self.window)
+        cmds.showWindow(self.window)
     
     ### helpers
     def store_nerf(self, textfield):
             try:
-                sel = mc.ls(sl=True)[0]
+                sel = cmds.ls(sl=True)[0]
             except:
                 sys.stderr.write("No object is selected! \n")
 
-            shape = mc.listRelatives(sel, shapes=True)
-            if mc.objectType(shape, isType ='mesh'):
-                mc.textField(textfield, edit=True, text=sel)
+            shape = cmds.listRelatives(sel, shapes=True)
+            if cmds.objectType(shape, isType ='mesh'):
+                cmds.textField(textfield, edit=True, text=sel)
             else:
                 sys.stderr.write("Object selected is not a mesh \n")
             
     
     def store_cam(self, textfield):
             try:
-                sel = mc.ls(sl=True)[0]
+                sel = cmds.ls(sl=True)[0]
             except:
                 sys.stderr.write("No object is selected!")
 
-            shape = mc.listRelatives(sel, shapes=True)
-            if mc.objectType(shape, isType ='camera'):
-                mc.textField(textfield, edit=True, text=sel)
+            shape = cmds.listRelatives(sel, shapes=True)
+            if cmds.objectType(shape, isType ='camera'):
+                cmds.textField(textfield, edit=True, text=sel)
             else:
                 sys.stderr.write("Object selected is not a camera \n")
         
             
     def open_file_browser(self, file_path_field):
-            file_path = mc.fileDialog2(fileMode=3, caption="Select a Folder")
+            file_path = cmds.fileDialog2(fileMode=3, caption="Select a Folder")
             if file_path:
-                mc.textField(file_path_field, edit=True, text=file_path[0])
+                cmds.textField(file_path_field, edit=True, text=file_path[0])
 
     def open_file_browser_json(self, file_path_field):
-        file_path = mc.fileDialog2(fileMode=1, caption="Select a JSON File", fileFilter="JSON Files (*.json)")
+        file_path = cmds.fileDialog2(fileMode=1, caption="Select a JSON File", fileFilter="JSON Files (*.json)")
         if file_path:
-            mc.textField(file_path_field, edit=True, text=file_path[0])
+            cmds.textField(file_path_field, edit=True, text=file_path[0])
