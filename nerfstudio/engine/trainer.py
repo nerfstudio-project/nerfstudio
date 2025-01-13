@@ -240,7 +240,7 @@ class Trainer:
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
-            num_iterations = self.config.max_num_iterations
+            num_iterations = self.config.max_num_iterations - self._start_step
             step = 0
             self.stop_training = False
             for step in range(self._start_step, self._start_step + num_iterations):

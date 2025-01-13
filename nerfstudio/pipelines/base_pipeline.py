@@ -422,9 +422,9 @@ class VanillaPipeline(Pipeline):
         self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
     ):
         """Get the average metrics for evaluation images."""
-        assert hasattr(
-            self.datamanager, "fixed_indices_eval_dataloader"
-        ), "datamanager must have 'fixed_indices_eval_dataloader' attribute"
+        assert hasattr(self.datamanager, "fixed_indices_eval_dataloader"), (
+            "datamanager must have 'fixed_indices_eval_dataloader' attribute"
+        )
         image_prefix = "eval"
         return self.get_average_image_metrics(
             self.datamanager.fixed_indices_eval_dataloader, image_prefix, step, output_path, get_std

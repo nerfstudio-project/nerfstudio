@@ -23,7 +23,7 @@ from torch import Tensor
 
 
 def dilate(tensor: Float[Tensor, "bs 1 H W"], kernel_size=3) -> Float[Tensor, "bs 1 H W"]:
-    """Dilate a tensor with 0s and 1s. 0s will be be expanded based on the kernel size.
+    """Dilate a tensor with 0s and 1s. 0s will be expanded based on the kernel size.
 
     Args:
         kernel_size: Size of the pooling region. Dilates/contracts 1 pixel if kernel_size is 3.

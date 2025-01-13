@@ -158,7 +158,7 @@ def equirect2persp(img: torch.Tensor, fov: int, theta: int, phi: int, hd: int, w
     return remap_cubic(img, lon, lat, border_mode="wrap")
 
 
-def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
+def _crop_top(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
     """Returns a list of vertical bounds with the bottom cropped.
 
     Args:
@@ -184,7 +184,7 @@ def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
     return bound_arr
 
 
-def _crop_top(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
+def _crop_bottom(bound_arr: list, fov: int, crop_factor: float) -> List[float]:
     """Returns a list of vertical bounds with the top cropped.
 
     Args:

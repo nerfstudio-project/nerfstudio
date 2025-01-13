@@ -394,7 +394,7 @@ class ViewerLegacyState:
                 bgr[:, :t, :] = bc
 
                 camera_json = eval_dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
-                self.viser_server.add_dataset_image(idx=f"{idx+len(train_dataset):06d}", json=camera_json)
+                self.viser_server.add_dataset_image(idx=f"{idx + len(train_dataset):06d}", json=camera_json)
 
         # draw the scene box (i.e., the bounding box)
         self.viser_server.update_scene_box(train_dataset.scene_box)
