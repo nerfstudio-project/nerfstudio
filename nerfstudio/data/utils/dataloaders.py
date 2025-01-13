@@ -593,13 +593,13 @@ class ImageBatchStream(IterableDataset):
         cache_images_type: Literal["uint8", "float32"] = "float32",
         sampling_seed: int = 3301,
         device: Union[torch.device, str] = "cpu",
-        custom_view_processor: Optional[Callable[[Cameras, Dict], Tuple[Cameras, Dict]]] = None,
+        custom_image_processor: Optional[Callable[[Cameras, Dict], Tuple[Cameras, Dict]]] = None,
     ):
         self.input_dataset = input_dataset
         self.cache_images_type = cache_images_type
         self.sampling_seed = sampling_seed
         self.device = device
-        self.custom_view_processor = custom_view_processor
+        self.custom_image_processor = custom_image_processor
 
     def __iter__(self):
         dataset_indices = list(range(len(self.input_dataset)))
@@ -629,8 +629,8 @@ class ImageBatchStream(IterableDataset):
             camera.metadata["cam_idx"] = idx
 
             # Apply custom processing if provided
-            if self.custom_view_processor:
-                camera, data = self.custom_view_processor(camera, data)
+            if self.custom_image_processor:
+                camera, data = self.custom_image_processor(camera, data)
 
             i += 1
             camera = camera.to(self.device)
