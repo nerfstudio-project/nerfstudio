@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import maya.api.OpenMaya as om
-from maya import mel, cmds
-import sys
-import os
-import math
 import json
+import math
+import os
+import sys
+
+import maya.api.OpenMaya as om
+from maya import cmds, mel
 
 """
 nerfplugin.py
