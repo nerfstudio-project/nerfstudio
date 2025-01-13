@@ -327,7 +327,7 @@ def initializePlugin(mobject):
     try:
         mplugin.registerCommand(commandName, pluginCommand.cmdCreator)
         
-    except RuntimeError as e:
+    except RuntimeError:
         sys.stderr.write("Failed to register command:" + commandName)
         raise
     addNewShelf()
@@ -336,7 +336,7 @@ def uninitializePlugin(mobject):
     mplugin = om.MFnPlugin(mobject)
     try:
         mplugin.deregisterCommand(commandName)
-    except RuntimeError as e:
+    except RuntimeError:
         sys.stderr.write("Failed to deregister command:" + commandName)
         raise
 
@@ -417,8 +417,9 @@ class Window():
     def store_nerf(self, textfield):
             try:
                 sel = cmds.ls(sl=True)[0]
-            except:
+            except IndexError:
                 sys.stderr.write("No object is selected! \n")
+                raise
 
             shape = cmds.listRelatives(sel, shapes=True)
             if cmds.objectType(shape, isType ='mesh'):
@@ -430,8 +431,9 @@ class Window():
     def store_cam(self, textfield):
             try:
                 sel = cmds.ls(sl=True)[0]
-            except:
+            except IndexError:
                 sys.stderr.write("No object is selected!")
+                raise
 
             shape = cmds.listRelatives(sel, shapes=True)
             if cmds.objectType(shape, isType ='camera'):
