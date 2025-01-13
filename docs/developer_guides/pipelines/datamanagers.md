@@ -14,7 +14,7 @@
 
 ## What is a DataManager?
 
-The DataManager returns a RayBundle and a dictionary of ground truth data. Let's first take a look at the most important abstract methods required by the DataManager. Splatting methods (`FullImageDataManager`) return a Cameras object and a dictionary of ground truth containing complete images, while ray sampling methods (`VanillaDataManager`) return a RayBundle and dictionay of ground truth containing data per-ray. 
+The DataManager returns a representation of viewpoint (rays or cameras) and a dictionary of ground truth data. Splatting methods (`FullImageDataManager`) return a Cameras object and a dictionary of ground truth containing complete images, while ray sampling methods (`VanillaDataManager`) return a RayBundle and dictionay of ground truth containing data per-ray information (hence the `Union` below). Let's first take a look at the most important abstract methods required by the DataManager. 
 
 ```python
 class DataManager(nn.Module):
