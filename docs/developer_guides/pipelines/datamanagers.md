@@ -109,7 +109,9 @@ ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache_ima
 ## Migrating Your DataManager to the new DataManager 
 Many methods subclass a DataManager and add extra data to it. If you would like your custom datamanager to also support new parallel features, you can migrate any custom dataloading logic to the new `custom_view_processor()` API. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. This API provides an interface to attach new information to the RayBundle (for ray based methods), Cameras object (for splatting based methods), or ground truth dictionary. It runs in a background process if disk caching is enabled, otherwise it runs in the main process.
 
-**Note**: naively transfering code to `custom_view_processor` may still OOM on very large datasets if initialization code requires computing something over the whole dataset. To fully take advantage of parallelization make sure your subclassed datamanager computes new information inside the `custom_view_processor`, or caches a subset of the whole dataset. This can also still be slow if pre-computation requires GPU-heavy steps on the same GPU used for training.
+Naively transfering code to `custom_view_processor` may still OOM on very large datasets if initialization code requires computing something over the whole dataset. To fully take advantage of parallelization make sure your subclassed datamanager computes new information inside the `custom_view_processor`, or caches a subset of the whole dataset. This can also still be slow if pre-computation requires GPU-heavy steps on the same GPU used for training.
+
+**Note**: Because the parallel DataManager uses background processes, any member of the DataManager needs to be *picklable* to be used inside `custom_view_processor`.
 
 ```python
 class LERFDataManager(VanillaDataManager):
