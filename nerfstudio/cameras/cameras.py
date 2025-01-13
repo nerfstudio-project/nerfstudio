@@ -205,9 +205,9 @@ class Cameras(TensorDataclass):
         elif isinstance(camera_type, int):
             camera_type = torch.tensor([camera_type], device=self.device)
         elif isinstance(camera_type, torch.Tensor):
-            assert not torch.is_floating_point(
-                camera_type
-            ), f"camera_type tensor must be of type int, not: {camera_type.dtype}"
+            assert not torch.is_floating_point(camera_type), (
+                f"camera_type tensor must be of type int, not: {camera_type.dtype}"
+            )
             camera_type = camera_type.to(self.device)
             if camera_type.ndim == 0 or camera_type.shape[-1] != 1:
                 camera_type = camera_type.unsqueeze(-1)
@@ -400,14 +400,14 @@ class Cameras(TensorDataclass):
 
         # If the camera indices are an int, then we need to make sure that the camera batch is 1D
         if isinstance(camera_indices, int):
-            assert (
-                len(cameras.shape) == 1
-            ), "camera_indices must be a tensor if cameras are batched with more than 1 batch dimension"
+            assert len(cameras.shape) == 1, (
+                "camera_indices must be a tensor if cameras are batched with more than 1 batch dimension"
+            )
             camera_indices = torch.tensor([camera_indices], device=cameras.device)
 
-        assert camera_indices.shape[-1] == len(
-            cameras.shape
-        ), "camera_indices must have shape (num_rays:..., num_cameras_batch_dims)"
+        assert camera_indices.shape[-1] == len(cameras.shape), (
+            "camera_indices must have shape (num_rays:..., num_cameras_batch_dims)"
+        )
 
         # If keep_shape is True, then we need to make sure that the camera indices in question
         # are all the same height and width and can actually be batched while maintaining the image
