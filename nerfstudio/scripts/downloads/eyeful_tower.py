@@ -360,7 +360,7 @@ class EyefulTowerDownload(DatasetDownload):
                 + includes
                 + [base_url, str(output_path)]
             )
-            CONSOLE.print(f"[EyefulTower Capture {i+1: >2d}/{len(captures)}]: '{capture}'")
+            CONSOLE.print(f"[EyefulTower Capture {i + 1: >2d}/{len(captures)}]: '{capture}'")
             print(
                 f"\tDownloading resolutions {resolutions}",
                 f"to '{output_path.resolve()}' with command `aws {' '.join(command)}` ...",

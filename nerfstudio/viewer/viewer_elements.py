@@ -211,9 +211,9 @@ class ViewerControl:
                 origin = scene_pointer_msg.ray_origin
                 direction = scene_pointer_msg.ray_direction
                 screen_pos = scene_pointer_msg.screen_pos[0]
-                assert (origin is not None) and (
-                    direction is not None
-                ), "Origin and direction should not be None for click event."
+                assert (origin is not None) and (direction is not None), (
+                    "Origin and direction should not be None for click event."
+                )
                 origin = tuple([x / VISER_NERFSTUDIO_SCALE_RATIO for x in origin])
                 assert len(origin) == 3
                 pointer_event = ViewerClick(origin, direction, screen_pos)

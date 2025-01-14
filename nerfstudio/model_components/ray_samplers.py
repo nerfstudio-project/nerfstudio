@@ -330,9 +330,9 @@ class PDFSampler(Sampler):
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
         u = u.contiguous()
 
-        assert (
-            ray_samples.spacing_starts is not None and ray_samples.spacing_ends is not None
-        ), "ray_sample spacing_starts and spacing_ends must be provided"
+        assert ray_samples.spacing_starts is not None and ray_samples.spacing_ends is not None, (
+            "ray_sample spacing_starts and spacing_ends must be provided"
+        )
         assert ray_samples.spacing_to_euclidean_fn is not None, "ray_samples.spacing_to_euclidean_fn must be provided"
         existing_bins = torch.cat(
             [
