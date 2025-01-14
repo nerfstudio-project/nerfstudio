@@ -289,9 +289,9 @@ class PhototourismDownload(DatasetDownload):
                     PhototourismDownload(capture_name=capture_name).download(save_dir)
             return
 
-        assert (
-            self.capture_name in phototourism_downloads
-        ), f"Capture name {self.capture_name} not found in {phototourism_downloads.keys()}"
+        assert self.capture_name in phototourism_downloads, (
+            f"Capture name {self.capture_name} not found in {phototourism_downloads.keys()}"
+        )
         url = phototourism_downloads[self.capture_name]
         target_path = str(save_dir / "phototourism" / self.capture_name)
         os.makedirs(target_path, exist_ok=True)
@@ -350,9 +350,9 @@ class SDFstudioDemoDownload(DatasetDownload):
                     SDFstudioDemoDownload(dataset_name=dataset_name).download(save_dir)
             return
 
-        assert (
-            self.dataset_name in sdfstudio_downloads
-        ), f"Capture name {self.dataset_name} not found in {sdfstudio_downloads.keys()}"
+        assert self.dataset_name in sdfstudio_downloads, (
+            f"Capture name {self.dataset_name} not found in {sdfstudio_downloads.keys()}"
+        )
 
         url = sdfstudio_downloads[self.dataset_name]
 
@@ -421,9 +421,9 @@ class NeRFOSRDownload(DatasetDownload):
                     NeRFOSRDownload(capture_name=capture_name).download(save_dir)
             return
 
-        assert (
-            self.capture_name in nerfosr_downloads
-        ), f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
+        assert self.capture_name in nerfosr_downloads, (
+            f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
+        )
         url = nerfosr_downloads[self.capture_name]
         target_path = str(save_dir / "nerfosr" / self.capture_name)
         os.makedirs(target_path, exist_ok=True)
@@ -475,9 +475,9 @@ class Mill19Download(DatasetDownload):
                     Mill19Download(capture_name=capture_name).download(save_dir)
             return
 
-        assert (
-            self.capture_name in mill19_downloads
-        ), f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
+        assert self.capture_name in mill19_downloads, (
+            f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
+        )
         url = mill19_downloads[self.capture_name]
         target_path = save_dir / "mill19" / self.capture_name
         target_path.mkdir(parents=True, exist_ok=True)

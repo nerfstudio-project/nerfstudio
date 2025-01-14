@@ -71,9 +71,9 @@ class TensorDataclass:
         set _shape to be the broadcasted shape.
         """
         for k, v in self._field_custom_dimensions.items():
-            assert (
-                isinstance(v, int) and v > 1
-            ), f"Custom dimensions must be an integer greater than 1, since 1 is the default, received {k}: {v}"
+            assert isinstance(v, int) and v > 1, (
+                f"Custom dimensions must be an integer greater than 1, since 1 is the default, received {k}: {v}"
+            )
 
         # Shim to prevent pyright from narrowing `self` to DataclassInstance.
         self_dc = self

@@ -70,9 +70,9 @@ def polycam_to_json(
         frame["cy"] = frame_json["cy"] - crop_border_pixels
         frame["w"] = frame_json["width"] - crop_border_pixels * 2
         frame["h"] = frame_json["height"] - crop_border_pixels * 2
-        frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
+        frame["file_path"] = f"./images/frame_{i + 1:05d}{image_filename.suffix}"
         if use_depth:
-            frame["depth_file_path"] = f"./depth/frame_{i+1:05d}{depth_filenames[i].suffix}"
+            frame["depth_file_path"] = f"./depth/frame_{i + 1:05d}{depth_filenames[i].suffix}"
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         frame["transform_matrix"] = [
             [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],
