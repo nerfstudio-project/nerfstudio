@@ -63,8 +63,12 @@ class NerfactoModelConfig(ModelConfig):
     """Dimension of hidden layers"""
     hidden_dim_color: int = 64
     """Dimension of hidden layers for color network"""
-    hidden_dim_transient: int = 64
+    use_transient_embedding: bool = True
+    """Whether to use an transient embedding."""
+    hidden_dim_transient: int = 128
     """Dimension of hidden layers for transient network"""
+    transient_embed_dim: int = 16
+    """Dimension of the transient embedding."""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
     base_res: int = 16
@@ -162,7 +166,9 @@ class NerfactoModel(Model):
             features_per_level=self.config.features_per_level,
             log2_hashmap_size=self.config.log2_hashmap_size,
             hidden_dim_color=self.config.hidden_dim_color,
+            use_transient_embedding=self.config.use_transient_embedding,
             hidden_dim_transient=self.config.hidden_dim_transient,
+            transient_embedding_dim=self.config.transient_embed_dim,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
