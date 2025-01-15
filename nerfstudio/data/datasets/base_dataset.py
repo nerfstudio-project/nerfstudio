@@ -29,7 +29,6 @@ import torch
 from jaxtyping import Float, UInt8
 from PIL import Image
 from torch import Tensor
-from torch.profiler import record_function
 from torch.utils.data import Dataset
 
 from nerfstudio.cameras.cameras import Cameras
@@ -104,12 +103,9 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        with record_function("pil_to_numpy()"):
-            image = self.get_numpy_image(image_idx)
-        with record_function("divide by 255.0 + convert to float32"):
-            image = image / np.float32(255)
-        with record_function("torch.from_numpy()"):
-            image = torch.from_numpy(image)
+        image = self.get_numpy_image(image_idx)
+        image = image / np.float32(255)
+        image = torch.from_numpy(image)
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1

@@ -78,8 +78,7 @@ def _undistort_image(
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
         assert distortion_params[3] == 0, (
-            "We don't support the 4th Brown parameter for image undistortion, "
-            "Only k1, k2, k3, p1, p2 can be non-zero."
+            "We don't support the 4th Brown parameter for image undistortion, Only k1, k2, k3, p1, p2 can be non-zero."
         )
         # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3)
         # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
@@ -260,8 +259,8 @@ def undistort_view(
     data = dataset.get_data(idx, image_type)
     camera = dataset.cameras[idx].reshape(())
     assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
-        f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
-        f'does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}'
+        f"The size of image ({data['image'].shape[1]}, {data['image'].shape[0]}) loaded "
+        f"does not match the camera parameters ({camera.width.item(), camera.height.item()}), idx = {idx}"
     )
     if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
         return camera.reshape((1,)), data
@@ -594,13 +593,13 @@ class ImageBatchStream(IterableDataset):
         cache_images_type: Literal["uint8", "float32"] = "float32",
         sampling_seed: int = 3301,
         device: Union[torch.device, str] = "cpu",
-        custom_view_processor: Optional[Callable[[Cameras, Dict], Tuple[Cameras, Dict]]] = None,
+        custom_image_processor: Optional[Callable[[Cameras, Dict], Tuple[Cameras, Dict]]] = None,
     ):
         self.input_dataset = input_dataset
         self.cache_images_type = cache_images_type
         self.sampling_seed = sampling_seed
         self.device = device
-        self.custom_view_processor = custom_view_processor
+        self.custom_image_processor = custom_image_processor
 
     def __iter__(self):
         dataset_indices = list(range(len(self.input_dataset)))
@@ -630,8 +629,8 @@ class ImageBatchStream(IterableDataset):
             camera.metadata["cam_idx"] = idx
 
             # Apply custom processing if provided
-            if self.custom_view_processor:
-                camera, data = self.custom_view_processor(camera, data)
+            if self.custom_image_processor:
+                camera, data = self.custom_image_processor(camera, data)
 
             i += 1
             camera = camera.to(self.device)

@@ -79,7 +79,7 @@ class DepthDataset(InputDataset):
                     filenames = dataparser_outputs.image_filenames
 
                 repo = "isl-org/ZoeDepth"
-                self.zoe = torch_compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
+                zoe = torch_compile(torch.hub.load(repo, "ZoeD_NK", pretrained=True).to(device))
 
                 for i in track(range(len(filenames)), description="Generating depth images"):
                     image_filename = filenames[i]
@@ -93,7 +93,7 @@ class DepthDataset(InputDataset):
                         image = torch.permute(image, (2, 0, 1)).unsqueeze(0).to(device)
                         if image.shape[1] == 4:
                             image = image[:, :3, :, :]
-                        depth_tensor = self.zoe.infer(image).squeeze().unsqueeze(-1)
+                        depth_tensor = zoe.infer(image).squeeze().unsqueeze(-1)
 
                     depth_tensors.append(depth_tensor)
 

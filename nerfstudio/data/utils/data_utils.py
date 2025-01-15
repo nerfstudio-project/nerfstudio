@@ -22,7 +22,6 @@ import numpy as np
 import torch
 from PIL import Image
 from PIL.Image import Image as PILImage
-from torch.profiler import record_function
 
 
 def pil_to_numpy(im: PILImage) -> np.ndarray:
@@ -35,8 +34,7 @@ def pil_to_numpy(im: PILImage) -> np.ndarray:
         numpy.ndarray representing the image data.
     """
     # Load in image completely (PIL defaults to lazy loading)
-    with record_function("im.load()"):
-        im.load()
+    im.load()
 
     # Unpack data
     e = Image._getencoder(im.mode, "raw", im.mode)

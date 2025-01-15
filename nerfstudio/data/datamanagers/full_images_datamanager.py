@@ -328,14 +328,13 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache_images_type=self.config.cache_images_type,
                 sampling_seed=self.config.train_cameras_sampling_seed,
                 device=self.device,
-                custom_view_processor=self.custom_view_processor,
+                custom_image_processor=self.custom_image_processor,
             )
             self.train_image_dataloader = DataLoader(
                 self.train_imagebatch_stream,
                 batch_size=1,
                 num_workers=self.config.dataloader_num_workers,
                 collate_fn=identity_collate,
-                # pin_memory_device=self.device, # for some reason if we pin memory, exporting to PLY file doesn't work
             )
             self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
@@ -347,12 +346,12 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 cache_images_type=self.config.cache_images_type,
                 sampling_seed=self.config.train_cameras_sampling_seed,
                 device=self.device,
-                custom_view_processor=self.custom_view_processor,
+                custom_image_processor=self.custom_image_processor,
             )
             self.eval_image_dataloader = DataLoader(
                 self.eval_imagebatch_stream,
                 batch_size=1,
-                num_workers=0,  # This must be 0 otherwise there is a crash when trying to pickle custom_view_processor
+                num_workers=0,  # This must be 0 otherwise there is a crash when trying to pickle custom_image_processor
                 collate_fn=identity_collate,
             )
             self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
@@ -448,6 +447,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data
 
-    def custom_view_processor(self, camera: Cameras, data: Dict) -> Tuple[Cameras, Dict]:
+    def custom_image_processor(self, camera: Cameras, data: Dict) -> Tuple[Cameras, Dict]:
         """An API to add latents, metadata, or other further customization an camera-and-image view dataloading process that is parallelized"""
         return camera, data
