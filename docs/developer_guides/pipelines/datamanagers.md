@@ -107,12 +107,12 @@ We currently don't have other implementations because most papers follow the Van
 ## Disk Caching for Large Datasets
 As of January 2025, the FullImageDatamanager and ParallelImageDatamanager implementations now support parallelized dataloading and dataloading from disk to avoid Out-Of-Memory errors and support very large datasets. To train a NeRF-based method with a large dataset that's unable to fit in memory, please add the `load_from_disk` flag to your `ns-train` command. For example with nerfacto:
 ```bash
-ns-train nerfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.load_from_disk
+ns-train nerfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.load-from-disk
 ```
 
-To train splatfacto with a large dataset that's unable to fit in memory, please set the device of `cache_images` to disk. For example with splatfacto:
+To train splatfacto with a large dataset that's unable to fit in memory, please set the device of `cache_images` to `"disk"`. For example with splatfacto:
 ```bash
-ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache_images disk
+ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache-images disk
 ```
 
 ## Migrating Your DataManager to the new DataManager 
@@ -144,18 +144,15 @@ class LERFDataManager(VanillaDataManager):
         super().__init__(
             config=config, device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank, **kwargs
         )
-        """
-        Some code to initialize all the CLIP and DINO feature encoders
-        """
+        # Some code to initialize all the CLIP and DINO feature encoders.
         self.image_encoder: BaseImageEncoder = kwargs["image_encoder"]
         self.dino_dataloader = ...
         self.clip_interpolator = ...
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
-        """
-        Returns the next batch of data from the train dataloader.
+        """Returns the next batch of data from the train dataloader.
 
-        In this custom DataManager we need to add on the data that LERF needs, namely CLIP and DINO features
+        In this custom DataManager we need to add on the data that LERF needs, namely CLIP and DINO features.
         """
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
@@ -193,7 +190,8 @@ class LERFDataManager(ParallelDataManager, Generic[TDataset]):
             batch["clip"], clip_scale = self.clip_interpolator(ray_indices)
             batch["dino"] = self.dino_dataloader(ray_indices)
             ray_bundle.metadata["clip_scales"] = clip_scale
-            # assume all cameras have the same focal length and image width
+
+            # Assume all cameras have the same focal length and image dimensions.
             ray_bundle.metadata["fx"] = self.train_dataset.cameras[0].fx.item()
             ray_bundle.metadata["width"] = self.train_dataset.cameras[0].width.item()
             ray_bundle.metadata["fy"] = self.train_dataset.cameras[0].fy.item()
