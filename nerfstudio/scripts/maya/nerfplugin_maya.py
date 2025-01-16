@@ -275,8 +275,7 @@ class ReadJSONinputCameraPath:
 
             # animate fov
             cmds.camera(self.cam_obj[0], edit=True, vfv=self.fov_list[curr_frame])
-+           cmds.setKeyframe(self.cam_obj[0], attribute="verticalFieldOfView", t=curr_frame)  # set fov
-
+            cmds.setKeyframe(self.cam_obj[0], attribute="verticalFieldOfView", t=curr_frame)  # set fov
             cmds.setAttr(f"{self.cam_obj[0]}.filmFit", 2)  # set film gate to vertical
             cmds.setKeyframe(self.cam_obj[0], attribute="filmFit", t=curr_frame)
 
