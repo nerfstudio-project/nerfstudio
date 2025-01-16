@@ -14,14 +14,14 @@
 
 ## What is a DataManager?
 
-
 The DataManager batches and returns two components from an input dataset:
+
 1. A representation of viewpoint (either cameras or rays).
-  - For splatting methods (`FullImageDataManager`): a `Cameras` object.
-  - For ray sampling methods (`VanillaDataManager`): a `RayBundle` object.
+    - For splatting methods (`FullImageDataManager`): a `Cameras` object.
+    - For ray sampling methods (`VanillaDataManager`): a `RayBundle` object.
 2. A dictionary of ground truth data.
-  - For splatting methods (`FullImageDataManager`): dictionary contains complete images.
-  - For ray sampling methods (`VanillaDataManager`): dictionary contains per-ray information.
+    - For splatting methods (`FullImageDataManager`): dictionary contains complete images.
+    - For ray sampling methods (`VanillaDataManager`): dictionary contains per-ray information.
 
 Behaviors are defined by implementing the abstract methods required by the DataManager:
 
