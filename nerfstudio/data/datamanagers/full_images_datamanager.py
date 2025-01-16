@@ -81,29 +81,14 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
-    dataloader_num_workers: int = 0
+    dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 0
+    prefetch_factor: int = 4
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
     """If True, cache raw image files as byte strings to RAM."""
-
-    def __post_init__(self):
-        if self.cache_images == "disk":
-            # If a user would like to load from disk, we pre-emptively set the number of
-            # workers and prefetch factor to parallelize the dataloading process.
-            try:
-                torch.multiprocessing.set_start_method("spawn")
-            except RuntimeError:
-                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
-            if self.prefetch_factor == 0:
-                CONSOLE.log('cache_images set to "disk" with no prefetch factor, defaulting to 4')
-                self.prefetch_factor = 4
-            if self.dataloader_num_workers == 0:
-                CONSOLE.log('cache_images set to "disk" with 0 dataloader workers, defaulting to 4')
-                self.dataloader_num_workers = 4
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -126,6 +111,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         local_rank: int = 0,
         **kwargs,
     ):
+        if config.cache_images == "disk":
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
         self.config = config
         self.device = device
         self.world_size = world_size

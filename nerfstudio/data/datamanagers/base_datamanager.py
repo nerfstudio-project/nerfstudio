@@ -289,11 +289,13 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """The image type returned from manager, caching images in uint8 saves memory"""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1
+    train_num_images_to_sample_from: int = 50
     """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = -1
+    train_num_times_to_repeat_images: int = 10
     """When not training on all images, number of iterations before picking new
-    images. If -1, never pick new images."""
+    images. If -1, never pick new images.
+    Note: decreasing train_num_images_to_sample_from and increasing train_num_times_to_repeat_images alleviates CPU bottleneck.
+    """
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
     eval_num_images_to_sample_from: int = -1
@@ -310,15 +312,13 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    use_parallel_dataloader: bool = False
-    """Allows parallelization of the dataloading process with multiple workers prefetching RayBundles."""
     load_from_disk: bool = False
     """If True, conserves RAM memory by loading images from disk.
     If False, caches all the images as tensors to RAM and loads from RAM."""
-    dataloader_num_workers: int = 0
+    dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int | None = None
+    prefetch_factor: int = 10
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
@@ -339,26 +339,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
                 "\nCameraOptimizerConfig has been moved from the DataManager to the Model.\n", style="bold yellow"
             )
             warnings.warn("above message coming from", FutureWarning, stacklevel=3)
-
-        """
-        These heuristics allow the CPU dataloading bottleneck to equal the GPU bottleneck when training, but can be adjusted
-        Note: decreasing train_num_images_to_sample_from and increasing train_num_times_to_repeat_images alleviates CPU bottleneck.
-        """
-        if self.load_from_disk:
-            self.train_num_images_to_sample_from = (
-                50 if self.train_num_images_to_sample_from == -1 else self.train_num_images_to_sample_from
-            )
-            self.train_num_times_to_repeat_images = (
-                10 if self.train_num_times_to_repeat_images == -1 else self.train_num_times_to_repeat_images
-            )
-            self.prefetch_factor = self.train_num_times_to_repeat_images if self.use_parallel_dataloader else None
-
-        if self.use_parallel_dataloader:
-            try:
-                torch.multiprocessing.set_start_method("spawn")
-            except RuntimeError:
-                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
-            self.dataloader_num_workers = 4 if self.dataloader_num_workers == 0 else self.dataloader_num_workers
 
 
 TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)

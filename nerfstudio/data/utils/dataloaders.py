@@ -498,7 +498,6 @@ class RayBatchStream(IterableDataset):
             for idx in indices:
                 res = executor.submit(self.input_dataset.__getitem__, idx)
                 results.append(res)
-            # results = tqdm(results)  # this is temporary and will be removed in the final push
             for res in results:
                 batch_list.append(res.result())
 
@@ -545,11 +544,16 @@ class RayBatchStream(IterableDataset):
         self.ray_generator = RayGenerator(self.input_dataset.cameras)
 
         i = 0
+        true_random = random.Random(worker_info.id) if worker_info is not None else r
+        # We offset the value of repeat so that they're not all running out of images at once
+        repeat_offset_max = 10 if worker_info is not None else 1
+        repeat_offset = true_random.randint(0, repeat_offset_max)
         while True:
             if not self.load_from_disk:
                 collated_batch = self._cached_collated_batch
-            elif i % self.num_times_to_repeat_images == 0:
+            elif i % (self.num_times_to_repeat_images + repeat_offset) == 0:
                 r.shuffle(worker_indices)
+                repeat_offset = true_random.randint(0, repeat_offset_max)
                 if self.num_images_to_sample_from == -1:
                     # if -1, the worker gets all available indices in its partition
                     image_indices = worker_indices
