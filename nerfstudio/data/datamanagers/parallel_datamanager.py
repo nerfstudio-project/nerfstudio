@@ -66,6 +66,10 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         local_rank: int = 0,
         **kwargs,
     ):
+        try:
+            torch.multiprocessing.set_start_method("spawn")
+        except RuntimeError:
+            assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
         self.config = config
         self.device = device
         self.world_size = world_size
