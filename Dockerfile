@@ -24,7 +24,7 @@ ENV QT_XCB_GL_INTEGRATION=xcb_egl
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
         git \
-        cmake \
+        wget \
         ninja-build \
         build-essential \
         libboost-program-options-dev \
@@ -45,6 +45,27 @@ RUN apt-get update && \
         libceres-dev \
         python3.10-dev \
         python3-pip
+
+# Build and install CMake
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.sh \
+    -q -O /tmp/cmake-install.sh \
+    && chmod u+x /tmp/cmake-install.sh \
+    && mkdir /opt/cmake-3.31.3 \
+    && /tmp/cmake-install.sh --skip-license --prefix=/opt/cmake-3.31.3 \
+    && rm /tmp/cmake-install.sh \
+    && ln -s /opt/cmake-3.31.3/bin/* /usr/local/bin
+    
+# Build and install GLOMAP.
+RUN git clone https://github.com/colmap/glomap.git && \
+    cd glomap && \
+    git checkout "1.0.0" && \
+    mkdir build && \
+    cd build && \
+    mkdir -p /build && \
+    cmake .. -GNinja "-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}" \
+        -DCMAKE_INSTALL_PREFIX=/build/glomap && \
+    ninja install -j1 && \
+    cd ~
 
 # Build and install COLMAP.
 RUN git clone https://github.com/colmap/colmap.git && \
@@ -123,6 +144,7 @@ RUN apt-get update && \
 
 # Copy packages from builder stage.
 COPY --from=builder /build/colmap/ /usr/local/
+COPY --from=builder /build/glomap/ /usr/local/
 COPY --from=builder /usr/local/lib/python3.10/dist-packages/ /usr/local/lib/python3.10/dist-packages/
 COPY --from=builder /usr/local/bin/ns* /usr/local/bin/
 
