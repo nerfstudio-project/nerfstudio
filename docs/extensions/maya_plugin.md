@@ -96,7 +96,7 @@ Note that only perspective cameras are supported as of now.
 
 ## Exporting a camera path from Nerfstudio into Maya
 
-1. Create a camera path in Nerfstudio. Export the nerf as a mesh if you haven’t done so already. Adjust the FOV and resolution as needed. Note that only perspective cameras are supported as of now. Hit “Generate Command” and run the command in the terminal. This will export a .mp4 file of the nerf scene in your renders folder, and a camera path json file in the same folder where your nerf data is.
+1. Create a camera path in Nerfstudio. Export the nerf as a mesh if you haven’t done so already. Adjust the FOV and resolution as needed. Note that only perspective cameras are supported as of now. Hit “Generate Command” and run the command in the terminal. This will export a .mp4 file of the nerf scene in your renders folder, and a camera path json file in the same folder as your nerf data.
 
  <center>
    <img width="800" alt="image" src="https://github.com/user-attachments/assets/2dc92418-787e-4fc8-8218-8f33ee0a2f88" />
