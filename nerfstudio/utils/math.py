@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Literal, Tuple
 
 import torch
+from e3nn.o3 import Irreps
 from jaxtyping import Bool, Float
 from torch import Tensor
 
@@ -90,6 +91,30 @@ def components_from_spherical_harmonics(
         components[..., 24] = 0.6258357354491761 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
 
     return components
+
+
+def rotate_spherical_harmonics(
+    coeffs: Float[Tensor, "*batch dim_sh"],
+    rotation_matrix: Float[Tensor, "3 3"],
+) -> Float[Tensor, "*batch dim_sh"]:
+    """Rotates real spherical harmonic coefficients of degree l using given 3x3 rotation matrix.
+
+    Args:
+        coeffs : SH coefficients
+        rotation_matrix : A 3x3 rotation matrix.
+
+    Returns:
+        The rotated SH coefficients
+    """
+    dim_sh = coeffs.shape[-1]
+    assert math.isqrt(dim_sh)**2 == dim_sh, "dim_sh must be a perfect square (l+1)^2"
+    sh_degree = int(math.sqrt(dim_sh)) - 1
+    
+    rotation_matrix = rotation_matrix.cpu()
+    irreps = Irreps(" + ".join([f"{i}e" for i in range(sh_degree + 1)])) # Even parity spherical harmonics of degree l
+    D_matrix = irreps.D_from_matrix(rotation_matrix).to(coeffs.device) # Construct Wigner D-matrix
+    rotated_coeffs = torch.einsum("ij,...j->...i", D_matrix, coeffs)
+    return rotated_coeffs
 
 
 @dataclass

@@ -31,7 +31,9 @@ import numpy as np
 import open3d as o3d
 import torch
 import tyro
-from nerfstudio.cameras.camera_utils import quaternion_from_matrix
+from scipy.spatial.transform import Rotation as ScR
+from typing_extensions import Annotated, Literal
+
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
@@ -45,8 +47,8 @@ from nerfstudio.fields.sdf_field import SDFField  # noqa
 from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
+from nerfstudio.utils.math import rotate_spherical_harmonics
 from nerfstudio.utils.rich_utils import CONSOLE
-from typing_extensions import Annotated, Literal
 
 
 @dataclass
@@ -567,26 +569,34 @@ class ExportGaussianSplat(Exporter):
         map_to_tensors = OrderedDict()
 
         with torch.no_grad():
+
+            positions = model.means.cpu().numpy()
+            quats = model.quats.data.cpu().numpy()
+            
             if self.save_world_frame:
                 assert isinstance(pipeline.datamanager, FullImageDatamanager)
+                # ns gplat uses quaternions in [w,x,y,z] format while scipy uses [x, y, z, w]
+                rot_ns = ScR.from_quat(quats[:, [1, 2, 3, 0]]).as_matrix()
+
+                # apply the inverse dataparser transform to the splat
+                poses = np.eye(4, dtype=np.float32)[None, ...].repeat(positions.shape[0], axis=0)[:, :3, :]
+                poses[:, :3, :3] = rot_ns
+                poses[:, :3, 3] = positions
+                poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+                    torch.from_numpy(poses)
+                )
+                
+                rot_world = ScR.from_matrix(poses[:, :3, :3].numpy())
+                quats = rot_world.as_quat()[:, [3, 0, 1, 2]] # convert back to [w,x,y,z] format
+                positions = poses[:, :3, 3].cpu().numpy()
+                
                 dataparser_outputs = pipeline.datamanager.train_dataparser_outputs
                 dataparser_scale = dataparser_outputs.dataparser_scale
-                dataparser_transform = dataparser_outputs.dataparser_transform.numpy(force=True)
+                dataparser_transform = dataparser_outputs.dataparser_transform
 
                 output_scale = 1 / dataparser_scale
-                output_transform = np.zeros((3, 4))
-                output_transform[:3, :3] = dataparser_transform[:3, :3].T
-                output_transform[:3, 3] = -dataparser_transform[:3, :3].T @ dataparser_transform[:3, 3]
-            else:
-                output_scale = 1
-                output_transform = np.zeros((3, 4))
-                output_transform[:3, :3] = np.eye(3)
-            inv_dataparser_quat = quaternion_from_matrix(output_transform[:3, :3])
+                output_rotation = dataparser_transform[:3, :3].T
 
-            positions = (
-                np.einsum("ij,bj->bi", output_transform[:3, :3], model.means.cpu().numpy() * output_scale)
-                + output_transform[None, :3, 3]
-            )
             count = positions.shape[0]
             n = count
             map_to_tensors["x"] = positions[:, 0]
@@ -614,34 +624,29 @@ class ExportGaussianSplat(Exporter):
                     )
                 elif self.ply_color_mode == "sh_coeffs":
                     # transpose(1, 2) was needed to match the sh order in Inria version
-                    shs_rest = model.shs_rest.transpose(1, 2).contiguous().cpu().numpy()
-                    shs_rest = shs_rest.reshape((n, -1))
+                    shs_rest = model.shs_rest.transpose(1, 2).contiguous() # (n, 3, dim_sh)
+                    if self.save_world_frame:
+                        # The 0th order coefficients (l=0) are constant and invariant to rotation. 
+                        # They don't affect the rotation of the rest of the SH.
+                        shs_coeffs_all = torch.zeros((n, 3, shs_rest.shape[-1]+1), device=shs_rest.device)
+                        shs_coeffs_all[:, :, 1:] = shs_rest
+                        shs_rest = rotate_spherical_harmonics(shs_coeffs_all, output_rotation)[:, :, 1:]
+
+                    shs_rest = shs_rest.cpu().numpy().reshape((n, -1))
+                    
                     for i in range(shs_rest.shape[-1]):
                         map_to_tensors[f"f_rest_{i}"] = shs_rest[:, i, None]
 
             map_to_tensors["opacity"] = model.opacities.data.cpu().numpy()
 
             # Note that scales are in log space!
-            scales = model.scales.data.cpu().numpy() + np.log(output_scale)
+            scales = model.scales.data.cpu().numpy()
+            if self.save_world_frame:
+                scales += np.log(output_scale)
+                
             for i in range(3):
                 map_to_tensors[f"scale_{i}"] = scales[:, i, None]
 
-            def quaternion_multiply(wxyz0: np.ndarray, wxyz1: np.ndarray) -> np.ndarray:
-                assert wxyz0.shape[-1] == 4
-                assert wxyz1.shape[-1] == 4
-                w0, x0, y0, z0 = np.moveaxis(wxyz0, -1, 0)
-                w1, x1, y1, z1 = np.moveaxis(wxyz1, -1, 0)
-                return np.stack(
-                    [
-                        -x0 * x1 - y0 * y1 - z0 * z1 + w0 * w1,
-                        x0 * w1 + y0 * z1 - z0 * y1 + w0 * x1,
-                        -x0 * z1 + y0 * w1 + z0 * x1 + w0 * y1,
-                        x0 * y1 - y0 * x1 + z0 * w1 + w0 * z1,
-                    ],
-                    axis=-1,
-                )
-
-            quats = quaternion_multiply(inv_dataparser_quat, model.quats.data.cpu().numpy())
             for i in range(4):
                 map_to_tensors[f"rot_{i}"] = quats[:, i, None]
 

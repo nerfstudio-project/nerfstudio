@@ -16,14 +16,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import viser
 import viser.transforms as vtf
+from typing_extensions import Literal
+
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.viewer.control_panel import ControlPanel
-from typing_extensions import Literal
-
-import viser
 
 
 def populate_export_tab(
