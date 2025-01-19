@@ -69,7 +69,8 @@ dependencies = [
     "pathos",
     "packaging",
     "fpsample",
-    "tensorly"
+    "tensorly",
+    "e3nn>=0.5.1"
 ]
 
 [project.urls]

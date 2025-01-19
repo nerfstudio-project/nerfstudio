@@ -115,14 +115,14 @@ def SH2RGB(sh):
 
 
 def rotate_spherical_harmonics(
-    coeffs: Float[Tensor, "*batch dim_sh"],
     rotation_matrix: Float[Tensor, "3 3"],
+    coeffs: Float[Tensor, "*batch dim_sh"],
 ) -> Float[Tensor, "*batch dim_sh"]:
-    """Rotates real spherical harmonic coefficients of degree l using given 3x3 rotation matrix.
+    """Rotates real spherical harmonic coefficients using a given 3x3 rotation matrix.
 
     Args:
-        coeffs : SH coefficients
         rotation_matrix : A 3x3 rotation matrix.
+        coeffs : SH coefficients
 
     Returns:
         The rotated SH coefficients
@@ -131,8 +131,13 @@ def rotate_spherical_harmonics(
     assert math.isqrt(dim_sh) ** 2 == dim_sh, "dim_sh must be a perfect square (l+1)^2"
     sh_degree = int(math.sqrt(dim_sh)) - 1
 
-    rotation_matrix = rotation_matrix.cpu()
+    # e3nn uses the xyz ordering instead of the standard yzx used in ns, equivalent to a change of basis
+    R_yzx_to_xyz = torch.tensor([[0, 0, 1], [1, 0, 0], [0, 1, 0]], dtype=torch.float32)
+    R_total = (R_yzx_to_xyz.T @ rotation_matrix @ R_yzx_to_xyz).cpu()
+
     irreps = Irreps(" + ".join([f"{i}e" for i in range(sh_degree + 1)]))  # Even parity spherical harmonics of degree l
-    D_matrix = irreps.D_from_matrix(rotation_matrix).to(coeffs.device)  # Construct Wigner D-matrix
-    rotated_coeffs = torch.einsum("ij,...j->...i", D_matrix, coeffs)
+    D_matrix = irreps.D_from_matrix(R_total).to(coeffs.device)  # Construct Wigner D-matrix
+
+    # Multiply last dimension of coeffs (..., dim_sh) with the Wigner D-matrix (dim_sh, dim_sh)
+    rotated_coeffs = coeffs @ D_matrix.T
     return rotated_coeffs

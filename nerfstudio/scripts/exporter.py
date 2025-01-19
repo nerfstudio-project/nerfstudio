@@ -584,13 +584,16 @@ class ExportGaussianSplat(Exporter):
             positions = model.means.cpu().numpy()
             quats = model.quats.data.cpu().numpy()
 
+            count = positions.shape[0]
+            n = count
+
             if self.save_world_frame:
                 assert isinstance(pipeline.datamanager, FullImageDatamanager)
                 # ns gplat uses quaternions in [w,x,y,z] format while scipy uses [x, y, z, w]
                 rot_ns = ScR.from_quat(quats[:, [1, 2, 3, 0]]).as_matrix()
 
                 # apply the inverse dataparser transform to the splat
-                poses = np.eye(4, dtype=np.float32)[None, ...].repeat(positions.shape[0], axis=0)[:, :3, :]
+                poses = np.zeros((n, 3, 4), dtype=np.float32)
                 poses[:, :3, :3] = rot_ns
                 poses[:, :3, 3] = positions
                 poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
@@ -601,8 +604,6 @@ class ExportGaussianSplat(Exporter):
                 quats = rot_world.as_quat()[:, [3, 0, 1, 2]]  # convert back to [w,x,y,z] format
                 positions = poses[:, :3, 3].cpu().numpy()
 
-            count = positions.shape[0]
-            n = count
             map_to_tensors["x"] = positions[:, 0]
             map_to_tensors["y"] = positions[:, 1]
             map_to_tensors["z"] = positions[:, 2]
@@ -632,10 +633,11 @@ class ExportGaussianSplat(Exporter):
                     if self.save_world_frame:
                         # The 0th order coefficients (l=0) are constant and invariant to rotation.
                         # They don't affect the rotation of the rest of the SH.
-                        shs_coeffs_all = torch.zeros((n, 3, shs_rest.shape[-1] + 1), device=shs_rest.device)
+                        dim_sh_all = shs_rest.shape[-1] + 1
+                        shs_coeffs_all = torch.zeros((n, 3, dim_sh_all), device=shs_rest.device)
                         shs_coeffs_all[:, :, 1:] = shs_rest
                         output_rotation = pipeline.datamanager.train_dataparser_outputs.dataparser_transform[:3, :3].T
-                        shs_rest = rotate_spherical_harmonics(shs_coeffs_all, output_rotation)[:, :, 1:]
+                        shs_rest = rotate_spherical_harmonics(output_rotation, shs_coeffs_all)[:, :, 1:]
 
                     shs_rest = shs_rest.cpu().numpy().reshape((n, -1))
 
@@ -647,7 +649,7 @@ class ExportGaussianSplat(Exporter):
             # Note that scales are in log space!
             scales = model.scales.data.cpu().numpy()
             if self.save_world_frame:
-                scales += np.log(pipeline.datamanager.train_dataparser_outputs.dataparser_scale)
+                scales += np.log(1 / pipeline.datamanager.train_dataparser_outputs.dataparser_scale)
 
             for i in range(3):
                 map_to_tensors[f"scale_{i}"] = scales[:, i, None]
