@@ -402,7 +402,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         data["image"] = data["image"].to(self.device)
 
         assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
-        assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
         camera = self.train_cameras[image_idx : image_idx + 1].to(self.device)
         if camera.metadata is None:
             camera.metadata = {}

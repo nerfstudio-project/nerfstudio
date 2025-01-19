@@ -144,10 +144,9 @@ class DataManager:
 
         Subclassed DataManagers will likely need to override this constructor.
 
-        If you aren't manually calling the setup_train and setup_eval functions from an overriden
-        constructor, that you call super().__init__() BEFORE you initialize any
-        nn.Modules or nn.Parameters, but AFTER you've already set all the attributes you need
-        for the setup functions."""
+        If you aren't manually calling the setup_train() and setup_eval() functions from an overridden
+        constructor, please call super().__init__() in your subclass' __init__() method after
+        you've already set all the attributes you need for the setup functions."""
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
