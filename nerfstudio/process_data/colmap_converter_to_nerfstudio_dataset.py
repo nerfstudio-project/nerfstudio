@@ -145,9 +145,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
 
         else:
-            CONSOLE.log(
-                "[bold yellow]Warning: Could not find existing COLMAP results. " "Not generating transforms.json"
-            )
+            CONSOLE.log("[bold yellow]Warning: Could not find existing COLMAP results. Not generating transforms.json")
         return summary_log
 
     def _export_depth(self) -> Tuple[Optional[Dict[int, Path]], List[str]]:
@@ -224,7 +222,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
-                raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options " "and try again.")
+                raise RuntimeError("Cannot use a mask with hloc. Please remove the cropping options and try again.")
 
             assert feature_type is not None
             assert matcher_type is not None
@@ -241,7 +239,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 use_single_camera_mode=self.use_single_camera_mode,
             )
         else:
-            raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, " "exiting")
+            raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
 
     def __post_init__(self) -> None:
         super().__post_init__()

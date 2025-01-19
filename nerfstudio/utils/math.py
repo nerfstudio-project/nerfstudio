@@ -20,101 +20,10 @@ from dataclasses import dataclass
 from typing import Literal, Tuple
 
 import torch
-from e3nn.o3 import Irreps
-from jaxtyping import Bool, Float
+from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from nerfstudio.data.scene_box import OrientedBox
-
-
-def components_from_spherical_harmonics(
-    levels: int, directions: Float[Tensor, "*batch 3"]
-) -> Float[Tensor, "*batch components"]:
-    """
-    Returns value for each component of spherical harmonics.
-
-    Args:
-        levels: Number of spherical harmonic levels to compute.
-        directions: Spherical harmonic coefficients
-    """
-    num_components = levels**2
-    components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)
-
-    assert 1 <= levels <= 5, f"SH levels must be in [1,4], got {levels}"
-    assert directions.shape[-1] == 3, f"Direction input should have three dimensions. Got {directions.shape[-1]}"
-
-    x = directions[..., 0]
-    y = directions[..., 1]
-    z = directions[..., 2]
-
-    xx = x**2
-    yy = y**2
-    zz = z**2
-
-    # l0
-    components[..., 0] = 0.28209479177387814
-
-    # l1
-    if levels > 1:
-        components[..., 1] = 0.4886025119029199 * y
-        components[..., 2] = 0.4886025119029199 * z
-        components[..., 3] = 0.4886025119029199 * x
-
-    # l2
-    if levels > 2:
-        components[..., 4] = 1.0925484305920792 * x * y
-        components[..., 5] = 1.0925484305920792 * y * z
-        components[..., 6] = 0.9461746957575601 * zz - 0.31539156525251999
-        components[..., 7] = 1.0925484305920792 * x * z
-        components[..., 8] = 0.5462742152960396 * (xx - yy)
-
-    # l3
-    if levels > 3:
-        components[..., 9] = 0.5900435899266435 * y * (3 * xx - yy)
-        components[..., 10] = 2.890611442640554 * x * y * z
-        components[..., 11] = 0.4570457994644658 * y * (5 * zz - 1)
-        components[..., 12] = 0.3731763325901154 * z * (5 * zz - 3)
-        components[..., 13] = 0.4570457994644658 * x * (5 * zz - 1)
-        components[..., 14] = 1.445305721320277 * z * (xx - yy)
-        components[..., 15] = 0.5900435899266435 * x * (xx - 3 * yy)
-
-    # l4
-    if levels > 4:
-        components[..., 16] = 2.5033429417967046 * x * y * (xx - yy)
-        components[..., 17] = 1.7701307697799304 * y * z * (3 * xx - yy)
-        components[..., 18] = 0.9461746957575601 * x * y * (7 * zz - 1)
-        components[..., 19] = 0.6690465435572892 * y * z * (7 * zz - 3)
-        components[..., 20] = 0.10578554691520431 * (35 * zz * zz - 30 * zz + 3)
-        components[..., 21] = 0.6690465435572892 * x * z * (7 * zz - 3)
-        components[..., 22] = 0.47308734787878004 * (xx - yy) * (7 * zz - 1)
-        components[..., 23] = 1.7701307697799304 * x * z * (xx - 3 * yy)
-        components[..., 24] = 0.6258357354491761 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
-
-    return components
-
-
-def rotate_spherical_harmonics(
-    coeffs: Float[Tensor, "*batch dim_sh"],
-    rotation_matrix: Float[Tensor, "3 3"],
-) -> Float[Tensor, "*batch dim_sh"]:
-    """Rotates real spherical harmonic coefficients of degree l using given 3x3 rotation matrix.
-
-    Args:
-        coeffs : SH coefficients
-        rotation_matrix : A 3x3 rotation matrix.
-
-    Returns:
-        The rotated SH coefficients
-    """
-    dim_sh = coeffs.shape[-1]
-    assert math.isqrt(dim_sh)**2 == dim_sh, "dim_sh must be a perfect square (l+1)^2"
-    sh_degree = int(math.sqrt(dim_sh)) - 1
-    
-    rotation_matrix = rotation_matrix.cpu()
-    irreps = Irreps(" + ".join([f"{i}e" for i in range(sh_degree + 1)])) # Even parity spherical harmonics of degree l
-    D_matrix = irreps.D_from_matrix(rotation_matrix).to(coeffs.device) # Construct Wigner D-matrix
-    rotated_coeffs = torch.einsum("ij,...j->...i", D_matrix, coeffs)
-    return rotated_coeffs
 
 
 @dataclass
@@ -348,7 +257,9 @@ def masked_reduction(
 
 
 def normalized_depth_scale_and_shift(
-    prediction: Float[Tensor, "1 32 mult"], target: Float[Tensor, "1 32 mult"], mask: Bool[Tensor, "1 32 mult"]
+    prediction: Float[Tensor, "1 32 mult"],
+    target: Float[Tensor, "1 32 mult"],
+    mask: Bool[Tensor, "1 32 mult"],
 ):
     """
     More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
@@ -430,7 +341,10 @@ def _compute_tesselation_weights(v: int) -> Tensor:
 
 
 def _tesselate_geodesic(
-    vertices: Float[Tensor, "N 3"], faces: Float[Tensor, "M 3"], v: int, eps: float = 1e-4
+    vertices: Float[Tensor, "N 3"],
+    faces: Float[Tensor, "M 3"],
+    v: int,
+    eps: float = 1e-4,
 ) -> Tensor:
     """Tesselate the vertices of a geodesic polyhedron.
 
@@ -543,3 +457,58 @@ def generate_polyhedron_basis(
 
     basis = verts.flip(-1)
     return basis
+
+
+def random_quat_tensor(N: int) -> Float[Tensor, "*batch 4"]:
+    """
+    Defines a random quaternion tensor.
+
+    Args:
+        N: Number of quaternions to generate
+
+    Returns:
+        a random quaternion tensor of shape (N, 4)
+
+    """
+    u = torch.rand(N)
+    v = torch.rand(N)
+    w = torch.rand(N)
+    return torch.stack(
+        [
+            torch.sqrt(1 - u) * torch.sin(2 * math.pi * v),
+            torch.sqrt(1 - u) * torch.cos(2 * math.pi * v),
+            torch.sqrt(u) * torch.sin(2 * math.pi * w),
+            torch.sqrt(u) * torch.cos(2 * math.pi * w),
+        ],
+        dim=-1,
+    )
+
+
+def k_nearest_sklearn(
+    x: torch.Tensor, k: int, metric: str = "euclidean"
+) -> Tuple[Float[Tensor, "*batch k"], Int[Tensor, "*batch k"]]:
+    """
+    Find k-nearest neighbors using sklearn's NearestNeighbors.
+
+    Args:
+        x: input tensor
+        k: number of neighbors to find
+        metric: metric to use for distance computation
+
+    Returns:
+        distances: distances to the k-nearest neighbors
+        indices: indices of the k-nearest neighbors
+    """
+    # Convert tensor to numpy array
+    x_np = x.cpu().numpy()
+
+    # Build the nearest neighbors model
+    from sklearn.neighbors import NearestNeighbors
+
+    nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm="auto", metric=metric).fit(x_np)
+
+    # Find the k-nearest neighbors
+    distances, indices = nn_model.kneighbors(x_np)
+
+    # Exclude the point itself from the result and return
+    return torch.tensor(distances[:, 1:], dtype=torch.float32), torch.tensor(indices[:, 1:], dtype=torch.int64)

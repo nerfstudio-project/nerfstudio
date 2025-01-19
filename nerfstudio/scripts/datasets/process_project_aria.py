@@ -76,7 +76,7 @@ class TimedPoses:
     t_world_devices: List[SE3]
 
 
-def get_camera_calibs(provider: VrsDataProvider) -> Dict[str, AriaCameraCalibration]:
+def get_camera_calibs(provider: VrsDataProvider, max_output_size: int) -> Dict[str, AriaCameraCalibration]:
     """Retrieve the per-camera factory calibration from within the VRS."""
 
     factory_calib = {}
@@ -88,6 +88,18 @@ def get_camera_calibs(provider: VrsDataProvider) -> Dict[str, AriaCameraCalibrat
 
     width = sensor_calib.get_image_size()[0].item()
     height = sensor_calib.get_image_size()[1].item()
+
+    width = sensor_calib.get_image_size()[0].item()
+    height = sensor_calib.get_image_size()[1].item()
+
+    if width > max_output_size or height > max_output_size:
+        sensor_calib = sensor_calib.rescale(
+            np.array([max_output_size, max_output_size]).astype(np.int64),
+            max_output_size / width,
+        )
+        width = sensor_calib.get_image_size()[0].item()
+        height = sensor_calib.get_image_size()[1].item()
+
     intrinsics = sensor_calib.projection_params()
 
     factory_calib[name] = AriaCameraCalibration(
@@ -124,6 +136,7 @@ def to_aria_image_frame(
     name_to_camera: Dict[str, AriaCameraCalibration],
     t_world_devices: TimedPoses,
     output_dir: Path,
+    max_output_size: int,
 ) -> AriaImageFrame:
     name = "camera-rgb"
 
@@ -134,6 +147,10 @@ def to_aria_image_frame(
     # Get the image corresponding to this index
     image_data = provider.get_image_data_by_index(stream_id, index)
     img = Image.fromarray(image_data[0].to_numpy_array())
+
+    if img.width > max_output_size or img.height > max_output_size:
+        img = img.resize((max_output_size, max_output_size))
+
     capture_time_ns = image_data[1].capture_timestamp_ns
 
     file_path = f"{output_dir}/{name}_{capture_time_ns}.jpg"
@@ -184,6 +201,10 @@ class ProcessProjectAria:
     """Path to Project Aria Machine Perception Services (MPS) attachments."""
     output_dir: Path
     """Path to the output directory."""
+    max_frames: int = 350
+    """Number of frames to process."""
+    max_output_size: int = 1408
+    """Size of output images. We use the same for width/height."""
 
     def main(self) -> None:
         """Generate a nerfstudio dataset from ProjectAria data (VRS) and MPS attachments."""
@@ -194,7 +215,7 @@ class ProcessProjectAria:
         provider = create_vrs_data_provider(str(self.vrs_file.absolute()))
         assert provider is not None, "Cannot open file"
 
-        name_to_camera = get_camera_calibs(provider)
+        name_to_camera = get_camera_calibs(provider, max_output_size=self.max_output_size)
 
         print("Getting poses from closed loop trajectory CSV...")
         trajectory_csv = self.mps_data_dir / "closed_loop_trajectory.csv"
@@ -205,9 +226,24 @@ class ProcessProjectAria:
 
         # create an AriaImageFrame for each image in the VRS.
         print("Creating Aria frames...")
+        total_images = provider.get_num_data(stream_id)
+        if total_images >= self.max_frames:
+            indices = [int(x) for x in np.linspace(0, total_images - 1, self.max_frames)]
+        else:
+            indices = range(0, total_images)
+
+        print(f"{total_images=}, processing {len(indices)=} ")
+
         aria_frames = [
-            to_aria_image_frame(provider, index, name_to_camera, t_world_devices, self.output_dir)
-            for index in range(0, provider.get_num_data(stream_id))
+            to_aria_image_frame(
+                provider,
+                index,
+                name_to_camera,
+                t_world_devices,
+                self.output_dir,
+                max_output_size=self.max_output_size,
+            )
+            for index in indices
         ]
 
         # create the NerfStudio frames from the AriaImageFrames.
