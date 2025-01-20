@@ -94,6 +94,7 @@ Contributing<reference/contributing>
 :hidden:
 :caption: Extensions
 extensions/blender_addon
+extensions/maya_plugin
 extensions/unreal_engine
 extensions/sdfstudio
 ```
