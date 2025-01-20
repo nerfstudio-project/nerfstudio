@@ -89,7 +89,7 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.Resampling.BILINEAR)
-        image = pil_to_numpy(pil_image)  # # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
+        image = pil_to_numpy(pil_image)  # shape is (h, w) or (h, w, 3 or 4) and dtype == "uint8"
         if len(image.shape) == 2:
             image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
@@ -153,9 +153,9 @@ class InputDataset(Dataset):
             else:
                 mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
             data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
-            assert data["mask"].shape[:2] == data["image"].shape[:2], (
-                f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
-            )
+            assert (
+                data["mask"].shape[:2] == data["image"].shape[:2]
+            ), f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
         if self.mask_color:
             data["image"] = torch.where(
                 data["mask"] == 1.0, data["image"], torch.ones_like(data["image"]) * torch.tensor(self.mask_color)

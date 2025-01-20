@@ -77,9 +77,9 @@ def _undistort_image(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-        assert distortion_params[3] == 0, (
-            "We don't support the 4th Brown parameter for image undistortion, Only k1, k2, k3, p1, p2 can be non-zero."
-        )
+        assert (
+            distortion_params[3] == 0
+        ), "We don't support the 4th Brown parameter for image undistortion, Only k1, k2, k3, p1, p2 can be non-zero."
         # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3)
         # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
@@ -291,8 +291,8 @@ class CacheDataloader(DataLoader):
 
     Args:
         dataset: Dataset to sample from.
-        num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
-        num_times_to_repeat_images: How often to yield an image batch before resampling. -1 to never pick new images.
+        num_samples_to_collate: How many images to sample rays for each batch. -1 or infinity for all images.
+        num_times_to_repeat_images: How often to yield an image batch before resampling. -1 or infinity to never pick new images.
         device: Device to perform computation.
         collate_fn: The function we will use to collate our training data
     """
@@ -300,8 +300,8 @@ class CacheDataloader(DataLoader):
     def __init__(
         self,
         dataset: Dataset,
-        num_images_to_sample_from: int = -1,
-        num_times_to_repeat_images: int = -1,
+        num_images_to_sample_from: Union[int, float] = float("inf"),
+        num_times_to_repeat_images: Union[int, float] = float("inf"),
         device: Union[torch.device, str] = "cpu",
         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
@@ -332,7 +332,7 @@ class CacheDataloader(DataLoader):
                     "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
                 )
             self.cached_collated_batch = self._get_collated_batch()
-        elif self.num_times_to_repeat_images == -1:
+        elif self.num_times_to_repeat_images == float("inf"):
             CONSOLE.print(
                 f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
             )
@@ -349,7 +349,14 @@ class CacheDataloader(DataLoader):
         """Returns a list of batches from the dataset attribute."""
 
         assert isinstance(self.dataset, Sized)
-        indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+        indices = random.sample(
+            range(len(self.dataset)),
+            k=(
+                len(self.dataset)
+                if self.num_images_to_sample_from == float("inf")
+                else int(self.num_images_to_sample_from)
+            ),
+        )
         batch_list = []
         results = []
 
@@ -408,9 +415,10 @@ class RayBatchStream(IterableDataset):
     def __init__(
         self,
         input_dataset: InputDataset,
+        sampling_seed: int = 3301,
         num_rays_per_batch: int = 1024,
-        num_images_to_sample_from: int = -1,
-        num_times_to_repeat_images: int = -1,
+        num_images_to_sample_from: Union[int, float] = float("inf"),
+        num_times_to_repeat_images: Union[int, float] = float("inf"),
         device: Union[torch.device, str] = "cpu",
         # variable_res_collate avoids np.stack'ing images, which allows it to be much faster than `nerfstudio_collate`
         collate_fn: Callable[[Any], Any] = cast(Any, staticmethod(variable_res_collate)),
@@ -423,6 +431,7 @@ class RayBatchStream(IterableDataset):
         if exclude_batch_keys_from_device is None:
             exclude_batch_keys_from_device = ["image"]
         self.input_dataset = input_dataset
+        self.sampling_seed = sampling_seed
         assert isinstance(self.input_dataset, Sized)
         self.num_rays_per_batch = num_rays_per_batch
         """Number of rays per batch to user per training iteration."""
@@ -473,18 +482,17 @@ class RayBatchStream(IterableDataset):
             fisheye_crop_radius=fisheye_crop_radius,
         )
 
-    def _get_batch_list(self, indices=None):
+    def _get_batch_list(self, indices):
         """Returns a list representing a single batch from the dataset attribute.
         Each item of the list is a dictionary with dict_keys(['image_idx', 'image']) representing 1 image.
         This function is used to sample and load images from disk/RAM and is only called in _get_collated_batch()
         The length of the list is equal to the (# of training images) / (num_workers)
-        """
 
+        Note: The `indices` given to _get_collated_batch() are the `indices` passed to _get_batch_list(). These `indices`
+        are either set to the entire dataset if we are not loading from disk or some partiton of dataset whose size
+        is dependent on self.num_images_to_sample_from if we are loading from disk.
+        """
         assert isinstance(self.input_dataset, Sized)
-        if indices is None:
-            # Note: self.num_images_to_sample_from is usually -1, but _get_batch_list is usually called with indices != None.
-            # _get_batch_list is used by _get_collated_batch, whose indices = some partition of the dataset
-            indices = random.sample(range(len(self.input_dataset)), k=self.num_images_to_sample_from)
         batch_list = []
         results = []
 
@@ -503,13 +511,13 @@ class RayBatchStream(IterableDataset):
 
         return batch_list
 
-    def _get_collated_batch(self, indices=None):
+    def _get_collated_batch(self, indices):
         """Takes the output of _get_batch_list and collates them with nerfstudio_collate() or variable_res_collate()
         Note: dict is an instance of collections.abc.Mapping
 
         The resulting output is collated_batch: a dictionary with dict_keys(['image_idx', 'image'])
-        collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
-        collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
+            - collated_batch['image_idx'] is tensor with shape torch.Size([per_worker])
+            - collated_batch['image'] is tensor with shape torch.Size([per_worker, height, width, 3])
         """
         batch_list = self._get_batch_list(indices=indices)
         collated_batch = self.collate_fn(batch_list)
@@ -534,7 +542,7 @@ class RayBatchStream(IterableDataset):
             worker_indices = list(range(len(self.input_dataset)))
         if not self.load_from_disk:
             self._cached_collated_batch = self._get_collated_batch(worker_indices)
-        r = random.Random(3301)
+        r = random.Random(self.sampling_seed)
         num_rays_per_loop = self.num_rays_per_batch  # default train_num_rays_per_batch is 4096
 
         # each worker has its own pixel sampler
@@ -554,8 +562,8 @@ class RayBatchStream(IterableDataset):
             elif i % (self.num_times_to_repeat_images + repeat_offset) == 0:
                 r.shuffle(worker_indices)
                 repeat_offset = true_random.randint(0, repeat_offset_max)
-                if self.num_images_to_sample_from == -1:
-                    # if -1, the worker gets all available indices in its partition
+                if self.num_images_to_sample_from == float("inf"):
+                    # if infinity, the worker gets all available indices in its partition
                     image_indices = worker_indices
                 else:
                     # get a total of 'num_images_to_sample_from' image indices
@@ -574,7 +582,7 @@ class RayBatchStream(IterableDataset):
             them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
             """
             batch = worker_pixel_sampler.sample(collated_batch)  # type: ignore
-            # collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
+            # Note: collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
             ray_indices = batch["indices"]
             # the ray_bundle is on the GPU; batch["image"] is on the CPU, here we move it to the GPU
             ray_bundle = self.ray_generator(ray_indices).to(self.device)
@@ -594,14 +602,14 @@ class ImageBatchStream(IterableDataset):
     def __init__(
         self,
         input_dataset: InputDataset,
-        cache_images_type: Literal["uint8", "float32"] = "float32",
         sampling_seed: int = 3301,
+        cache_images_type: Literal["uint8", "float32"] = "float32",
         device: Union[torch.device, str] = "cpu",
         custom_image_processor: Optional[Callable[[Cameras, Dict], Tuple[Cameras, Dict]]] = None,
     ):
         self.input_dataset = input_dataset
-        self.cache_images_type = cache_images_type
         self.sampling_seed = sampling_seed
+        self.cache_images_type = cache_images_type
         self.device = device
         self.custom_image_processor = custom_image_processor
 

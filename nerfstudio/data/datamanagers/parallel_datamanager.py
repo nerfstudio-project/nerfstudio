@@ -147,8 +147,12 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.train_raybatchstream = RayBatchStream(
             input_dataset=self.train_dataset,
             num_rays_per_batch=self.config.train_num_rays_per_batch,
-            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+            num_images_to_sample_from=(
+                50 if self.config.load_from_disk else self.config.train_num_images_to_sample_from
+            ),
+            num_times_to_repeat_images=(
+                10 if self.config.load_from_disk else self.config.train_num_times_to_repeat_images
+            ),
             device=self.device,
             collate_fn=variable_res_collate,
             load_from_disk=self.config.load_from_disk,
@@ -168,8 +172,12 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         self.eval_raybatchstream = RayBatchStream(
             input_dataset=self.eval_dataset,
             num_rays_per_batch=self.config.train_num_rays_per_batch,
-            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+            num_images_to_sample_from=(
+                50 if self.config.load_from_disk else self.config.eval_num_images_to_sample_from
+            ),
+            num_times_to_repeat_images=(
+                10 if self.config.load_from_disk else self.config.eval_num_times_to_repeat_images
+            ),
             device=self.device,
             collate_fn=variable_res_collate,
             load_from_disk=True,

@@ -315,8 +315,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if self.config.cache_images == "disk":
             self.train_imagebatch_stream = ImageBatchStream(
                 input_dataset=self.train_dataset,
-                cache_images_type=self.config.cache_images_type,
                 sampling_seed=self.config.train_cameras_sampling_seed,
+                cache_images_type=self.config.cache_images_type,
                 device=self.device,
                 custom_image_processor=self.custom_image_processor,
             )
@@ -333,8 +333,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if self.config.cache_images == "disk":
             self.eval_imagebatch_stream = ImageBatchStream(
                 input_dataset=self.eval_dataset,
-                cache_images_type=self.config.cache_images_type,
                 sampling_seed=self.config.train_cameras_sampling_seed,
+                cache_images_type=self.config.cache_images_type,
                 device=self.device,
                 custom_image_processor=self.custom_image_processor,
             )
