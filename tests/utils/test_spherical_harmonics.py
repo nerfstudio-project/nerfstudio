@@ -73,17 +73,12 @@ def test_spherical_harmonics_rotation_splatfacto(sh_degree):
     sh_coeffs = torch.rand(N, 3, num_coeffs)
     dirs = torch.rand(N, 3)
     dirs = dirs / torch.linalg.norm(dirs, dim=-1, keepdim=True)
-
     assert dirs.shape == (N, 3)
-    y_lm = gsplat_eval_sh_bases(num_coeffs, dirs)
-    color_original = (sh_coeffs * y_lm[..., None, :]).sum(dim=-1)
 
     rot_matrix = torch.tensor(ScR.random().as_matrix(), dtype=torch.float32)
     sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs, component_convention="-y,+z,-x")
     dirs_rotated = (rot_matrix @ dirs.T).T
     assert dirs_rotated.shape == (N, 3)
-    y_lm_rotated = gsplat_eval_sh_bases(num_coeffs, dirs_rotated)
-    color_rotated = (sh_coeffs_rotated * y_lm_rotated[..., None, :]).sum(dim=-1)
 
     torch.testing.assert_close(
         gsplat_spherical_harmonics(sh_degree, coeffs=sh_coeffs.swapaxes(-1, -2), dirs=dirs),
