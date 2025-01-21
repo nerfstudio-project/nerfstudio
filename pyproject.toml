@@ -93,7 +93,6 @@ dev = [
     "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
-    "typeguard==4.4.0",
     "ruff>=0.6.1",
     "sshconf==0.2.5",
     "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
@@ -146,7 +145,7 @@ include = ["nerfstudio*"]
 "*" = ["*.cu", "*.json", "py.typed", "setup.bash", "setup.zsh"]
 
 [tool.pytest.ini_options]
-addopts = "-n=4 --typeguard-packages=nerfstudio --disable-warnings"
+addopts = "-n=4 --jaxtyping-packages=nerfstudio --disable-warnings"
 testpaths = [
     "tests",
 ]
