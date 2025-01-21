@@ -83,7 +83,7 @@ The `NERFSTUDIO_METHOD_CONFIGS` environment variable additionally accepts a func
 ```python
 """my_method/my_config.py"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.plugins.types import MethodSpecification
 
@@ -95,7 +95,7 @@ def MyMethodFunc():
 
 @dataclass
 class MyMethodClass(MethodSpecification):
-    config: TrainerConfig = TrainerConfig(...)
+    config: TrainerConfig = field(default_factory=lambda: TrainerConfig(...))
     description: str = "Custom description"
 ```
 
