@@ -15,11 +15,13 @@
 """Sphecal Harmonics utils."""
 
 import math
+from typing import Literal
 
 import torch
 from e3nn.o3 import Irreps
 from jaxtyping import Float
 from torch import Tensor
+from typing_extensions import assert_never
 
 MAX_SH_DEGREE = 4
 
@@ -117,12 +119,16 @@ def SH2RGB(sh):
 def rotate_spherical_harmonics(
     rotation_matrix: Float[Tensor, "3 3"],
     coeffs: Float[Tensor, "*batch dim_sh"],
+    component_convention: Literal["-y,+z,-x", "+y,+z,+x"],
 ) -> Float[Tensor, "*batch dim_sh"]:
     """Rotates real spherical harmonic coefficients using a given 3x3 rotation matrix.
 
     Args:
         rotation_matrix : A 3x3 rotation matrix.
         coeffs : SH coefficients
+        component_convention: Component convention for spherical harmonics.
+            Nerfstudio (nerfacto) uses +y,+z,+x, while gsplat (splatfacto) uses
+            -y,+z,-x.
 
     Returns:
         The rotated SH coefficients
@@ -132,11 +138,31 @@ def rotate_spherical_harmonics(
     sh_degree = int(math.sqrt(dim_sh)) - 1
 
     # e3nn uses the xyz ordering instead of the standard yzx used in ns, equivalent to a change of basis
-    R_yzx_to_xyz = torch.tensor([[0, 0, 1], [1, 0, 0], [0, 1, 0]], dtype=torch.float32)
-    R_total = (R_yzx_to_xyz.T @ rotation_matrix @ R_yzx_to_xyz).cpu()
+    if component_convention == "+y,+z,+x":
+        R_xyz_from_yzx = torch.tensor(
+            [
+                [0, 0, 1],
+                [1, 0, 0],
+                [0, 1, 0],
+            ],
+            dtype=torch.float32,
+        )
+        rotation_matrix = (R_xyz_from_yzx.T @ rotation_matrix @ R_xyz_from_yzx).cpu()
+    elif component_convention == "-y,+z,-x":
+        R_xyz_from_negyznegx = torch.tensor(
+            [
+                [0, 0, -1],
+                [-1, 0, 0],
+                [0, 1, 0],
+            ],
+            dtype=torch.float32,
+        )
+        rotation_matrix = (R_xyz_from_negyznegx.T @ rotation_matrix @ R_xyz_from_negyznegx).cpu()
+    else:
+        assert_never(component_convention)
 
     irreps = Irreps(" + ".join([f"{i}e" for i in range(sh_degree + 1)]))  # Even parity spherical harmonics of degree l
-    D_matrix = irreps.D_from_matrix(R_total).to(coeffs.device)  # Construct Wigner D-matrix
+    D_matrix = irreps.D_from_matrix(rotation_matrix).to(coeffs.device)  # Construct Wigner D-matrix
 
     # Multiply last dimension of coeffs (..., dim_sh) with the Wigner D-matrix (dim_sh, dim_sh)
     rotated_coeffs = coeffs @ D_matrix.T

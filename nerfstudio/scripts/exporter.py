@@ -636,9 +636,11 @@ class ExportGaussianSplat(Exporter):
                         dim_sh_all = shs_rest.shape[-1] + 1
                         shs_coeffs_all = torch.zeros((n, 3, dim_sh_all), device=shs_rest.device)
                         shs_coeffs_all[:, :, 1:] = shs_rest
-                        # TODO: check output rotation
-                        output_rotation = pipeline.datamanager.train_dataparser_outputs.dataparser_transform[:3, :3]
-                        shs_rest = rotate_spherical_harmonics(output_rotation, shs_coeffs_all)[:, :, 1:]
+                        shs_rest = rotate_spherical_harmonics(
+                            pipeline.datamanager.train_dataparser_outputs.dataparser_transform[:3, :3].T,
+                            shs_coeffs_all,
+                            component_convention="-y,+z,-x",
+                        )[:, :, 1:]
 
                     shs_rest = shs_rest.cpu().numpy().reshape((n, -1))
 

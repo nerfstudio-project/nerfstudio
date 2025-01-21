@@ -1,6 +1,12 @@
+from typing import Literal
+
 import numpy as np
 import pytest
 import torch
+from gsplat.cuda._torch_impl import (
+    _eval_sh_bases_fast as gsplat_eval_sh_bases,
+    _spherical_harmonics as gsplat_spherical_harmonics,
+)
 from scipy.spatial.transform import Rotation as ScR
 
 from nerfstudio.utils.spherical_harmonics import (
@@ -23,7 +29,7 @@ def test_spherical_harmonics_components(degree):
 
 
 @pytest.mark.parametrize("sh_degree", list(range(0, 4)))
-def test_spherical_harmonics_rotation(sh_degree):
+def test_spherical_harmonics_rotation_nerfacto(sh_degree):
     """Test if rotating both the view direction and SH coefficients by the same rotation
     produces the same color output as the original.
 
@@ -43,7 +49,7 @@ def test_spherical_harmonics_rotation(sh_degree):
     color_original = (sh_coeffs * y_lm[..., None, :]).sum(dim=-1)
 
     rot_matrix = torch.tensor(ScR.random().as_matrix(), dtype=torch.float32)
-    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs)
+    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs, component_convention="+y,+z,+x")
     dirs_rotated = (rot_matrix @ dirs.T).T
     y_lm_rotated = components_from_spherical_harmonics(sh_degree, dirs_rotated)
     color_rotated = (sh_coeffs_rotated * y_lm_rotated[..., None, :]).sum(dim=-1)
@@ -52,7 +58,42 @@ def test_spherical_harmonics_rotation(sh_degree):
 
 
 @pytest.mark.parametrize("sh_degree", list(range(0, 4)))
-def test_spherical_harmonics_rotation_properties(sh_degree):
+def test_spherical_harmonics_rotation_splatfacto(sh_degree):
+    """Test if rotating both the view direction and SH coefficients by the same rotation
+    produces the same color output as the original.
+
+     In other words, for any rotation R:
+         color(dir, coeffs) = color(R @ dir, rotate_sh(R, coeffs))
+    """
+    torch.manual_seed(0)
+    np.random.seed(0)
+
+    N = 1000
+    num_coeffs = (sh_degree + 1) ** 2
+    sh_coeffs = torch.rand(N, 3, num_coeffs)
+    dirs = torch.rand(N, 3)
+    dirs = dirs / torch.linalg.norm(dirs, dim=-1, keepdim=True)
+
+    assert dirs.shape == (N, 3)
+    y_lm = gsplat_eval_sh_bases(num_coeffs, dirs)
+    color_original = (sh_coeffs * y_lm[..., None, :]).sum(dim=-1)
+
+    rot_matrix = torch.tensor(ScR.random().as_matrix(), dtype=torch.float32)
+    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs, component_convention="-y,+z,-x")
+    dirs_rotated = (rot_matrix @ dirs.T).T
+    assert dirs_rotated.shape == (N, 3)
+    y_lm_rotated = gsplat_eval_sh_bases(num_coeffs, dirs_rotated)
+    color_rotated = (sh_coeffs_rotated * y_lm_rotated[..., None, :]).sum(dim=-1)
+
+    torch.testing.assert_close(
+        gsplat_spherical_harmonics(sh_degree, coeffs=sh_coeffs.swapaxes(-1, -2), dirs=dirs),
+        gsplat_spherical_harmonics(sh_degree, coeffs=sh_coeffs_rotated.swapaxes(-1, -2), dirs=dirs_rotated),
+    )
+
+
+@pytest.mark.parametrize("sh_degree", list(range(0, 4)))
+@pytest.mark.parametrize("component_convention", ["+y,+z,+x", "-y,+z,-x"])
+def test_spherical_harmonics_rotation_properties(sh_degree: int, component_convention: Literal["+y,+z,+x", "-y,+z,-x"]):
     """Test properties of the SH rotation"""
     torch.manual_seed(0)
     np.random.seed(0)
@@ -61,7 +102,7 @@ def test_spherical_harmonics_rotation_properties(sh_degree):
     num_coeffs = (sh_degree + 1) ** 2
     sh_coeffs = torch.rand(N, 3, num_coeffs)
     rot_matrix = torch.tensor(ScR.random().as_matrix(), dtype=torch.float32)
-    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs)
+    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs, component_convention)
 
     # Norm preserving
     norm_original = torch.norm(sh_coeffs, dim=-1)
@@ -73,5 +114,5 @@ def test_spherical_harmonics_rotation_properties(sh_degree):
 
     # Identity rotation
     rot_matrix = torch.eye(3)
-    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs)
+    sh_coeffs_rotated = rotate_spherical_harmonics(rot_matrix, sh_coeffs, ordering)
     torch.testing.assert_close(sh_coeffs, sh_coeffs_rotated, rtol=0, atol=1e-6)
