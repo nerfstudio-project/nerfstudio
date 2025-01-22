@@ -154,6 +154,7 @@ This documentation is organized into 3 parts:
 - [SIGNeRF](nerfology/methods/signerf.md): Controlled Generative Editing of NeRF Scenes
 - [K-Planes](nerfology/methods/kplanes.md): Unified 3D and 4D Radiance Fields
 - [LERF](nerfology/methods/lerf.md): Language Embedded Radiance Fields
+- [LiveScene](nerfology/methods/livescene.md): Language Embedding Interactive Radiance Fields for Physical Scene Rendering and Control
 - [Feature Splatting](nerfology/methods/feature_splatting.md): Gaussian Feature Splatting based on GSplats
 - [Nerfbusters](nerfology/methods/nerfbusters.md): Removing Ghostly Artifacts from Casually Captured NeRFs
 - [NeRFPlayer](nerfology/methods/nerfplayer.md): 4D Radiance Fields by Streaming Feature Channels
@@ -161,7 +162,7 @@ This documentation is organized into 3 parts:
 - [PyNeRF](nerfology/methods/pynerf.md): Pyramidal Neural Radiance Fields
 - [SeaThru-NeRF](nerfology/methods/seathru_nerf.md): Neural Radiance Field for subsea scenes
 - [Zip-NeRF](nerfology/methods/zipnerf.md): Anti-Aliased Grid-Based Neural Radiance Fields
-- [NeRFtoGSandBack](nerfology/methods/nerf2gs2nerf.md): Converting back and forth between NeRF and GS to get the best of both approaches.
+- [NeRFtoGSandBack](nerfology/methods/nerf2gs2nerf.md): Converting back and forth between NeRF and GS to get the best of both approaches
 - [OpenNeRF](nerfology/methods/opennerf.md): OpenSet 3D Neural Scene Segmentation
 
 **Eager to contribute a method?** We'd love to see you use nerfstudio in implementing new (or even existing) methods! Please view our {ref}`guide<own_method_docs>` for more details about how to add to this list!

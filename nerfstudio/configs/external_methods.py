@@ -93,6 +93,21 @@ To enable LERF, you must install it first by running:
     )
 )
 
+# LiveScene
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]LiveScene[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/livescene.html
+
+To enable LiveScene, you must install it first by running:
+  [grey]pip install git+https://github.com/Tavish9/livescene[/grey]""",
+        configurations=[
+            ("livescene", "LiveScene with OpenCLIP ViT-B/16, used in paper"),
+        ],
+        pip_package="git+https://github.com/Tavish9/livescene",
+    )
+)
+
 # Feature Splatting
 external_methods.append(
     ExternalMethod(
