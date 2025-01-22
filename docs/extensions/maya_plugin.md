@@ -6,7 +6,7 @@
 
 ## Overview
 
-**[Link to the plug-in](https://www.ucbugg.com)**
+**[Link to the plug-in](https://github.com/nerfstudio-project/nerfstudio/tree/main/nerfstudio/scripts/maya)**
 
 This extension allows users to combine animated scenes and VFX in Autodesk Maya with NeRF renders in Nerfacto. The extension creates a camera path JSON file that can be read by both Maya and Nerfstudio, then the user composites together an exported mp4 render from Nerfstudio and animation frames from Maya.
 
@@ -124,6 +124,12 @@ Note that only perspective cameras are supported as of now.
    <img width="1481" alt="9" src="https://github.com/user-attachments/assets/678027ac-37d5-4fca-81ce-a7190f83fda4" />
 </center>
 
+## Implementation
+This plugin is designed to create and process JSON files that Nerfstudio exports as a camera path. When creating a camera path from a selected camera and meshed Nerf in Maya, we calculate three things for the camera: the transformation matrix relative to the meshed Nerf, the field of view, and the aspect ratio. We also set the frame rate to default at 24 frames per second. Because Autodesk Maya uses a Y-up coordinate system by default, whereas Nerfstudio uses a Z-up coordinate system, we must apply the transformation matrix along with this conversion. After querying this information per frame, we write into a JSON file that can be parsed by Nerfstudio and replicate the camera motion that was in Maya. 
+
+When importing a camera path into Maya, the plugin reads all the information from the exported camera path JSON file and sets a keyframe at every frame in the animation. It calculates where the position of the camera would be relative to the meshed Nerf, as well as its focal length and aspect ratio, and creates a camera within Maya based off of these attributes.
+
+Happy rendering!
 
 ## Credits
 Models and rigs taken from [Agora](https://agora.community).
