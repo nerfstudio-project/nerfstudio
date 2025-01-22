@@ -28,6 +28,7 @@ import splines
 import splines.quaternion
 import viser
 import viser.transforms as tf
+import yaml
 from scipy import interpolate
 
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -63,7 +64,10 @@ class Keyframe:
 
 class CameraPath:
     def __init__(
-        self, server: viser.ViserServer, duration_element: viser.GuiInputHandle[float], time_enabled: bool = False
+        self,
+        server: viser.ViserServer,
+        duration_element: viser.GuiInputHandle[float],
+        time_enabled: bool = False,
     ):
         self._server = server
         self._keyframes: Dict[int, Tuple[Keyframe, viser.CameraFrustumHandle]] = {}
@@ -610,6 +614,10 @@ def populate_render_tab(
         duration_number.value = camera_path.compute_duration()
         camera_path.update_spline()
 
+        # Enable render only if there are two or more keyframes
+        render_button.disabled = len(camera_path._keyframes) < 2
+        generate_command_render_button.disabled = len(camera_path._keyframes) < 2
+
     clear_keyframes_button = server.gui.add_button(
         "Clear Keyframes",
         icon=viser.Icon.TRASH,
@@ -629,6 +637,9 @@ def populate_render_tab(
             def _(_) -> None:
                 camera_path.reset()
                 modal.close()
+
+                render_button.disabled = True
+                generate_command_render_button.disabled = True
 
                 duration_number.value = camera_path.compute_duration()
 
@@ -841,6 +852,7 @@ def populate_render_tab(
                 position=pose.translation(),
                 color=(10, 200, 30),
             )
+
             if render_tab_state.preview_render:
                 for client in server.get_clients().values():
                     client.camera.wxyz = pose.rotation().wxyz
@@ -950,6 +962,7 @@ def populate_render_tab(
     @load_camera_path_button.on_click
     def _(event: viser.GuiEvent) -> None:
         assert event.client is not None
+
         camera_path_dir = datapath / "camera_paths"
         camera_path_dir.mkdir(parents=True, exist_ok=True)
         preexisting_camera_paths = list(camera_path_dir.glob("*.json"))
@@ -979,11 +992,13 @@ def populate_render_tab(
                     for i in range(len(keyframes)):
                         frame = keyframes[i]
                         pose = tf.SE3.from_matrix(np.array(frame["matrix"]).reshape(4, 4))
+
                         # apply the x rotation by 180 deg
                         pose = tf.SE3.from_rotation_and_translation(
                             pose.rotation() @ tf.SO3.from_x_radians(np.pi),
                             pose.translation(),
                         )
+
                         camera_path.add_camera(
                             Keyframe(
                                 position=pose.translation() * VISER_NERFSTUDIO_SCALE_RATIO,
@@ -1005,6 +1020,10 @@ def populate_render_tab(
                     # update the render name
                     render_name_text.value = json_path.stem
                     camera_path.update_spline()
+
+                    if len(camera_path._keyframes) > 1:
+                        render_button.disabled = False
+
                     modal.close()
 
             cancel_button = event.client.gui.add_button("Cancel")
@@ -1020,30 +1039,45 @@ def populate_render_tab(
         initial_value=now.strftime("%Y-%m-%d-%H-%M-%S"),
         hint="Name of the render",
     )
-    render_button = server.gui.add_button(
-        "Generate Command",
-        color="green",
-        icon=viser.Icon.FILE_EXPORT,
-        hint="Generate the ns-render command for rendering the camera path.",
-    )
 
-    reset_up_button = server.gui.add_button(
-        "Reset Up Direction",
-        icon=viser.Icon.ARROW_BIG_UP_LINES,
-        color="gray",
-        hint="Set the up direction of the camera orbit controls to the camera's current up direction.",
-    )
+    render_folder = server.gui.add_folder("Render")
+    with render_folder:
+        server.gui.add_markdown(
+            "<small>Render available after a checkpoint is saved (default minimum 2000 steps)</small>"
+        )
 
-    @reset_up_button.on_click
-    def _(event: viser.GuiEvent) -> None:
-        assert event.client is not None
-        event.client.camera.up_direction = tf.SO3(event.client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
+        render_button = server.gui.add_button(
+            "Render",
+            icon=viser.Icon.VIDEO,
+            hint="Render the camera path and save video as mp4 file.",
+            disabled=True,
+        )
 
-    @render_button.on_click
-    def _(event: viser.GuiEvent) -> None:
-        assert event.client is not None
+        cancel_render_button = server.gui.add_button(
+            "Cancel Render",
+            icon=viser.Icon.CIRCLE_X,
+            hint="Cancel current render in progress.",
+            disabled=True,
+        )
+
+        download_render_button = server.gui.add_button(
+            "Download Render",
+            icon=viser.Icon.DOWNLOAD,
+            hint="Download the latest render locally as mp4 file.",
+            disabled=True,
+        )
+
+        generate_command_render_button = server.gui.add_button(
+            "Generate Command",
+            icon=viser.Icon.FILE_EXPORT,
+            hint="Generate the ns-render command for rendering the camera path instead of directly rendering.",
+            disabled=True,
+        )
+
+    def _write_json() -> Path:
         num_frames = int(framerate_number.value * duration_number.value)
         json_data = {}
+
         # json data has the properties:
         # keyframes: list of keyframes with
         #     matrix : flattened 4x4 matrix
@@ -1060,13 +1094,15 @@ def populate_render_tab(
         # camera_to_world: flattened 4x4 matrix
         # fov: float in degrees
         # aspect: float
+
         # first populate the keyframes:
         keyframes = []
-        for keyframe, dummy in camera_path._keyframes.values():
+        for keyframe, _ in camera_path._keyframes.values():
             pose = tf.SE3.from_rotation_and_translation(
                 tf.SO3(keyframe.wxyz) @ tf.SO3.from_x_radians(np.pi),
                 keyframe.position / VISER_NERFSTUDIO_SCALE_RATIO,
             )
+
             keyframe_dict = {
                 "matrix": pose.as_matrix().flatten().tolist(),
                 "fov": np.rad2deg(keyframe.override_fov_rad) if keyframe.override_fov_enabled else fov_degrees.value,
@@ -1074,15 +1110,20 @@ def populate_render_tab(
                 "override_transition_enabled": keyframe.override_transition_enabled,
                 "override_transition_sec": keyframe.override_transition_sec,
             }
+
             if render_time is not None:
                 keyframe_dict["render_time"] = (
                     keyframe.override_time_val if keyframe.override_time_enabled else render_time.value
                 )
                 keyframe_dict["override_time_enabled"] = keyframe.override_time_enabled
+
             keyframes.append(keyframe_dict)
+
         json_data["default_fov"] = fov_degrees.value
+
         if render_time is not None:
             json_data["default_time"] = render_time.value if render_time is not None else None
+
         json_data["default_transition_sec"] = transition_sec_number.value
         json_data["keyframes"] = keyframes
         json_data["camera_type"] = camera_type.value.lower()
@@ -1092,31 +1133,36 @@ def populate_render_tab(
         json_data["seconds"] = duration_number.value
         json_data["is_cycle"] = loop.value
         json_data["smoothness_value"] = tension_slider.value
+
         # now populate the camera path:
         camera_path_list = []
         for i in range(num_frames):
             maybe_pose_and_fov = camera_path.interpolate_pose_and_fov_rad(i / num_frames)
             if maybe_pose_and_fov is None:
-                return
+                return Path()
             time = None
             if len(maybe_pose_and_fov) == 3:  # Time is enabled.
                 pose, fov, time = maybe_pose_and_fov
             else:
                 pose, fov = maybe_pose_and_fov
+
             # rotate the axis of the camera 180 about x axis
             pose = tf.SE3.from_rotation_and_translation(
                 pose.rotation() @ tf.SO3.from_x_radians(np.pi),
                 pose.translation() / VISER_NERFSTUDIO_SCALE_RATIO,
             )
+
             camera_path_list_dict = {
                 "camera_to_world": pose.as_matrix().flatten().tolist(),
                 "fov": np.rad2deg(fov),
                 "aspect": resolution.value[0] / resolution.value[1],
             }
+
             if time is not None:
                 camera_path_list_dict["render_time"] = time
             camera_path_list.append(camera_path_list_dict)
         json_data["camera_path"] = camera_path_list
+
         # finally add crop data if crop is enabled
         if control_panel is not None:
             if control_panel.crop_viewport:
@@ -1142,18 +1188,100 @@ def populate_render_tab(
             json_outfile.parent.mkdir(parents=True, exist_ok=True)
         with open(json_outfile.absolute(), "w") as outfile:
             json.dump(json_data, outfile)
-        # now show the command
-        with event.client.gui.add_modal("Render Command") as modal:
+
+        return json_outfile.absolute()
+
+    @render_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        client = event.client
+        assert client is not None
+
+        config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+        if config.load_dir is None:
+            render_button.disabled = True
+
+            notif = client.add_notification(
+                title="Render unsuccessful",
+                body="Cannot render video before 2000 training steps.",
+                loading=False,
+                with_close_button=True,
+                color="red",
+            )
+            return
+
+        render_button.disabled = True
+        cancel_render_button.disabled = False
+
+        render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
+        json_outfile = _write_json()
+
+        notif = client.add_notification(
+            title="Rendering trajectory",
+            body="Saving rendered video as " + render_path,
+            loading=True,
+            with_close_button=False,
+        )
+
+        from nerfstudio.scripts.render import RenderCameraPath
+
+        render = RenderCameraPath(
+            load_config=config_path,
+            camera_path_filename=json_outfile,
+            output_path=Path(render_path),
+        )
+
+        @cancel_render_button.on_click
+        def _(event: viser.GuiEvent) -> None:
+            render.kill()
+            render_button.disabled = False
+            cancel_render_button.disabled = True
+
+            notif.title = "Render canceled"
+            notif.body = "The render in progress has been canceled."
+            notif.loading = False
+            notif.with_close_button = True
+
+        render.main()
+
+        if render._complete:
+            notif.title = "Render complete!"
+            notif.body = "Video saved as " + render_path
+            notif.loading = False
+            notif.with_close_button = True
+
+            render_button.disabled = False
+            download_render_button.disabled = False
+
+    @download_render_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        render_path = f"renders/{datapath.name}/{render_name_text.value}.mp4"
+
+        client = event.client
+        assert client is not None
+
+        with open(render_path, "rb") as file:
+            video_bytes = file.read()
+
+        client.send_file_download("render.mp4", video_bytes)
+
+    @generate_command_render_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        client = event.client
+        assert client is not None
+
+        json_outfile = _write_json()
+
+        with client.gui.add_modal("Render Command") as modal:
             dataname = datapath.name
             command = " ".join(
                 [
                     "ns-render camera-path",
                     f"--load-config {config_path}",
-                    f"--camera-path-filename {json_outfile.absolute()}",
+                    f"--camera-path-filename {json_outfile}",
                     f"--output-path renders/{dataname}/{render_name_text.value}.mp4",
                 ]
             )
-            event.client.gui.add_markdown(
+            client.gui.add_markdown(
                 "\n".join(
                     [
                         "To render the trajectory, run the following from the command line:",
@@ -1164,16 +1292,30 @@ def populate_render_tab(
                     ]
                 )
             )
-            close_button = event.client.gui.add_button("Close")
+            close_button = client.gui.add_button("Close")
 
             @close_button.on_click
             def _(_) -> None:
                 modal.close()
 
+    reset_up_button = server.gui.add_button(
+        "Reset Up Direction",
+        icon=viser.Icon.ARROW_BIG_UP_LINES,
+        color="gray",
+        hint="Set the up direction of the camera orbit controls to the camera's current up direction.",
+    )
+
+    @reset_up_button.on_click
+    def _(event: viser.GuiEvent) -> None:
+        client = event.client
+        assert client is not None
+        client.camera.up_direction = tf.SO3(client.camera.wxyz) @ np.array([0.0, -1.0, 0.0])
+
     if control_panel is not None:
         camera_path = CameraPath(server, duration_number, control_panel._time_enabled)
     else:
         camera_path = CameraPath(server, duration_number)
+
     camera_path.tension = tension_slider.value
     camera_path.default_fov = fov_degrees.value / 180.0 * np.pi
     camera_path.default_transition_sec = transition_sec_number.value
