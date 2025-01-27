@@ -89,6 +89,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
     """If True, cache raw image files as byte strings to RAM."""
+    batch_size: int = 1
+    """The batch size for the dataloader."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -322,7 +324,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             )
             self.train_image_dataloader = DataLoader(
                 self.train_imagebatch_stream,
-                batch_size=1,
+                batch_size=self.config.batch_size,
                 num_workers=self.config.dataloader_num_workers,
                 collate_fn=identity_collate,
             )
@@ -385,28 +387,50 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
         Returns a Camera instead of raybundle"""
+
         self.train_count += 1
         if self.config.cache_images == "disk":
-            camera, data = next(self.iter_train_image_dataloader)[0]
+            output = next(self.iter_train_image_dataloader)
+            print("Alex", output)
+            camera, data = output[0]
             return camera, data
 
-        image_idx = self.train_unseen_cameras.pop(0)
-        # Make sure to re-populate the unseen cameras list if we have exhausted it
-        if len(self.train_unseen_cameras) == 0:
-            self.train_unseen_cameras = self.sample_train_cameras()
+        image_indices = []
+        for _ in range(self.config.batch_size):
+            # Make sure to re-populate the unseen cameras list if we have exhausted it
+            if len(self.train_unseen_cameras) == 0:
+                self.train_unseen_cameras = self.sample_train_cameras()
+            image_indices.append(self.train_unseen_cameras.pop(0))
 
-        data = self.cached_train[image_idx]
-        # We're going to copy to make sure we don't mutate the cached dictionary.
-        # This can cause a memory leak: https://github.com/nerfstudio-project/nerfstudio/issues/3335
-        data = data.copy()
-        data["image"] = data["image"].to(self.device)
+        all_keys = self.cached_train[0].keys()
 
-        assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_cameras[image_idx : image_idx + 1].to(self.device)
-        if camera.metadata is None:
-            camera.metadata = {}
-        camera.metadata["cam_idx"] = image_idx
-        return camera, data
+        data = {}
+        for key in all_keys:
+            if key == "image":
+                data[key] = torch.stack([self.cached_train[i][key] for i in image_indices]).to(self.device)
+            else:
+                data[key] = [self.cached_train[i][key] for i in image_indices]
+
+        cameras = Cameras(
+            camera_to_worlds=self.train_cameras.camera_to_worlds[image_indices],
+            fx=self.train_cameras.fx[image_indices],
+            fy=self.train_cameras.fy[image_indices],
+            cx=self.train_cameras.cx[image_indices],
+            cy=self.train_cameras.cy[image_indices],
+            width=self.train_cameras.width[image_indices],
+            height=self.train_cameras.height[image_indices],
+            camera_type=self.train_cameras.camera_type[image_indices],
+        ).to(self.device)
+
+        if self.train_cameras.distortion_params is not None:
+            cameras.distortion_params = self.train_cameras.distortion_params[image_indices]
+
+        if cameras.metadata is None:
+            cameras.metadata = {}
+
+        cameras.metadata["cam_idx"] = image_indices
+
+        return cameras, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
