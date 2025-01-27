@@ -569,8 +569,8 @@ class SplatfactoModel(Model):
             scales=torch.exp(scales_crop),
             opacities=torch.sigmoid(opacities_crop).squeeze(-1),
             colors=colors_crop,
-            viewmats=viewmats,  # [1, 4, 4]
-            Ks=Ks,  # [1, 3, 3]
+            viewmats=viewmats,  # [B, 4, 4]
+            Ks=Ks,  # [B, 3, 3]
             width=W,
             height=H,
             packed=False,
