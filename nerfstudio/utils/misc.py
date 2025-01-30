@@ -16,6 +16,7 @@
 Miscellaneous helper code.
 """
 
+import contextlib
 import platform
 import typing
 import warnings
@@ -23,6 +24,7 @@ from inspect import currentframe
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import torch
+from PIL import Image
 
 T = TypeVar("T")
 TKey = TypeVar("TKey")
@@ -218,3 +220,17 @@ def get_orig_class(obj, default=None):
             finally:
                 del frame
         return default
+
+
+@contextlib.contextmanager
+def set_pil_image_size_limit(max_pixels: Optional[Any]):
+    """By default PIL limits the max image size preventing processing or training with high resolution images.
+    Use this function to disable or set a custom image size limit.
+
+    :param max_pixels: Max number of pixels for image processing in PIL.
+    :type max_pixels: Optional[int | None]
+    """
+    orig = Image.MAX_IMAGE_PIXELS
+    Image.MAX_IMAGE_PIXELS = max_pixels
+    yield
+    Image.MAX_IMAGE_PIXELS = orig

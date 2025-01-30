@@ -39,6 +39,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_interval,
 )
 from nerfstudio.process_data.colmap_utils import parse_colmap_camera_params
+from nerfstudio.utils.misc import set_pil_image_size_limit
 from nerfstudio.utils.rich_utils import CONSOLE, status
 from nerfstudio.utils.scripts import run_command
 
@@ -487,7 +488,8 @@ class ColmapDataParser(DataParser):
             # Using %05d ffmpeg commands appears to be unreliable (skips images).
             for path in paths:
                 # Compute image-wise rescaled width/height.
-                img = Image.open(path)
+                with set_pil_image_size_limit(None):
+                    img = Image.open(path)
                 w, h = img.size
                 w_scaled, h_scaled = calculate_scaled_size(w, h, downscale_factor, downscale_rounding_mode)
                 # Downscale images using ffmpeg.
@@ -520,7 +522,8 @@ class ColmapDataParser(DataParser):
         filepath = next(iter(image_filenames))
         if self._downscale_factor is None:
             if self.config.downscale_factor is None:
-                test_img = Image.open(filepath)
+                with set_pil_image_size_limit(None):
+                    test_img = Image.open(filepath)
                 w, h = test_img.size
                 max_res = max(h, w)
                 df = 0

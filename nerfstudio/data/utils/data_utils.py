@@ -22,12 +22,15 @@ import numpy as np
 import torch
 from PIL import Image
 
+from nerfstudio.utils.misc import set_pil_image_size_limit
+
 
 def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
     """
     Utility function to read a mask image from the given path and return a boolean tensor
     """
-    pil_mask = Image.open(filepath)
+    with set_pil_image_size_limit(None):
+        pil_mask = Image.open(filepath)
     if scale_factor != 1.0:
         width, height = pil_mask.size
         newsize = (int(width * scale_factor), int(height * scale_factor))
@@ -47,7 +50,8 @@ def get_semantics_and_mask_tensors_from_path(
     """
     if isinstance(mask_indices, List):
         mask_indices = torch.tensor(mask_indices, dtype=torch.int64).view(1, 1, -1)
-    pil_image = Image.open(filepath)
+    with set_pil_image_size_limit(None):
+        pil_image = Image.open(filepath)
     if scale_factor != 1.0:
         width, height = pil_image.size
         newsize = (int(width * scale_factor), int(height * scale_factor))

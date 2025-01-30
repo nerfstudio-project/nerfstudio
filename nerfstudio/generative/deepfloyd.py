@@ -206,8 +206,7 @@ class DeepFloyd(nn.Module):
         Returns:
             The generated image.
         """
-
-        from diffusers import DiffusionPipeline, IFPipeline as IFOrig
+        from diffusers import DiffusionPipeline, IFPipeline
         from diffusers.pipelines.deepfloyd_if import IFPipelineOutput as IFOutputOrig
 
         prompts = [prompts] if isinstance(prompts, str) else prompts
@@ -215,7 +214,7 @@ class DeepFloyd(nn.Module):
         assert isinstance(self.pipe, DiffusionPipeline)
         prompt_embeds, negative_embeds = self.pipe.encode_prompt(prompts, negative_prompt=negative_prompts)
 
-        assert isinstance(self.pipe, IFOrig)
+        assert isinstance(self.pipe, IFPipeline)
         model_output = self.pipe(
             prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, generator=generator
         )

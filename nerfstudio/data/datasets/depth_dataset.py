@@ -29,7 +29,7 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import get_depth_image_from_path
 from nerfstudio.model_components import losses
-from nerfstudio.utils.misc import torch_compile
+from nerfstudio.utils.misc import set_pil_image_size_limit, torch_compile
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -81,7 +81,8 @@ class DepthDataset(InputDataset):
 
                 for i in track(range(len(filenames)), description="Generating depth images"):
                     image_filename = filenames[i]
-                    pil_image = Image.open(image_filename)
+                    with set_pil_image_size_limit(None):
+                        pil_image = Image.open(image_filename)
                     image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
                     if len(image.shape) == 2:
                         image = image[:, :, None].repeat(3, axis=2)
