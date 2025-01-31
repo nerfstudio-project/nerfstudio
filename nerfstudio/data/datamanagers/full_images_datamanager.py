@@ -29,21 +29,22 @@ from functools import cached_property
 from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
-import cv2
 import fpsample
 import numpy as np
 import torch
 from rich.progress import track
 from torch.nn import Parameter
+from torch.utils.data import DataLoader
 from typing_extensions import assert_never
 
-from nerfstudio.cameras.camera_utils import fisheye624_project, fisheye624_unproject_helper
-from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, TDataset
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.utils.data_utils import identity_collate
+from nerfstudio.data.utils.dataloaders import ImageBatchStream, _undistort_image
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -61,10 +62,11 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     eval_num_times_to_repeat_images: int = -1
     """When not evaluating on all images, number of iterations before picking
     new images. If -1, never pick new images."""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """Specifies the image indices to use during eval; if None, uses all."""
-    cache_images: Literal["cpu", "gpu"] = "gpu"
-    """Whether to cache images in memory. If "cpu", caches on cpu. If "gpu", caches on device."""
+    cache_images: Literal["cpu", "gpu", "disk"] = "gpu"
+    """Where to cache images in memory. 
+        - If "cpu", caches images on cpu RAM as pytorch tensors. 
+        - If "gpu", caches images on device as pytorch tensors. 
+        - If "disk", keeps images on disk which conserves memory. Datamanager will use parallel dataloader"""
     cache_images_type: Literal["uint8", "float32"] = "float32"
     """The image type returned from manager, caching images in uint8 saves memory"""
     max_thread_workers: Optional[int] = None
@@ -79,6 +81,14 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
     samples from the pool of all training cameras without replacement before a new round of sampling starts."""
+    dataloader_num_workers: int = 4
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes collating, pixel sampling, unprojecting, ray generation etc."""
+    prefetch_factor: int = 4
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
+    cache_compressed_images: bool = False
+    """If True, cache raw image files as byte strings to RAM."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -101,6 +111,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         local_rank: int = 0,
         **kwargs,
     ):
+        if config.cache_images == "disk":
+            try:
+                torch.multiprocessing.set_start_method("spawn")
+            except RuntimeError:
+                assert torch.multiprocessing.get_start_method() == "spawn", 'start method must be "spawn"'
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -117,27 +132,20 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if test_mode == "inference":
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
-
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print(
-                "Train dataset has over 500 images, overriding cache_images to cpu",
+                "Train dataset has over 500 images, overriding cache_images to cpu. If you still get OOM errors or segfault, please consider seting cache_images to 'disk'",
                 style="bold yellow",
             )
             self.config.cache_images = "cpu"
-        self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
-        if self.config.masks_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("mask")
-        if self.config.images_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("image")
 
         # Some logic to make sure we sample every camera in equal amounts
         self.train_unseen_cameras = self.sample_train_cameras()
         self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
-
         super().__init__()
 
     def sample_train_cameras(self):
@@ -169,7 +177,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 )
                 n = num_train_cameras
             kdline_fps_samples_idx = fpsample.bucket_fps_kdline_sampling(data, n, h=3)
-
             self.train_unsampled_epoch_count += 1
             self.train_unsampled_epoch_count[kdline_fps_samples_idx] = 0
             return kdline_fps_samples_idx.tolist()
@@ -180,19 +187,20 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def cached_train(self) -> List[Dict[str, torch.Tensor]]:
         """Get the training images. Will load and undistort the images the
         first time this (cached) property is accessed."""
+        assert self.config.cache_images != "disk", "Can not call _load_images() with `disk` as input"
         return self._load_images("train", cache_images_device=self.config.cache_images)
 
     @cached_property
     def cached_eval(self) -> List[Dict[str, torch.Tensor]]:
         """Get the eval images. Will load and undistort the images the
         first time this (cached) property is accessed."""
+        assert self.config.cache_images != "disk", "Can not call _load_images() with `disk` as input"
         return self._load_images("eval", cache_images_device=self.config.cache_images)
 
     def _load_images(
         self, split: Literal["train", "eval"], cache_images_device: Literal["cpu", "gpu"]
     ) -> List[Dict[str, torch.Tensor]]:
         undistorted_images: List[Dict[str, torch.Tensor]] = []
-
         # Which dataset?
         if split == "train":
             dataset = self.train_dataset
@@ -240,7 +248,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                     total=len(dataset),
                 )
             )
-
         # Move to device.
         if cache_images_device == "gpu":
             for cache in undistorted_images:
@@ -258,7 +265,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 self.train_cameras = self.train_dataset.cameras
         else:
             assert_never(cache_images_device)
-
         return undistorted_images
 
     def create_train_dataset(self) -> TDataset:
@@ -266,6 +272,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
+            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def create_eval_dataset(self) -> TDataset:
@@ -273,6 +280,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
+            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     @cached_property
@@ -284,7 +292,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             return default
         if orig_class is not None and get_origin(orig_class) is FullImageDatamanager:
             return get_args(orig_class)[0]
-
         # For inherited classes, we need to find the correct type to instantiate
         for base in getattr(self, "__orig_bases__", []):
             if get_origin(base) is FullImageDatamanager:
@@ -305,15 +312,54 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def setup_train(self):
         """Sets up the data loaders for training"""
+        if self.config.cache_images == "disk":
+            self.train_imagebatch_stream = ImageBatchStream(
+                input_dataset=self.train_dataset,
+                sampling_seed=self.config.train_cameras_sampling_seed,
+                cache_images_type=self.config.cache_images_type,
+                device=self.device,
+                custom_image_processor=self.custom_image_processor,
+            )
+            self.train_image_dataloader = DataLoader(
+                self.train_imagebatch_stream,
+                batch_size=1,
+                num_workers=self.config.dataloader_num_workers,
+                collate_fn=identity_collate,
+            )
+            self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
+        if self.config.cache_images == "disk":
+            self.eval_imagebatch_stream = ImageBatchStream(
+                input_dataset=self.eval_dataset,
+                sampling_seed=self.config.train_cameras_sampling_seed,
+                cache_images_type=self.config.cache_images_type,
+                device=self.device,
+                custom_image_processor=self.custom_image_processor,
+            )
+            self.eval_image_dataloader = DataLoader(
+                self.eval_imagebatch_stream,
+                batch_size=1,
+                num_workers=0,  # This must be 0 otherwise there is a crash when trying to pickle custom_image_processor
+                collate_fn=identity_collate,
+            )
+            self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
 
     @property
     def fixed_indices_eval_dataloader(self) -> List[Tuple[Cameras, Dict]]:
         """
         Pretends to be the dataloader for evaluation, it returns a list of (camera, data) tuples
         """
+        if self.config.cache_images == "disk":
+            dataloader = DataLoader(
+                self.eval_imagebatch_stream,
+                batch_size=1,
+                num_workers=0,
+                collate_fn=identity_collate,
+            )
+            return [batch[0] for batch in dataloader]
+
         image_indices = [i for i in range(len(self.eval_dataset))]
         data = [d.copy() for d in self.cached_eval]
         _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
@@ -331,19 +377,19 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """
         return {}
 
-    def get_train_rays_per_batch(self):
+    def get_train_rays_per_batch(self) -> int:
         """Returns resolution of the image returned from datamanager."""
-        if len(self.cached_train) != 0:
-            h = self.cached_train[0]["image"].shape[0]
-            w = self.cached_train[0]["image"].shape[1]
-            return h * w
-        else:
-            return 800 * 800
+        camera = self.train_dataset.cameras[0].reshape(())
+        return int(camera.width[0].item() * camera.height[0].item())
 
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
-
         Returns a Camera instead of raybundle"""
+        self.train_count += 1
+        if self.config.cache_images == "disk":
+            camera, data = next(self.iter_train_image_dataloader)[0]
+            return camera, data
+
         image_idx = self.train_unseen_cameras.pop(0)
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.train_unseen_cameras) == 0:
@@ -364,16 +410,21 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
-
         Returns a Camera instead of raybundle"""
+        self.eval_count += 1
+        if self.config.cache_images == "disk":
+            camera, data = next(self.iter_eval_image_dataloader)[0]
+            return camera, data
+
         return self.next_eval_image(step=step)
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch
-
         Returns a Camera instead of raybundle
-
         TODO: Make sure this logic is consistent with the vanilladatamanager"""
+        if self.config.cache_images == "disk":
+            camera, data = next(self.iter_eval_image_dataloader)[0]
+            return camera, data
         image_idx = self.eval_unseen_cameras.pop(random.randint(0, len(self.eval_unseen_cameras) - 1))
         # Make sure to re-populate the unseen cameras list if we have exhausted it
         if len(self.eval_unseen_cameras) == 0:
@@ -385,181 +436,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         camera = self.eval_dataset.cameras[image_idx : image_idx + 1].to(self.device)
         return camera, data
 
-
-def _undistort_image(
-    camera: Cameras, distortion_params: np.ndarray, data: dict, image: np.ndarray, K: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
-    mask = None
-    if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-        assert distortion_params[3] == 0, (
-            "We doesn't support the 4th Brown parameter for image undistortion, "
-            "Only k1, k2, k3, p1, p2 can be non-zero."
-        )
-        # because OpenCV expects the order of distortion parameters to be (k1, k2, p1, p2, k3), we need to reorder them
-        # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
-        distortion_params = np.array(
-            [
-                distortion_params[0],
-                distortion_params[1],
-                distortion_params[4],
-                distortion_params[5],
-                distortion_params[2],
-                distortion_params[3],
-                0,
-                0,
-            ]
-        )
-        # because OpenCV expects the pixel coord to be top-left, we need to shift the principal point by 0.5
-        # see https://github.com/nerfstudio-project/nerfstudio/issues/3048
-        K[0, 2] = K[0, 2] - 0.5
-        K[1, 2] = K[1, 2] - 0.5
-        if np.any(distortion_params):
-            newK, roi = cv2.getOptimalNewCameraMatrix(K, distortion_params, (image.shape[1], image.shape[0]), 0)
-            image = cv2.undistort(image, K, distortion_params, None, newK)  # type: ignore
-        else:
-            newK = K
-            roi = 0, 0, image.shape[1], image.shape[0]
-        # crop the image and update the intrinsics accordingly
-        x, y, w, h = roi
-        image = image[y : y + h, x : x + w]
-        # update the principal point based on our cropped region of interest (ROI)
-        newK[0, 2] -= x
-        newK[1, 2] -= y
-        if "depth_image" in data:
-            data["depth_image"] = data["depth_image"][y : y + h, x : x + w]
-        if "mask" in data:
-            mask = data["mask"].numpy()
-            mask = mask.astype(np.uint8) * 255
-            if np.any(distortion_params):
-                mask = cv2.undistort(mask, K, distortion_params, None, newK)  # type: ignore
-            mask = mask[y : y + h, x : x + w]
-            mask = torch.from_numpy(mask).bool()
-            if len(mask.shape) == 2:
-                mask = mask[:, :, None]
-        newK[0, 2] = newK[0, 2] + 0.5
-        newK[1, 2] = newK[1, 2] + 0.5
-        K = newK
-
-    elif camera.camera_type.item() == CameraType.FISHEYE.value:
-        K[0, 2] = K[0, 2] - 0.5
-        K[1, 2] = K[1, 2] - 0.5
-        distortion_params = np.array(
-            [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
-        )
-        newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
-            K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
-        )
-        map1, map2 = cv2.fisheye.initUndistortRectifyMap(
-            K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
-        )
-        # and then remap:
-        image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
-        if "mask" in data:
-            mask = data["mask"].numpy()
-            mask = mask.astype(np.uint8) * 255
-            mask = cv2.fisheye.undistortImage(mask, K, distortion_params, None, newK)
-            mask = torch.from_numpy(mask).bool()
-            if len(mask.shape) == 2:
-                mask = mask[:, :, None]
-        newK[0, 2] = newK[0, 2] + 0.5
-        newK[1, 2] = newK[1, 2] + 0.5
-        K = newK
-    elif camera.camera_type.item() == CameraType.FISHEYE624.value:
-        fisheye624_params = torch.cat(
-            [camera.fx, camera.fy, camera.cx, camera.cy, torch.from_numpy(distortion_params)], dim=0
-        )
-        assert fisheye624_params.shape == (16,)
-        assert (
-            "mask" not in data
-            and camera.metadata is not None
-            and "fisheye_crop_radius" in camera.metadata
-            and isinstance(camera.metadata["fisheye_crop_radius"], float)
-        )
-        fisheye_crop_radius = camera.metadata["fisheye_crop_radius"]
-
-        # Approximate the FOV of the unmasked region of the camera.
-        upper, lower, left, right = fisheye624_unproject_helper(
-            torch.tensor(
-                [
-                    [camera.cx, camera.cy - fisheye_crop_radius],
-                    [camera.cx, camera.cy + fisheye_crop_radius],
-                    [camera.cx - fisheye_crop_radius, camera.cy],
-                    [camera.cx + fisheye_crop_radius, camera.cy],
-                ],
-                dtype=torch.float32,
-            )[None],
-            params=fisheye624_params[None],
-        ).squeeze(dim=0)
-        fov_radians = torch.max(
-            torch.acos(torch.sum(upper * lower / torch.linalg.norm(upper) / torch.linalg.norm(lower))),
-            torch.acos(torch.sum(left * right / torch.linalg.norm(left) / torch.linalg.norm(right))),
-        )
-
-        # Heuristics to determine parameters of an undistorted image.
-        undist_h = int(fisheye_crop_radius * 2)
-        undist_w = int(fisheye_crop_radius * 2)
-        undistort_focal = undist_h / (2 * torch.tan(fov_radians / 2.0))
-        undist_K = torch.eye(3)
-        undist_K[0, 0] = undistort_focal  # fx
-        undist_K[1, 1] = undistort_focal  # fy
-        undist_K[0, 2] = (undist_w - 1) / 2.0  # cx; for a 1x1 image, center should be at (0, 0).
-        undist_K[1, 2] = (undist_h - 1) / 2.0  # cy
-
-        # Undistorted 2D coordinates -> rays -> reproject to distorted UV coordinates.
-        undist_uv_homog = torch.stack(
-            [
-                *torch.meshgrid(
-                    torch.arange(undist_w, dtype=torch.float32),
-                    torch.arange(undist_h, dtype=torch.float32),
-                ),
-                torch.ones((undist_w, undist_h), dtype=torch.float32),
-            ],
-            dim=-1,
-        )
-        assert undist_uv_homog.shape == (undist_w, undist_h, 3)
-        dist_uv = (
-            fisheye624_project(
-                xyz=(
-                    torch.einsum(
-                        "ij,bj->bi",
-                        torch.linalg.inv(undist_K),
-                        undist_uv_homog.reshape((undist_w * undist_h, 3)),
-                    )[None]
-                ),
-                params=fisheye624_params[None, :],
-            )
-            .reshape((undist_w, undist_h, 2))
-            .numpy()
-        )
-        map1 = dist_uv[..., 1]
-        map2 = dist_uv[..., 0]
-
-        # Use correspondence to undistort image.
-        image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
-
-        # Compute undistorted mask as well.
-        dist_h = camera.height.item()
-        dist_w = camera.width.item()
-        mask = np.mgrid[:dist_h, :dist_w]
-        mask[0, ...] -= dist_h // 2
-        mask[1, ...] -= dist_w // 2
-        mask = np.linalg.norm(mask, axis=0) < fisheye_crop_radius
-        mask = torch.from_numpy(
-            cv2.remap(
-                mask.astype(np.uint8) * 255,
-                map1,
-                map2,
-                interpolation=cv2.INTER_LINEAR,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=0,
-            )
-            / 255.0
-        ).bool()[..., None]
-        if len(mask.shape) == 2:
-            mask = mask[:, :, None]
-        assert mask.shape == (undist_h, undist_w, 1)
-        K = undist_K.numpy()
-    else:
-        raise NotImplementedError("Only perspective and fisheye cameras are supported")
-
-    return K, image, mask
+    def custom_image_processor(self, camera: Cameras, data: Dict) -> Tuple[Cameras, Dict]:
+        """An API to add latents, metadata, or other further customization an camera-and-image view dataloading process that is parallelized"""
+        return camera, data

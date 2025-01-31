@@ -106,7 +106,7 @@ class PixelSampler:
         num_valid = 0
         for _ in range(self.config.max_num_iterations):
             c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-            chosen_indices_validity = mask.squeeze()[c, y, x].bool()
+            chosen_indices_validity = mask.squeeze(-1)[c, y, x].bool()
             num_valid = int(torch.sum(chosen_indices_validity).item())
             if num_valid == num_samples:
                 break

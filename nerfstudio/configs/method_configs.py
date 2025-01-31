@@ -28,7 +28,7 @@ from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.configs.external_methods import ExternalMethodDummyTrainerConfig, get_external_methods
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager, VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanagerConfig
-from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManagerConfig
+from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager, ParallelDataManagerConfig
 from nerfstudio.data.datamanagers.random_cameras_datamanager import RandomCamerasDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -220,7 +220,7 @@ method_configs["depth-nerfacto"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            _target=VanillaDataManager[DepthDataset],
+            _target=ParallelDataManager[DepthDataset],
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
@@ -302,7 +302,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
 method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
         model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -375,7 +375,7 @@ method_configs["tensorf"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
-        datamanager=ParallelDataManagerConfig(
+        datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
