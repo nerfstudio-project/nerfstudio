@@ -311,17 +311,6 @@ class VanillaDataManagerConfig(DataManagerConfig):
     along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
-    load_from_disk: bool = False
-    """If True, conserves RAM memory by loading images from disk.
-    If False, caches all the images as tensors to RAM and loads from RAM."""
-    dataloader_num_workers: int = 4
-    """The number of workers performing the dataloading from either disk/RAM, which 
-    includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 10
-    """The limit number of batches a worker will start loading once an iterator is created. 
-    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
-    cache_compressed_images: bool = False
-    """If True, cache raw image files as byte strings to RAM."""
 
     # tyro.conf.Suppress prevents us from creating CLI arguments for this field.
     camera_optimizer: tyro.conf.Suppress[Optional[CameraOptimizerConfig]] = field(default=None)
@@ -438,7 +427,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
-            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def create_eval_dataset(self) -> TDataset:
@@ -446,7 +434,6 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
-            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def _get_pixel_sampler(self, dataset: TDataset, num_rays_per_batch: int) -> PixelSampler:

@@ -18,6 +18,7 @@ Parallel data manager that generates training data in multiple python processes.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
@@ -43,6 +44,25 @@ from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
+@dataclass
+class ParallelDataManagerConfig(VanillaDataManagerConfig):
+    """Config for a `ParallelDataManager` which reads data in multiple processes"""
+
+    _target: Type = field(default_factory=lambda: ParallelDataManager)
+    """Target class to instantiate."""
+    load_from_disk: bool = False
+    """If True, conserves RAM memory by loading images from disk.
+    If False, caches all the images as tensors to RAM and loads from RAM."""
+    dataloader_num_workers: int = 4
+    """The number of workers performing the dataloading from either disk/RAM, which 
+    includes collating, pixel sampling, unprojecting, ray generation etc."""
+    prefetch_factor: int = 10
+    """The limit number of batches a worker will start loading once an iterator is created. 
+    More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
+    cache_compressed_images: bool = False
+    """If True, cache raw image files as byte strings to RAM."""
+
+
 class ParallelDataManager(DataManager, Generic[TDataset]):
     """Data manager implementation for parallel dataloading.
 
@@ -50,7 +70,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         config: the DataManagerConfig used to instantiate class
     """
 
-    config: VanillaDataManagerConfig
+    config: ParallelDataManagerConfig
     train_dataset: TDataset
     eval_dataset: TDataset
     train_dataparser_outputs: DataparserOutputs
@@ -59,7 +79,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
 
     def __init__(
         self,
-        config: VanillaDataManagerConfig,
+        config: ParallelDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
@@ -134,6 +154,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
+            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def create_eval_dataset(self) -> TDataset:
@@ -141,6 +162,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
+            cache_compressed_images=self.config.cache_compressed_images,
         )
 
     def setup_train(self):
