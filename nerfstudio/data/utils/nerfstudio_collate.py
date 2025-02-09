@@ -98,7 +98,7 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             # If we're in a background process, concatenate directly into a
             # shared memory tensor to avoid an extra copy
             numel = sum(x.numel() for x in batch)
-            storage = elem.untyped_storage()._new_shared(numel, device=elem.device)
+            storage = elem.untyped_storage()._new_shared(numel, device=str(elem.device))
             out = elem.new(storage).resize_(len(batch), *list(elem.size()))
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == "numpy" and elem_type.__name__ not in ("str_", "string_"):
