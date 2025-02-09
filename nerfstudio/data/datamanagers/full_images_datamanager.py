@@ -45,6 +45,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.data.utils.dataloaders import ImageBatchStream, _undistort_image
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -150,7 +151,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
         super().__init__()
 
-    def sample_train_cameras(self):
+    def sample_train_cameras(self) -> List[int]:
         """Return a list of camera indices sampled using the strategy specified by
         self.config.train_cameras_sampling_strategy"""
         num_train_cameras = len(self.train_dataset)
@@ -326,7 +327,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 self.train_imagebatch_stream,
                 batch_size=self.config.batch_size,
                 num_workers=self.config.dataloader_num_workers,
-                collate_fn=identity_collate,
+                collate_fn=nerfstudio_collate,
             )
             self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
@@ -382,7 +383,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def get_train_rays_per_batch(self) -> int:
         """Returns resolution of the image returned from datamanager."""
         camera = self.train_dataset.cameras[0].reshape(())
-        return int(camera.width[0].item() * camera.height[0].item())
+        return int(camera.width[0].item() * camera.height[0].item()) * self.config.batch_size
 
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
@@ -390,45 +391,22 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
         self.train_count += 1
         if self.config.cache_images == "disk":
-            output = next(self.iter_train_image_dataloader)
-            print("Alex", output)
-            camera, data = output[0]
-            return camera, data
+            cameras, data = next(self.iter_train_image_dataloader)
+            return cameras, data
 
-        image_indices = []
+        camera_indices = []
         for _ in range(self.config.batch_size):
             # Make sure to re-populate the unseen cameras list if we have exhausted it
             if len(self.train_unseen_cameras) == 0:
                 self.train_unseen_cameras = self.sample_train_cameras()
-            image_indices.append(self.train_unseen_cameras.pop(0))
+            camera_indices.append(self.train_unseen_cameras.pop(0))
 
-        all_keys = self.cached_train[0].keys()
-
-        data = {}
-        for key in all_keys:
-            if key == "image":
-                data[key] = torch.stack([self.cached_train[i][key] for i in image_indices]).to(self.device)
-            else:
-                data[key] = [self.cached_train[i][key] for i in image_indices]
-
-        cameras = Cameras(
-            camera_to_worlds=self.train_cameras.camera_to_worlds[image_indices],
-            fx=self.train_cameras.fx[image_indices],
-            fy=self.train_cameras.fy[image_indices],
-            cx=self.train_cameras.cx[image_indices],
-            cy=self.train_cameras.cy[image_indices],
-            width=self.train_cameras.width[image_indices],
-            height=self.train_cameras.height[image_indices],
-            camera_type=self.train_cameras.camera_type[image_indices],
-        ).to(self.device)
-
-        if self.train_cameras.distortion_params is not None:
-            cameras.distortion_params = self.train_cameras.distortion_params[image_indices]
-
-        if cameras.metadata is None:
-            cameras.metadata = {}
-
-        cameras.metadata["cam_idx"] = image_indices
+        # NOTE: We're going to copy the data to make sure we don't mutate the cached dictionary.
+        # This can cause a memory leak: https://github.com/nerfstudio-project/nerfstudio/issues/3335
+        data = nerfstudio_collate(
+            [self.cached_train[i].copy() for i in camera_indices]
+        )  # Note that this must happen before indexing cameras, as it can modify the cameras in the dataset during undistortion
+        cameras = nerfstudio_collate([self.train_dataset.cameras[i : i + 1].to(self.device) for i in camera_indices])
 
         return cameras, data
 
