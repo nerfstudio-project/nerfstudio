@@ -36,7 +36,7 @@ dependencies = [
     "opencv-python-headless==4.10.0.84",
     "Pillow>=10.3.0",
     "plotly>=5.7.0",
-    "protobuf<=3.20.3,!=3.20.0",
+    "protobuf<=5,!=3.20.0",
     # TODO(1480) enable when pycolmap windows wheels are available
     # "pycolmap==0.3.0",
     # TODO(3461) and external issue cnr-isti-vclab/PyMeshLab/issues/398: Unrestrict Windows version when it isn't broken anymore.
