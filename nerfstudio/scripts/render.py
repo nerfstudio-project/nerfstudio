@@ -799,6 +799,9 @@ class DatasetRender(BaseRender):
                             rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
                             outputs["rgba"] = rgba
 
+                    # Remove non-image outputs
+                    outputs.pop("num_samples_per_ray", None)
+
                     gt_batch = batch.copy()
                     gt_batch["rgb"] = gt_batch.pop("image")
                     all_outputs = (
