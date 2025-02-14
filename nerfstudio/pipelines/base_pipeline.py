@@ -40,6 +40,12 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
 
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.fields.visibility_field import VisibilityField
+from nerfstudio.utils.misc import step_check
+from nerfstudio.data.datamanagers.random_cameras_datamanager import random_train_pose
+import math
+
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
     """
@@ -218,6 +224,18 @@ class VanillaPipelineConfig(InstantiateConfig):
     """specifies the datamanager config"""
     model: ModelConfig = field(default_factory=ModelConfig)
     """specifies the model config"""
+    use_visibility_loss: bool = False
+    """whether to apply the visibility loss"""
+    visibility_steps_per_loss: int = 10
+    """how often to apply the visibility loss"""
+    visibility_loss_mult: float = 1.0
+    """multiplier for the visibility loss"""
+    visibility_min_views: int = 1
+    """apply visibility loss where fewer than this min_views are seen."""
+    visibility_num_rays: int = 10
+    """number of rays per batch to use for the visibility loss"""
+    visibility_radius: float = 2.0
+    """radius for the visibility loss"""
 
 
 class VanillaPipeline(Pipeline):
@@ -281,6 +299,11 @@ class VanillaPipeline(Pipeline):
             self._model = typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
             dist.barrier(device_ids=[local_rank])
 
+        if self.config.use_visibility_loss:
+            # initialize the visibility field
+            cameras = typing.cast(Cameras, self.datamanager.train_dataparser_outputs.cameras.to(self.device))  # type: ignore
+            self.model.visibility_field = VisibilityField(cameras).to(self.device)
+
     @property
     def device(self):
         """Returns the device that the model is on."""
@@ -299,6 +322,41 @@ class VanillaPipeline(Pipeline):
         model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+
+        if self.config.use_visibility_loss and step_check(step, self.config.visibility_steps_per_loss):
+            # randomly sample a center within the aabb
+            center: Tuple[float, float, float] = tuple(
+                (
+                    torch.rand((3,), device=self.device) * (2 * self.config.visibility_radius)
+                    - self.config.visibility_radius
+                ).tolist()
+            )
+            cameras, _, _ = random_train_pose(
+                size=self.config.visibility_num_rays,
+                resolution=1,
+                device=self.device,
+                radius_mean=self.config.visibility_radius * math.sqrt(3.0),
+                radius_std=0.0,
+                central_rotation_range=(0, 360),
+                vertical_rotation_range=(-90, 90),
+                jitter_std=0,
+                center=center,
+            )
+            # We only use the first camera index, but it doesn't matter since we don't care about appearance embeddings
+            # when using the visibility loss.
+            camera_indices = torch.tensor([0] * self.config.visibility_num_rays).unsqueeze(-1)
+            ray_bundle_rays = cameras.generate_rays(camera_indices).flatten()
+            model_outputs_rays = self.model(ray_bundle_rays)
+            visibility_loss = torch.zeros(1, device=self.device)
+            for i in range(len(model_outputs_rays["densities_list"])):
+                density_samples = model_outputs_rays["densities_list"][i]
+                ray_samples = model_outputs_rays["ray_samples_list"][i]
+                visibility_samples = self.model.visibility_field(ray_samples)  # type: ignore
+                # penalize densities seen in less than min_views
+                density_samples_masked = density_samples[visibility_samples < self.config.visibility_min_views]
+                if density_samples_masked.numel() != 0:
+                    visibility_loss += self.config.visibility_loss_mult * density_samples_masked.mean()
+            loss_dict.update({"visibility_loss": visibility_loss})
 
         return model_outputs, loss_dict, metrics_dict
 
