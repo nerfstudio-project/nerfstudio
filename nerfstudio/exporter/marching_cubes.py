@@ -251,4 +251,5 @@ def generate_mesh_with_multires_marching_cubes(
                     meshes.append(meshcrop)
 
     combined_mesh: trimesh.Trimesh = trimesh.util.concatenate(meshes)  # type: ignore
+    combined_mesh.merge_vertices(merge_tex=True, merge_norm=True)
     return combined_mesh
