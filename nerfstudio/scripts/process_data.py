@@ -515,6 +515,174 @@ class ProcessODM(BaseConverterToNerfstudioDataset):
             CONSOLE.print(summary, justify="center")
         CONSOLE.rule()
 
+@dataclass
+class StrayScanner:
+    """Process videos and camera poses into a nerfstudio dataset.
+
+    This script does the following:
+
+    1. Converts the video into images.
+    2. Scales images to a specified size.
+    3. append camera poses in json format
+    """
+
+    data: Path
+    """Path the data, either a video file or a directory of images."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_frames_target: int = 300
+    """Target number of frames to use for the dataset, results may not be exact."""
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
+    """Camera model to use."""
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
+    """Feature matching method to use. Vocab tree is recommended for a balance of speed and
+        accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
+    """Matching algorithm."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    skip_colmap: bool = False
+    """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
+    images_per_equirect: Literal[8, 14] = 8
+    """Number of samples per image to take from each equirectangular image.
+       Used only when camera-type is equirectangular.
+    """
+    percent_radius_crop: float = 1.0
+    """Create circle crop mask. The radius is the percent of the image diagonal."""
+    crop_factor: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    """Portion of the image to crop. All values should be in [0,1]. (top, bottom, left, right)"""
+    use_sfm_depth: bool = False
+    """If True, export and use depth maps induced from SfM points."""
+    include_depth_debug: bool = False
+    """If --use-sfm-depth and this flag is True, also export debug images showing SfM overlaid upon input images."""
+    gpu: bool = True
+    """If True, use GPU."""
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def get_num_frames_in_video(self, video: Path) -> int:
+        """Returns the number of frames in a video.
+
+        Args:
+            video: Path to a video.
+
+        Returns:
+            The number of frames in a video.
+        """
+        cmd = f'ffprobe -v error -select_streams v:0 -count_packets \
+                -show_entries stream=nb_read_packets -of csv=p=0 "{video}"'
+        output = run_command(cmd)
+        assert output is not None
+        output = output.strip(" ,\t\n\r")
+        return int(output)
+
+    def main(self) -> None:  # pylint: disable=R0915
+
+        intrinsics_file_base_path = str(self.data).split("rgb.mp4")[0]
+
+        """Process video into a nerfstudio dataset."""
+        install_checks.check_ffmpeg_installed()
+        # install_checks.check_colmap_installed()
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+        # Convert video to images
+        if self.camera_type == "equirectangular":
+            # create temp images folder to store the equirect and perspective images
+            temp_image_dir = self.output_dir / "temp_images"
+            temp_image_dir.mkdir(parents=True, exist_ok=True)
+
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data,
+                image_dir=temp_image_dir,
+                num_frames_target=self.num_frames_target,
+                crop_factor=(0.0, 0.0, 0.0, 0.0),
+                verbose=self.verbose,
+            )
+        else:
+            summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
+                self.data,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                crop_factor=self.crop_factor,
+                verbose=self.verbose,
+            )
+
+        # Getting total no. of frames in the video
+        original_num_of_frames = self.get_num_frames_in_video(self.data)
+
+        # Generate planar projections if equirectangular
+        if self.camera_type == "equirectangular":
+            perspective_image_size = equirect_utils.compute_resolution_from_equirect(
+                self.output_dir / "temp_images", self.images_per_equirect
+            )
+            image_dir = equirect_utils.generate_planar_projections_from_equirectangular(
+                self.output_dir / "temp_images",
+                perspective_image_size,
+                self.images_per_equirect,
+                crop_factor=self.crop_factor,
+            )
+
+            # copy the perspective images to the image directory
+            process_data_utils.copy_images(
+                self.output_dir / "temp_images" / "planar_projections",
+                image_dir=self.output_dir / "images",
+                verbose=False,
+            )
+            image_dir = self.output_dir / "images"
+
+            # remove the temp_images folder
+            shutil.rmtree(self.output_dir / "temp_images", ignore_errors=True)
+
+        # # Create mask
+        mask_path = process_data_utils.save_mask(
+            image_dir=image_dir,
+            num_downscales=self.num_downscales,
+            crop_factor=(0.0, 0.0, 0.0, 0.0),
+            percent_radius=self.percent_radius_crop,
+        )
+        if mask_path is not None:
+            summary_log.append(f"Saved mask to {mask_path}")
+        # Save transforms.json
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(image_dir)  # self.data)
+        print("Number of frames being used ", num_orig_images)
+
+        with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+            num_matched_frames = strayscan_utils.strayscan_to_json(
+                image_filenames=image_filenames,
+                intrinsics_file_base_path=intrinsics_file_base_path,
+                num_frames=original_num_of_frames,
+                num_frames_target=self.num_frames_target,
+                output_dir=self.output_dir,
+            )
+            summary_log.append("Generated transforms.json from strayscan data")
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
 
 @dataclass
 class NotInstalled:
@@ -529,6 +697,7 @@ Commands = Union[
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
     Annotated[ProcessODM, tyro.conf.subcommand(name="odm")],
+    Annotated[StrayScanner, tyro.conf.subcommand(name="strayscanner")],
 ]
 
 # Add aria subcommand if projectaria_tools is installed.
