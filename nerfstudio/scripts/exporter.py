@@ -288,12 +288,6 @@ class ExportPoissonMesh(Exporter):
     """Name of the normal output."""
     save_point_cloud: bool = False
     """Whether to save the point cloud."""
-    use_bounding_box: bool = True
-    """Only query points within the bounding box"""
-    bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
-    """Minimum of the bounding box, used if use_bounding_box is True."""
-    bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
-    """Minimum of the bounding box, used if use_bounding_box is True."""
     obb_center: Optional[Tuple[float, float, float]] = None
     """Center of the oriented bounding box."""
     obb_rotation: Optional[Tuple[float, float, float]] = None
