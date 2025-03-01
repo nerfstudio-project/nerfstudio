@@ -141,8 +141,9 @@ class ExportPointCloud(Exporter):
             pipeline.datamanager,
             (VanillaDataManager, ParallelDataManager),
         )
-        assert pipeline.datamanager.train_pixel_sampler is not None
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
+        if isinstance(pipeline.datamanager, VanillaDataManager):
+            assert pipeline.datamanager.train_pixel_sampler is not None
+            pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
@@ -329,8 +330,9 @@ class ExportPoissonMesh(Exporter):
             pipeline.datamanager,
             (VanillaDataManager, ParallelDataManager),
         )
-        assert pipeline.datamanager.train_pixel_sampler is not None
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
+        if isinstance(pipeline.datamanager, VanillaDataManager):
+            assert pipeline.datamanager.train_pixel_sampler is not None
+            pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
