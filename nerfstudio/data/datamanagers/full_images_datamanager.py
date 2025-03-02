@@ -85,7 +85,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 4
+    prefetch_factor: int | None = 4
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
