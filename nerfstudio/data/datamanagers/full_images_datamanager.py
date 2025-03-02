@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
+from itertools import islice
 
 import fpsample
 import numpy as np
@@ -356,9 +357,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 self.eval_imagebatch_stream,
                 batch_size=1,
                 num_workers=0,
-                collate_fn=identity_collate,
+                collate_fn=lambda x: x[0], 
             )
-            return [batch[0] for batch in dataloader]
+            return list(islice(dataloader, len(self.eval_dataset)))
 
         image_indices = [i for i in range(len(self.eval_dataset))]
         data = [d.copy() for d in self.cached_eval]
