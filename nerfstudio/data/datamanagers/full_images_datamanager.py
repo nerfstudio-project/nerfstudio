@@ -26,9 +26,9 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
+from itertools import islice
 from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
-from itertools import islice
 
 import fpsample
 import numpy as np
