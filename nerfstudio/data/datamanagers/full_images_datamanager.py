@@ -389,6 +389,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_count += 1
         if self.config.cache_images == "disk":
             camera, data = next(self.iter_train_image_dataloader)[0]
+            camera = camera.to(self.device)
+            for k in data.keys():
+                if isinstance(data[k], torch.Tensor):
+                    data[k] = data[k].to(self.device)
             return camera, data
 
         image_idx = self.train_unseen_cameras.pop(0)
