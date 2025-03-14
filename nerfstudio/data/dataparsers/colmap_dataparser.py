@@ -276,7 +276,7 @@ class ColmapDataParser(DataParser):
             cy.append(float(frame["cy"]))
             height.append(int(frame["h"]))
             width.append(int(frame["w"]))
-            if float(frame["k4"]) != 0.0 and camera_type == CameraType.PERSPECTIVE:
+            if camera_type == CameraType.PERSPECTIVE and "k4" in frame and float(frame["k4"]) != 0.0:
                 raise ValueError(
                     "K4 is non-zero! Note that Nerfstudio's perspective distortion parameter K4 has different meaning "
                     "than colmap's OPENCV parameter K4. Nerfstudio's K4 is the 4-th order of radial distortion "
