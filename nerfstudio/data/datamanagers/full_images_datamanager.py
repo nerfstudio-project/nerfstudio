@@ -419,6 +419,10 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.eval_count += 1
         if self.config.cache_images == "disk":
             camera, data = next(self.iter_eval_image_dataloader)[0]
+            camera = camera.to(self.device)
+            for k in data.keys():
+                if isinstance(data[k], torch.Tensor):
+                    data[k] = data[k].to(self.device)
             return camera, data
 
         return self.next_eval_image(step=step)
