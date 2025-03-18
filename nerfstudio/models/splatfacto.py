@@ -638,7 +638,7 @@ class SplatfactoModel(Model):
             background: the background color
         """
         if image.shape[-1] == 4:
-            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 3))
+            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 1, 3))
             return alpha * image[..., :3] + (1 - alpha) * background
         else:
             return image
