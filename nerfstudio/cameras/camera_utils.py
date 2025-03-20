@@ -380,9 +380,8 @@ def _compute_residual_and_jacobian(
     distortion_params: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
-    Adapted from MultiNeRF:
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
-
+    Adapted from nerfies:
+    https://github.com/google/nerfies/blob/1a38512214cfa14286ef0561992cca9398265e13/nerfies/camera.py#L39C1-L71C40
     Args:
         x: The updated x coordinates.
         y: The updated y coordinates.
@@ -402,11 +401,10 @@ def _compute_residual_and_jacobian(
     p2 = distortion_params[..., 5]
 
     # let r(x, y) = x^2 + y^2;
-    #     d(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3 +
-    #                   k4 * r(x, y)^4;
+    #     d(x, y) = 1 + k1 * r(x, y) + k2 * r(x, y) ^2 + k3 * r(x, y)^3;
     r = x * x + y * y
-    d = 1.0 + r * (k1 + r * (k2 + r * (k3 + r * k4)))
-
+    d = 1.0 + r * (k1 + r * (k2 + k3 * r))
+    
     # The perfect projection is:
     # xd = x * d(x, y) + 2 * p1 * x * y + p2 * (r(x, y) + 2 * x^2);
     # yd = y * d(x, y) + 2 * p2 * x * y + p1 * (r(x, y) + 2 * y^2);
@@ -420,20 +418,20 @@ def _compute_residual_and_jacobian(
     # fx(x, y) = fy(x, y) = 0;
     fx = d * x + 2 * p1 * x * y + p2 * (r + 2 * x * x) - xd
     fy = d * y + 2 * p2 * x * y + p1 * (r + 2 * y * y) - yd
-
+    
     # Compute derivative of d over [x, y]
-    d_r = k1 + r * (2.0 * k2 + r * (3.0 * k3 + r * 4.0 * k4))
+    d_r = (k1 + r * (2.0 * k2 + 3.0 * k3 * r))
     d_x = 2.0 * x * d_r
     d_y = 2.0 * y * d_r
-
+    
     # Compute derivative of fx over x and y.
     fx_x = d + d_x * x + 2.0 * p1 * y + 6.0 * p2 * x
     fx_y = d_y * x + 2.0 * p1 * x + 2.0 * p2 * y
-
+    
     # Compute derivative of fy over x and y.
     fy_x = d_x * y + 2.0 * p2 * y + 2.0 * p1 * x
     fy_y = d + d_y * y + 2.0 * p2 * x + 6.0 * p1 * y
-
+    
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
 
