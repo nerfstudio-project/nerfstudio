@@ -317,7 +317,7 @@ class WandbWriter(Writer):
         }
 
         if entity_name is not None:
-            opt_args["entity"] = entity_name
+            opt_args["entity"] = os.environ.get("WANDB_ENTITY", entity_name)
 
         wandb.init(**opt_args)
 
