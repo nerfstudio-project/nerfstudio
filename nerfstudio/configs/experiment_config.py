@@ -75,6 +75,8 @@ class ExperimentConfig(InstantiateConfig):
     """Relative path to save all checkpoints."""
     load_scheduler: bool = True
     """Whether to load the scheduler state_dict to resume training, if it exists."""
+    entity_name: Optional[str] = None
+    """WandB entity name. If None, will use the default entity name set in WandB config."""
 
     def is_viewer_legacy_enabled(self) -> bool:
         """Checks if the legacy viewer is enabled."""
