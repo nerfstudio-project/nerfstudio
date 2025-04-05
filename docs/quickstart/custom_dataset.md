@@ -141,6 +141,29 @@ cd vcpkg
 
 (polycam)=
 
+### Installing GLOMAP
+
+GLOMAP is a global structure-from-motion method that is up to 100x faster than COLMAP. It is highly recommended if you would like to extract poses from video. The best way to install GLOMAP is through the official instructions, which have been copied below:
+
+::::::{tab-set}
+:::::{tab-item} Linux
+
+Clone the glomap repository and build GLOMAP:
+
+```
+git clone https://github.com/colmap/glomap.git
+mkdir build
+cd build
+cmake .. -GNinja
+ninja && sudo ninja install
+```
+
+Check that GLOMAP is successfully installed:
+
+```
+glomap -h
+```
+
 ## Polycam Capture
 
 Nerfstudio can also be trained directly from captures from the [Polycam app](https://poly.cam//). This avoids the need to use COLMAP. Polycam's poses are globally optimized which make them more robust to drift (an issue with ARKit or SLAM methods).
