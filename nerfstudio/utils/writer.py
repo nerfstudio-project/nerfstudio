@@ -370,11 +370,11 @@ class TensorboardWriter(Writer):
 class CometWriter(Writer):
     """Comet_ML Writer Class"""
 
-    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project", workspace_name: str = None):
         # comet_ml is slow to import, so we only do it if we need it.
         import comet_ml
 
-        self.experiment = comet_ml.Experiment(project_name=project_name)
+        self.experiment = comet_ml.Experiment(project_name=project_name, workspace=workspace_name)
         if experiment_name != "unnamed":
             self.experiment.set_name(experiment_name)
 
