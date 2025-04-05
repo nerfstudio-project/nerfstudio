@@ -207,7 +207,7 @@ def setup_event_writer(
     log_dir: Path,
     experiment_name: str,
     project_name: str = "nerfstudio-project",
-    workspace_name: str = None,
+    workspace_name: Optional[str] = None,
 ) -> None:
     """Initialization of all event writers specified in config
     Args:
@@ -218,11 +218,15 @@ def setup_event_writer(
     using_event_writer = False
 
     if is_comet_enabled:
-        curr_writer = CometWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name, workspace_name=workspace_name)
+        curr_writer = CometWriter(
+            log_dir=log_dir, experiment_name=experiment_name, project_name=project_name, workspace_name=workspace_name
+        )
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_wandb_enabled:
-        curr_writer = WandbWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name, workspace_name=workspace_name)
+        curr_writer = WandbWriter(
+            log_dir=log_dir, experiment_name=experiment_name, project_name=project_name, workspace_name=workspace_name
+        )
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_tensorboard_enabled:
@@ -306,7 +310,13 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project", workspace_name: str = None):
+    def __init__(
+        self,
+        log_dir: Path,
+        experiment_name: str,
+        project_name: str = "nerfstudio-project",
+        workspace_name: Optional[str] = None,
+    ):
         import wandb  # wandb is slow to import, so we only import it if we need it.
 
         opt_args = {
@@ -370,7 +380,13 @@ class TensorboardWriter(Writer):
 class CometWriter(Writer):
     """Comet_ML Writer Class"""
 
-    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project", workspace_name: str = None):
+    def __init__(
+        self,
+        log_dir: Path,
+        experiment_name: str,
+        project_name: str = "nerfstudio-project",
+        workspace_name: Optional[str] = None,
+    ):
         # comet_ml is slow to import, so we only do it if we need it.
         import comet_ml
 
