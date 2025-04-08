@@ -357,7 +357,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 self.eval_imagebatch_stream,
                 batch_size=1,
                 num_workers=0,
-                collate_fn=lambda x: x[0], 
+                collate_fn=lambda x: x[0],
             )
             return list(islice(dataloader, len(self.eval_dataset)))
 
