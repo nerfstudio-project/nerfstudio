@@ -40,7 +40,7 @@ from nerfstudio.data.utils.dataloaders import (
     RayBatchStream,
     variable_res_collate,
 )
-from nerfstudio.utils.misc import get_orig_class
+from nerfstudio.utils.misc import get_dict_to_torch, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -241,12 +241,16 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
         ray_bundle, batch = next(self.iter_train_raybundles)[0]
+        ray_bundle = ray_bundle.to(self.device)
+        batch = get_dict_to_torch(batch, self.device)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
         ray_bundle, batch = next(self.iter_train_raybundles)[0]
+        ray_bundle = ray_bundle.to(self.device)
+        batch = get_dict_to_torch(batch, self.device)
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:

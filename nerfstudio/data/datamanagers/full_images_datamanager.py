@@ -46,7 +46,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.data.utils.dataloaders import ImageBatchStream, _undistort_image
-from nerfstudio.utils.misc import get_orig_class
+from nerfstudio.utils.misc import get_dict_to_torch, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -390,9 +390,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if self.config.cache_images == "disk":
             camera, data = next(self.iter_train_image_dataloader)[0]
             camera = camera.to(self.device)
-            for k in data.keys():
-                if isinstance(data[k], torch.Tensor):
-                    data[k] = data[k].to(self.device)
+            data = get_dict_to_torch(data, self.device)
             return camera, data
 
         image_idx = self.train_unseen_cameras.pop(0)
@@ -420,9 +418,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if self.config.cache_images == "disk":
             camera, data = next(self.iter_eval_image_dataloader)[0]
             camera = camera.to(self.device)
-            for k in data.keys():
-                if isinstance(data[k], torch.Tensor):
-                    data[k] = data[k].to(self.device)
+            data = get_dict_to_torch(data, self.device)
             return camera, data
 
         return self.next_eval_image(step=step)
