@@ -45,6 +45,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.data.utils.dataloaders import ImageBatchStream, _undistort_image
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
@@ -89,6 +90,8 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
     """If True, cache raw image files as byte strings to RAM."""
+    batch_size: int = 1
+    """The batch size for the dataloader."""
 
 
 class FullImageDatamanager(DataManager, Generic[TDataset]):
@@ -148,7 +151,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
         super().__init__()
 
-    def sample_train_cameras(self):
+    def sample_train_cameras(self) -> List[int]:
         """Return a list of camera indices sampled using the strategy specified by
         self.config.train_cameras_sampling_strategy"""
         num_train_cameras = len(self.train_dataset)
@@ -322,9 +325,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             )
             self.train_image_dataloader = DataLoader(
                 self.train_imagebatch_stream,
-                batch_size=1,
+                batch_size=self.config.batch_size,
                 num_workers=self.config.dataloader_num_workers,
-                collate_fn=identity_collate,
+                collate_fn=nerfstudio_collate,
             )
             self.iter_train_image_dataloader = iter(self.train_image_dataloader)
 
@@ -380,33 +383,35 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
     def get_train_rays_per_batch(self) -> int:
         """Returns resolution of the image returned from datamanager."""
         camera = self.train_dataset.cameras[0].reshape(())
-        return int(camera.width[0].item() * camera.height[0].item())
+        return int(camera.width[0].item() * camera.height[0].item()) * self.config.batch_size
 
     def next_train(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next training batch
         Returns a Camera instead of raybundle"""
+
         self.train_count += 1
         if self.config.cache_images == "disk":
-            camera, data = next(self.iter_train_image_dataloader)[0]
-            return camera, data
+            cameras, data = next(self.iter_train_image_dataloader)
+            return cameras, data
 
-        image_idx = self.train_unseen_cameras.pop(0)
-        # Make sure to re-populate the unseen cameras list if we have exhausted it
-        if len(self.train_unseen_cameras) == 0:
-            self.train_unseen_cameras = self.sample_train_cameras()
+        camera_indices = []
+        for _ in range(self.config.batch_size):
+            # Make sure to re-populate the unseen cameras list if we have exhausted it
+            if len(self.train_unseen_cameras) == 0:
+                self.train_unseen_cameras = self.sample_train_cameras()
+            camera_indices.append(self.train_unseen_cameras.pop(0))
 
-        data = self.cached_train[image_idx]
-        # We're going to copy to make sure we don't mutate the cached dictionary.
+        # NOTE: We're going to copy the data to make sure we don't mutate the cached dictionary.
         # This can cause a memory leak: https://github.com/nerfstudio-project/nerfstudio/issues/3335
-        data = data.copy()
-        data["image"] = data["image"].to(self.device)
+        data = nerfstudio_collate(
+            [self.cached_train[i].copy() for i in camera_indices]
+        )  # Note that this must happen before indexing cameras, as it can modify the cameras in the dataset during undistortion
+        cameras = nerfstudio_collate([self.train_dataset.cameras[i : i + 1].to(self.device) for i in camera_indices])
 
-        assert len(self.train_cameras.shape) == 1, "Assumes single batch dimension"
-        camera = self.train_cameras[image_idx : image_idx + 1].to(self.device)
-        if camera.metadata is None:
-            camera.metadata = {}
-        camera.metadata["cam_idx"] = image_idx
-        return camera, data
+        if cameras.metadata is None:
+            cameras.metadata = {}
+        cameras.metadata["cam_idx"] = torch.tensor(camera_indices, device=self.device, dtype=torch.long)
+        return cameras, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:
         """Returns the next evaluation batch

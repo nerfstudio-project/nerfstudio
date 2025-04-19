@@ -46,20 +46,28 @@ from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.spherical_harmonics import RGB2SH, SH2RGB, num_sh_bases
 
 
-def resize_image(image: torch.Tensor, d: int):
+def resize_image(image: torch.Tensor, d: int) -> torch.Tensor:
     """
     Downscale images using the same 'area' method in opencv
 
-    :param image shape [H, W, C]
+    :param image shape [B, H, W, C]
     :param d downscale factor (must be 2, 4, 8, etc.)
 
-    return downscaled image in shape [H//d, W//d, C]
+    return downscaled image in shape [B, H//d, W//d, C]
     """
     import torch.nn.functional as tf
 
-    image = image.to(torch.float32)
     weight = (1.0 / (d * d)) * torch.ones((1, 1, d, d), dtype=torch.float32, device=image.device)
-    return tf.conv2d(image.permute(2, 0, 1)[:, None, ...], weight, stride=d).squeeze(1).permute(1, 2, 0)
+
+    B, H, W, C = image.shape
+    image = image.permute(0, 3, 1, 2)  # [B, C, H, W]
+    image = image.reshape(B * C, 1, H, W)  # Combine batch and channel dimensions for Conv2D
+
+    downscaled = tf.conv2d(image, weight, stride=d)
+    downscaled = downscaled.reshape(B, C, downscaled.shape[-2], downscaled.shape[-1])
+    downscaled = downscaled.permute(0, 2, 3, 1)  # [B, H//d, W//d, C]
+
+    return downscaled
 
 
 @torch_compile()
@@ -465,7 +473,11 @@ class SplatfactoModel(Model):
             raise ValueError(f"Unknown background color {self.config.background_color}")
         return background
 
-    def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idx: int, H: int, W: int) -> torch.Tensor:
+    def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idxs: torch.Tensor, H: int, W: int) -> torch.Tensor:
+        """
+        rgb: [B, H, W, 3]
+        cam_idxs: [B]
+        """
         # make xy grid
         grid_y, grid_x = torch.meshgrid(
             torch.linspace(0, 1.0, H, device=self.device),
@@ -473,41 +485,39 @@ class SplatfactoModel(Model):
             indexing="ij",
         )
         grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0)
-
         out = slice(
             bil_grids=self.bil_grids,
-            rgb=rgb,
-            xy=grid_xy,
-            grid_idx=torch.tensor(cam_idx, device=self.device, dtype=torch.long),
+            rgb=rgb,  # Process the entire batch in parallel
+            xy=grid_xy.expand(rgb.shape[0], -1, -1, -1),  # Expand grid_xy to match batch size
+            grid_idx=cam_idxs.unsqueeze(-1),
         )
-        return out["rgb"]
+        return out["rgb"]  # Return the processed RGB directly
 
-    def get_outputs(self, camera: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
-        """Takes in a camera and returns a dictionary of outputs.
+    def get_outputs(self, cameras: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
+        """Takes in cameras and returns a dictionary of outputs.
 
         Args:
-            camera: The camera(s) for which output images are rendered. It should have
+            cameras: The camera(s) for which output images are rendered. It should have
             all the needed information to compute the outputs.
 
         Returns:
             Outputs of model. (ie. rendered colors)
         """
-        if not isinstance(camera, Cameras):
+        if not isinstance(cameras, Cameras):
             print("Called get_outputs with not a camera")
             return {}
 
         if self.training:
-            assert camera.shape[0] == 1, "Only one camera at a time"
-            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(camera)
+            optimized_camera_to_world = self.camera_optimizer.apply_to_camera(cameras)
         else:
-            optimized_camera_to_world = camera.camera_to_worlds
+            optimized_camera_to_world = cameras.camera_to_worlds
 
         # cropping
         if self.crop_box is not None and not self.training:
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
                 return self.get_empty_outputs(
-                    int(camera.width.item()), int(camera.height.item()), self.background_color
+                    int(cameras.width.item()), int(cameras.height.item()), self.background_color
                 )
         else:
             crop_ids = None
@@ -530,12 +540,16 @@ class SplatfactoModel(Model):
         colors_crop = torch.cat((features_dc_crop[:, None, :], features_rest_crop), dim=1)
 
         camera_scale_fac = self._get_downscale_factor()
-        camera.rescale_output_resolution(1 / camera_scale_fac)
-        viewmat = get_viewmat(optimized_camera_to_world)
-        K = camera.get_intrinsics_matrices().cuda()
-        W, H = int(camera.width.item()), int(camera.height.item())
+        cameras.rescale_output_resolution(1 / camera_scale_fac)
+        viewmats = get_viewmat(optimized_camera_to_world)
+        Ks = cameras.get_intrinsics_matrices().cuda()
+
+        W, H = (
+            int(cameras.width[0]),
+            int(cameras.height[0]),
+        )  # assume all cameras have the same resolution
         self.last_size = (H, W)
-        camera.rescale_output_resolution(camera_scale_fac)  # type: ignore
+        cameras.rescale_output_resolution(camera_scale_fac)  # type: ignore
 
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
@@ -558,8 +572,8 @@ class SplatfactoModel(Model):
             scales=torch.exp(scales_crop),
             opacities=torch.sigmoid(opacities_crop).squeeze(-1),
             colors=colors_crop,
-            viewmats=viewmat,  # [1, 4, 4]
-            Ks=K,  # [1, 3, 3]
+            viewmats=viewmats,  # [B, 4, 4]
+            Ks=Ks,  # [B, 3, 3]
             width=W,
             height=H,
             packed=False,
@@ -585,24 +599,30 @@ class SplatfactoModel(Model):
 
         # apply bilateral grid
         if self.config.use_bilateral_grid and self.training:
-            if camera.metadata is not None and "cam_idx" in camera.metadata:
-                rgb = self._apply_bilateral_grid(rgb, camera.metadata["cam_idx"], H, W)
+            if cameras.metadata is not None and "cam_idx" in cameras.metadata:
+                rgb = self._apply_bilateral_grid(rgb, cameras.metadata["cam_idx"], H, W)
+            else:
+                raise ValueError("Camera index not found in metadata, bilateral grid cannot be applied.")
 
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
-            depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max()).squeeze(0)
+            depth_im = torch.where(alpha > 0, depth_im, depth_im.detach().max())
         else:
             depth_im = None
 
         if background.shape[0] == 3 and not self.training:
             background = background.expand(H, W, 3)
 
-        return {
-            "rgb": rgb.squeeze(0),  # type: ignore
-            "depth": depth_im,  # type: ignore
-            "accumulation": alpha.squeeze(0),  # type: ignore
-            "background": background,  # type: ignore
-        }  # type: ignore
+        outputs = {
+            "rgb": rgb,
+            "depth": depth_im,
+            "accumulation": alpha,
+            "background": background,
+        }
+
+        if self.training:
+            return outputs
+        return {k: v.squeeze(0) if k != "background" else v for k, v in outputs.items()}
 
     def get_gt_img(self, image: torch.Tensor):
         """Compute groundtruth image with iteration dependent downscale factor for evaluation purpose
@@ -622,8 +642,8 @@ class SplatfactoModel(Model):
             image: the image to composite
             background: the background color
         """
-        if image.shape[2] == 4:
-            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 3))
+        if image.shape[-1] == 4:
+            alpha = image[..., -1].unsqueeze(-1).repeat((1, 1, 1, 3))
             return alpha * image[..., :3] + (1 - alpha) * background
         else:
             return image
@@ -671,7 +691,7 @@ class SplatfactoModel(Model):
             pred_img = pred_img * mask
 
         Ll1 = torch.abs(gt_img - pred_img).mean()
-        simloss = 1 - self.ssim(gt_img.permute(2, 0, 1)[None, ...], pred_img.permute(2, 0, 1)[None, ...])
+        simloss = 1 - self.ssim(gt_img.permute(0, 3, 1, 2), pred_img.permute(0, 3, 1, 2))
         if self.config.use_scale_regularization and self.step % 10 == 0:
             scale_exp = torch.exp(self.scales)
             scale_reg = (

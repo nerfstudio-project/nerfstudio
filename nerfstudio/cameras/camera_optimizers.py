@@ -152,7 +152,7 @@ class CameraOptimizer(nn.Module):
             raybundle.origins = raybundle.origins + correction_matrices[:, :3, 3]
             raybundle.directions = torch.bmm(correction_matrices[:, :3, :3], raybundle.directions[..., None]).squeeze()
 
-    def apply_to_camera(self, camera: Cameras) -> torch.Tensor:
+    def apply_to_camera(self, camera: Cameras) -> Float[Tensor, "b 3 4"]:
         """Apply the pose correction to the world-to-camera matrix in a Camera object"""
         if self.config.mode == "off":
             return camera.camera_to_worlds
