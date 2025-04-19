@@ -408,6 +408,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         )  # Note that this must happen before indexing cameras, as it can modify the cameras in the dataset during undistortion
         cameras = nerfstudio_collate([self.train_dataset.cameras[i : i + 1].to(self.device) for i in camera_indices])
 
+        if cameras.metadata is None:
+            cameras.metadata = {}
+        cameras.metadata["cam_idx"] = torch.tensor(camera_indices, device=self.device, dtype=torch.long)
         return cameras, data
 
     def next_eval(self, step: int) -> Tuple[Cameras, Dict]:

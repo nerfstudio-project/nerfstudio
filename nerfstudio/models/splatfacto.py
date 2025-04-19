@@ -473,7 +473,11 @@ class SplatfactoModel(Model):
             raise ValueError(f"Unknown background color {self.config.background_color}")
         return background
 
-    def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idx: int, H: int, W: int) -> torch.Tensor:
+    def _apply_bilateral_grid(self, rgb: torch.Tensor, cam_idxs: torch.Tensor, H: int, W: int) -> torch.Tensor:
+        """
+        rgb: [B, H, W, 3]
+        cam_idxs: [B]
+        """
         # make xy grid
         grid_y, grid_x = torch.meshgrid(
             torch.linspace(0, 1.0, H, device=self.device),
@@ -481,14 +485,13 @@ class SplatfactoModel(Model):
             indexing="ij",
         )
         grid_xy = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0)
-
         out = slice(
             bil_grids=self.bil_grids,
-            rgb=rgb,
-            xy=grid_xy,
-            grid_idx=torch.tensor(cam_idx, device=self.device, dtype=torch.long),
+            rgb=rgb,  # Process the entire batch in parallel
+            xy=grid_xy.expand(rgb.shape[0], -1, -1, -1),  # Expand grid_xy to match batch size
+            grid_idx=cam_idxs.unsqueeze(-1),
         )
-        return out["rgb"]
+        return out["rgb"]  # Return the processed RGB directly
 
     def get_outputs(self, cameras: Cameras) -> Dict[str, Union[torch.Tensor, List]]:
         """Takes in cameras and returns a dictionary of outputs.
@@ -598,6 +601,8 @@ class SplatfactoModel(Model):
         if self.config.use_bilateral_grid and self.training:
             if cameras.metadata is not None and "cam_idx" in cameras.metadata:
                 rgb = self._apply_bilateral_grid(rgb, cameras.metadata["cam_idx"], H, W)
+            else:
+                raise ValueError("Camera index not found in metadata, bilateral grid cannot be applied.")
 
         if render_mode == "RGB+ED":
             depth_im = render[:, ..., 3:4]
