@@ -85,7 +85,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int | None = 4
+    prefetch_factor: Optional[int] = 4
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
@@ -391,6 +391,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             camera, data = next(self.iter_train_image_dataloader)[0]
             camera = camera.to(self.device)
             data = get_dict_to_torch(data, self.device)
+            print(camera.metadata)
             return camera, data
 
         image_idx = self.train_unseen_cameras.pop(0)
