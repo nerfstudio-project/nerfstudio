@@ -53,7 +53,7 @@ class ParallelDataManagerConfig(VanillaDataManagerConfig):
     load_from_disk: bool = False
     """If True, conserves RAM memory by loading images from disk.
     If False, caches all the images as tensors to RAM and loads from RAM."""
-    dataloader_num_workers: Optional[int] = 4
+    dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
     prefetch_factor: Optional[int] = 10
