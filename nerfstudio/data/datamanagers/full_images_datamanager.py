@@ -391,7 +391,6 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             camera, data = next(self.iter_train_image_dataloader)[0]
             camera = camera.to(self.device)
             data = get_dict_to_torch(data, self.device)
-            print(camera.metadata)
             return camera, data
 
         image_idx = self.train_unseen_cameras.pop(0)
