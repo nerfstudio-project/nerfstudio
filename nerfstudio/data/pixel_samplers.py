@@ -354,7 +354,7 @@ class PixelSampler:
                 for key, value in batch.items():
                     if key in ["image_idx", "mask"]:
                         continue
-                    all_images[key].append(batch[key][i][indices[:, 1], indices[:, 2]])
+                    all_images[key].append(value[i][indices[:, 1], indices[:, 2]])
 
         else:
             for i, num_rays in enumerate(num_rays_per_image):
@@ -368,11 +368,11 @@ class PixelSampler:
                 for key, value in batch.items():
                     if key in ["image_idx", "mask"]:
                         continue
-                    all_images[key].append(batch[key][i][indices[:, 1], indices[:, 2]])
+                    all_images[key].append(value[i][indices[:, 1], indices[:, 2]])
 
         indices = torch.cat(all_indices, dim=0)
 
-        c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
+        c, _, _ = (i.flatten() for i in torch.split(indices, 1, dim=-1))
         collated_batch = {key: torch.cat(all_images[key], dim=0) for key in all_images}
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
