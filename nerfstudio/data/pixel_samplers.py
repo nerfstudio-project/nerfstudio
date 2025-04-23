@@ -355,7 +355,6 @@ class PixelSampler:
                     if key in ["image_idx", "mask"]:
                         continue
                     all_images[key].append(value[i][indices[:, 1], indices[:, 2]])
-
         else:
             for i, num_rays in enumerate(num_rays_per_image):
                 image_height, image_width, _ = batch["image"][i].shape
@@ -372,12 +371,12 @@ class PixelSampler:
 
         indices = torch.cat(all_indices, dim=0)
 
-        c, _, _ = (i.flatten() for i in torch.split(indices, 1, dim=-1))
         collated_batch = {key: torch.cat(all_images[key], dim=0) for key in all_images}
 
         assert collated_batch["image"].shape[0] == num_rays_per_batch
 
         # Needed to correct the random indices to their actual camera idx locations.
+        c = indices[..., 0].flatten()
         indices[:, 0] = batch["image_idx"][c]
         collated_batch["indices"] = indices  # with the abs camera indices
 
