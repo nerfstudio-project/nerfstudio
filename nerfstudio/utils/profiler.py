@@ -15,6 +15,7 @@
 """
 Profiler base class and functionality
 """
+
 from __future__ import annotations
 
 import functools
@@ -41,13 +42,11 @@ CallableT = TypeVar("CallableT", bound=Callable)
 
 
 @overload
-def time_function(name_or_func: CallableT) -> CallableT:
-    ...
+def time_function(name_or_func: CallableT) -> CallableT: ...
 
 
 @overload
-def time_function(name_or_func: str) -> ContextManager[Any]:
-    ...
+def time_function(name_or_func: str) -> ContextManager[Any]: ...
 
 
 def time_function(name_or_func: Union[CallableT, str]) -> Union[CallableT, ContextManager[Any]]:

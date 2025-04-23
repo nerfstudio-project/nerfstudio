@@ -15,6 +15,7 @@
 """
 Abstracts for the Pipeline class.
 """
+
 from __future__ import annotations
 
 import typing
@@ -26,6 +27,7 @@ from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Type, Uni
 
 import torch
 import torch.distributed as dist
+import torchvision.utils as vutils
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -33,9 +35,7 @@ from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig, VanillaDataManager
-from nerfstudio.data.datamanagers.full_images_datamanager import FullImageDatamanager
-from nerfstudio.data.datamanagers.parallel_datamanager import ParallelDataManager
+from nerfstudio.data.datamanagers.base_datamanager import DataManager, DataManagerConfig
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
@@ -258,12 +258,11 @@ class VanillaPipeline(Pipeline):
         seed_pts = None
         if (
             hasattr(self.datamanager, "train_dataparser_outputs")
-            and "points3D_xyz" in self.datamanager.train_dataparser_outputs.metadata
+            and "points3D_xyz" in self.datamanager.train_dataparser_outputs.metadata  # type: ignore
         ):
-            pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]
-            pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]
+            pts = self.datamanager.train_dataparser_outputs.metadata["points3D_xyz"]  # type: ignore
+            pts_rgb = self.datamanager.train_dataparser_outputs.metadata["points3D_rgb"]  # type: ignore
             seed_pts = (pts, pts_rgb)
-        self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
 
@@ -344,12 +343,19 @@ class VanillaPipeline(Pipeline):
         return metrics_dict, images_dict
 
     @profiler.time_function
-    def get_average_eval_image_metrics(
-        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    def get_average_image_metrics(
+        self,
+        data_loader,
+        image_prefix: str,
+        step: Optional[int] = None,
+        output_path: Optional[Path] = None,
+        get_std: bool = False,
     ):
-        """Iterate over all the images in the eval dataset and get the average.
+        """Iterate over all the images in the dataset and get the average.
 
         Args:
+            data_loader: the data loader to iterate over
+            image_prefix: prefix to use for the saved image filenames
             step: current training step
             output_path: optional path to save rendered images to
             get_std: Set True if you want to return std with the mean metric.
@@ -359,8 +365,9 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        assert isinstance(self.datamanager, (VanillaDataManager, ParallelDataManager, FullImageDatamanager))
-        num_images = len(self.datamanager.fixed_indices_eval_dataloader)
+        num_images = len(data_loader)
+        if output_path is not None:
+            output_path.mkdir(exist_ok=True, parents=True)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
@@ -368,16 +375,21 @@ class VanillaPipeline(Pipeline):
             MofNCompleteColumn(),
             transient=True,
         ) as progress:
-            task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            for camera, batch in self.datamanager.fixed_indices_eval_dataloader:
+            task = progress.add_task("[green]Evaluating all images...", total=num_images)
+            idx = 0
+            for camera, batch in data_loader:
                 # time this the following line
                 inner_start = time()
                 outputs = self.model.get_outputs_for_camera(camera=camera)
                 height, width = camera.height, camera.width
                 num_rays = height * width
-                metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
+                metrics_dict, image_dict = self.model.get_image_metrics_and_images(outputs, batch)
                 if output_path is not None:
-                    raise NotImplementedError("Saving images is not implemented yet")
+                    for key in image_dict.keys():
+                        image = image_dict[key]  # [H, W, C] order
+                        vutils.save_image(
+                            image.permute(2, 0, 1).cpu(), output_path / f"{image_prefix}_{key}_{idx:04d}.png"
+                        )
 
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = (num_rays / (time() - inner_start)).item()
@@ -386,7 +398,8 @@ class VanillaPipeline(Pipeline):
                 metrics_dict[fps_str] = (metrics_dict["num_rays_per_sec"] / (height * width)).item()
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
-        # average the metrics list
+                idx = idx + 1
+
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
             if get_std:
@@ -399,8 +412,26 @@ class VanillaPipeline(Pipeline):
                 metrics_dict[key] = float(
                     torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
                 )
+
         self.train()
         return metrics_dict
+
+    @profiler.time_function
+    def get_average_eval_image_metrics(
+        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+    ):
+        """Get the average metrics for evaluation images."""
+        assert hasattr(self.datamanager, "fixed_indices_eval_dataloader"), (
+            "datamanager must have 'fixed_indices_eval_dataloader' attribute"
+        )
+        image_prefix = "eval"
+        return self.get_average_image_metrics(
+            self.datamanager.fixed_indices_eval_dataloader,  # type: ignore
+            image_prefix,
+            step,
+            output_path,
+            get_std,
+        )
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path

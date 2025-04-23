@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Data parser for nerfstudio datasets. """
+"""Data parser for nerfstudio datasets."""
 
 from __future__ import annotations
 
@@ -476,7 +476,7 @@ class Nerfstudio(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) <= MAX_AUTO_RESOLUTION:
                         break
-                    if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
+                    if not (data_dir / f"{downsample_folder_prefix}{2 ** (df + 1)}" / filepath.name).exists():
                         break
                     df += 1
 

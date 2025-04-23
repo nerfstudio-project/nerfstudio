@@ -16,7 +16,6 @@
 Field for compound nerf model, adds scene contraction and image embeddings to instant ngp
 """
 
-
 from typing import Dict, Literal, Optional, Tuple
 
 import torch
@@ -212,10 +211,15 @@ class NerfactoField(Field):
         # Make sure the tcnn gets inputs between 0 and 1.
         selector = ((positions > 0.0) & (positions < 1.0)).all(dim=-1)
         positions = positions * selector[..., None]
+
+        assert positions.numel() > 0, "positions is empty."
+
         self._sample_locations = positions
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
         positions_flat = positions.view(-1, 3)
+
+        assert positions_flat.numel() > 0, "positions_flat is empty."
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         self._density_before_activation = density_before_activation

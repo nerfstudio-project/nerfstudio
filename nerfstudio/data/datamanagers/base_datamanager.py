@@ -19,7 +19,6 @@ Datamanager.
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -42,7 +41,6 @@ from typing import (
 
 import torch
 import tyro
-from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import TypeVar
@@ -56,42 +54,17 @@ from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PatchPixelSamplerConfig, PixelSampler, PixelSamplerConfig
-from nerfstudio.data.utils.dataloaders import CacheDataloader, FixedIndicesEvalDataloader, RandIndicesEvalDataloader
+from nerfstudio.data.utils.dataloaders import (
+    CacheDataloader,
+    FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
+    variable_res_collate,
+)
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
-
-
-def variable_res_collate(batch: List[Dict]) -> Dict:
-    """Default collate function for the cached dataloader.
-    Args:
-        batch: Batch of samples from the dataset.
-    Returns:
-        Collated batch.
-    """
-    images = []
-    imgdata_lists = defaultdict(list)
-    for data in batch:
-        image = data.pop("image")
-        images.append(image)
-        topop = []
-        for key, val in data.items():
-            if isinstance(val, torch.Tensor):
-                # if the value has same height and width as the image, assume that it should be collated accordingly.
-                if len(val.shape) >= 2 and val.shape[:2] == image.shape[:2]:
-                    imgdata_lists[key].append(val)
-                    topop.append(key)
-        # now that iteration is complete, the image data items can be removed from the batch
-        for key in topop:
-            del data[key]
-
-    new_batch = nerfstudio_collate(batch)
-    new_batch["image"] = images
-    new_batch.update(imgdata_lists)
-
-    return new_batch
 
 
 @dataclass
@@ -111,7 +84,7 @@ class DataManagerConfig(InstantiateConfig):
     """Process images on GPU for speed at the expense of memory, if True."""
 
 
-class DataManager(nn.Module):
+class DataManager:
     """Generic data manager's abstract class
 
     This version of the data manager is designed be a monolithic way to load data and latents,
@@ -164,16 +137,16 @@ class DataManager(nn.Module):
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
     includes_time: bool = False
+    test_mode: Literal["test", "val", "inference"] = "val"
 
     def __init__(self):
         """Constructor for the DataManager class.
 
         Subclassed DataManagers will likely need to override this constructor.
 
-        If you aren't manually calling the setup_train and setup_eval functions from an overriden
-        constructor, that you call super().__init__() BEFORE you initialize any
-        nn.Modules or nn.Parameters, but AFTER you've already set all the attributes you need
-        for the setup functions."""
+        If you aren't manually calling the setup_train() and setup_eval() functions from an overridden
+        constructor, please call super().__init__() in your subclass' __init__() method after
+        you've already set all the attributes you need for the setup functions."""
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
@@ -311,18 +284,22 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = field(default_factory=BlenderDataParserConfig)
     """Specifies the dataparser used to unpack the data."""
+    cache_images_type: Literal["uint8", "float32"] = "float32"
+    """The image type returned from manager, caching images in uint8 saves memory"""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1
-    """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = -1
-    """When not training on all images, number of iterations before picking new
-    images. If -1, never pick new images."""
+    train_num_images_to_sample_from: Union[int, float] = float("inf")
+    """Number of images to load into CPU RAM to generate RayBundles from during training. If infinity, load 
+    all images into CPU RAM to generate RayBundles."""
+    train_num_times_to_repeat_images: Union[int, float] = float("inf")
+    """Number of RayBundles to generate for a batch of images loaded into CPU RAM before sampling new images. 
+    If infinity, never sample new images. Note: decreasing train_num_images_to_sample_from and increasing 
+    train_num_times_to_repeat_images alleviates CPU bottleneck."""
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
-    eval_num_images_to_sample_from: int = -1
+    eval_num_images_to_sample_from: Union[int, float] = float("inf")
     """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = -1
+    eval_num_times_to_repeat_images: Union[int, float] = float("inf")
     """When not evaluating on all images, number of iterations before picking
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
@@ -331,8 +308,7 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
-    along with relevant information about camera intrinsics
-    """
+    along with relevant information about camera intrinsics"""
     patch_size: int = 1
     """Size of patch to sample from. If > 1, patch-based sampling will be used."""
 

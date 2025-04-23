@@ -16,7 +16,6 @@
 TSDF utils.
 """
 
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -286,6 +285,8 @@ def export_tsdf_mesh(
     use_bounding_box: bool = True,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    refine_mesh_using_initial_aabb_estimate: bool = False,
+    refinement_epsilon: float = 1e-2,
 ) -> None:
     """Export a TSDF mesh from a pipeline.
 
@@ -300,6 +301,9 @@ def export_tsdf_mesh(
         use_bounding_box: Whether to use a bounding box for the TSDF volume.
         bounding_box_min: Minimum coordinates of the bounding box.
         bounding_box_max: Maximum coordinates of the bounding box.
+        refine_mesh_using_initial_aabb_estimate: Whether to refine the TSDF using the initial AABB estimate.
+        refinement_epsilon: Epsilon for refining the TSDF. This is the distance in meters that the refined AABB/OBB will
+            be expanded by in each direction.
     """
 
     device = pipeline.device
@@ -357,5 +361,29 @@ def export_tsdf_mesh(
 
     CONSOLE.print("Computing Mesh")
     mesh = tsdf.get_mesh()
+
+    if refine_mesh_using_initial_aabb_estimate:
+        CONSOLE.print("Refining the TSDF based on the Mesh AABB")
+
+        # Compute the AABB of the mesh and use it to initialize a new TSDF
+        vertices_min = torch.min(mesh.vertices, dim=0).values - refinement_epsilon
+        vertices_max = torch.max(mesh.vertices, dim=0).values + refinement_epsilon
+        aabb = torch.stack([vertices_min, vertices_max]).cpu()
+        tsdf = TSDF.from_aabb(aabb, volume_dims=volume_dims)
+        # move TSDF to device
+        tsdf.to(device)
+
+        CONSOLE.print("Integrating the updated TSDF")
+        for i in range(0, len(c2w), batch_size):
+            tsdf.integrate_tsdf(
+                c2w[i : i + batch_size],
+                K[i : i + batch_size],
+                depth_images[i : i + batch_size],
+                color_images=color_images[i : i + batch_size],
+            )
+
+        CONSOLE.print("Computing the updated Mesh")
+        mesh = tsdf.get_mesh()
+
     CONSOLE.print("Saving TSDF Mesh")
     tsdf.export_mesh(mesh, filename=str(output_dir / "tsdf_mesh.ply"))

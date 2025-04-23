@@ -1,6 +1,7 @@
 """
 Test tensor dataclass
 """
+
 from dataclasses import dataclass, field
 from typing import Generic, Optional, TypeVar
 

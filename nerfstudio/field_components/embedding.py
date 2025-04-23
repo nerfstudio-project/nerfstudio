@@ -16,7 +16,6 @@
 Code for embeddings.
 """
 
-
 import torch
 from jaxtyping import Shaped
 from torch import Tensor

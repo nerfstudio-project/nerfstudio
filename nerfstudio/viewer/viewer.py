@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Manage the state of the viewer """
+"""Manage the state of the viewer"""
+
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 from pathlib import Path
@@ -101,9 +103,13 @@ class Viewer:
         self.output_type_changed = True
         self.output_split_type_changed = True
         self.step = 0
-        self.train_btn_state: Literal["training", "paused", "completed"] = "training"
-        self._prev_train_state: Literal["training", "paused", "completed"] = "training"
+        self.train_btn_state: Literal["training", "paused", "completed"] = (
+            "training" if self.trainer is None else self.trainer.training_state
+        )
+        self._prev_train_state: Literal["training", "paused", "completed"] = self.train_btn_state
         self.last_move_time = 0
+        # track the camera index that last being clicked
+        self.current_camera_idx = 0
 
         self.viser_server = viser.ViserServer(host=config.websocket_host, port=websocket_port)
         # Set the name of the URL either to the share link if available, or the localhost
@@ -148,7 +154,7 @@ class Viewer:
             href="https://docs.nerf.studio/",
         )
         titlebar_theme = viser.theme.TitlebarConfig(buttons=buttons, image=image)
-        self.viser_server.configure_theme(
+        self.viser_server.gui.configure_theme(
             titlebar_content=titlebar_theme,
             control_layout="collapsible",
             dark_mode=True,
@@ -160,32 +166,36 @@ class Viewer:
         self.viser_server.on_client_connect(self.handle_new_client)
 
         # Populate the header, which includes the pause button, train cam button, and stats
-        self.pause_train = self.viser_server.add_gui_button(
+        self.pause_train = self.viser_server.gui.add_button(
             label="Pause Training", disabled=False, icon=viser.Icon.PLAYER_PAUSE_FILLED
         )
         self.pause_train.on_click(lambda _: self.toggle_pause_button())
         self.pause_train.on_click(lambda han: self._toggle_training_state(han))
-        self.resume_train = self.viser_server.add_gui_button(
+        self.resume_train = self.viser_server.gui.add_button(
             label="Resume Training", disabled=False, icon=viser.Icon.PLAYER_PLAY_FILLED
         )
         self.resume_train.on_click(lambda _: self.toggle_pause_button())
         self.resume_train.on_click(lambda han: self._toggle_training_state(han))
-        self.resume_train.visible = False
+        if self.train_btn_state == "training":
+            self.resume_train.visible = False
+        else:
+            self.pause_train.visible = False
+
         # Add buttons to toggle training image visibility
-        self.hide_images = self.viser_server.add_gui_button(
+        self.hide_images = self.viser_server.gui.add_button(
             label="Hide Train Cams", disabled=False, icon=viser.Icon.EYE_OFF, color=None
         )
         self.hide_images.on_click(lambda _: self.set_camera_visibility(False))
         self.hide_images.on_click(lambda _: self.toggle_cameravis_button())
-        self.show_images = self.viser_server.add_gui_button(
+        self.show_images = self.viser_server.gui.add_button(
             label="Show Train Cams", disabled=False, icon=viser.Icon.EYE, color=None
         )
         self.show_images.on_click(lambda _: self.set_camera_visibility(True))
         self.show_images.on_click(lambda _: self.toggle_cameravis_button())
         self.show_images.visible = False
         mkdown = self.make_stats_markdown(0, "0x0px")
-        self.stats_markdown = self.viser_server.add_gui_markdown(mkdown)
-        tabs = self.viser_server.add_gui_tab_group()
+        self.stats_markdown = self.viser_server.gui.add_markdown(mkdown)
+        tabs = self.viser_server.gui.add_tab_group()
         control_tab = tabs.add_tab("Control", viser.Icon.SETTINGS)
         with control_tab:
             self.control_panel = ControlPanel(
@@ -209,12 +219,22 @@ class Viewer:
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
 
+        def prev_cb_wrapper(prev_cb):
+            # We wrap the callbacks in the train_lock so that the callbacks are thread-safe with the
+            # concurrently executing render thread. This may block rendering, however this can be necessary
+            # if the callback uses get_outputs internally.
+            def cb_lock(element):
+                with self.train_lock if self.train_lock is not None else contextlib.nullcontext():
+                    prev_cb(element)
+
+            return cb_lock
+
         def nested_folder_install(folder_labels: List[str], prev_labels: List[str], element: ViewerElement):
             if len(folder_labels) == 0:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [prev_cb(element), self._trigger_rerender()]
+                element.cb_hook = lambda element: [prev_cb_wrapper(prev_cb)(element), self._trigger_rerender()]
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
@@ -230,7 +250,7 @@ class Viewer:
                 # Otherwise, use the existing folder as context manager.
                 folder_path = "/".join(prev_labels + [folder_labels[0]])
                 if folder_path not in viewer_gui_folders:
-                    viewer_gui_folders[folder_path] = self.viser_server.add_gui_folder(folder_labels[0])
+                    viewer_gui_folders[folder_path] = self.viser_server.gui.add_folder(folder_labels[0])
                 with viewer_gui_folders[folder_path]:
                     nested_folder_install(folder_labels[1:], prev_labels + [folder_labels[0]], element)
 
@@ -260,7 +280,7 @@ class Viewer:
         # Diagnostics for Gaussian Splatting: where the points are at the start of training.
         # This is hidden by default, it can be shown from the Viser UI's scene tree table.
         if isinstance(pipeline.model, SplatfactoModel):
-            self.viser_server.add_point_cloud(
+            self.viser_server.scene.add_point_cloud(
                 "/gaussian_splatting_initial_points",
                 points=pipeline.model.means.numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
                 colors=(255, 0, 0),
@@ -313,6 +333,7 @@ class Viewer:
                 else CameraType.EQUIRECTANGULAR
                 if camera_type == "Equirectangular"
                 else assert_never(camera_type),
+                idx=self.current_camera_idx,
             )
         else:
             camera_state = CameraState(
@@ -320,6 +341,7 @@ class Viewer:
                 aspect=client.camera.aspect,
                 c2w=c2w,
                 camera_type=CameraType.PERSPECTIVE,
+                idx=self.current_camera_idx,
             )
         return camera_state
 
@@ -350,9 +372,7 @@ class Viewer:
         # TODO this fn accounts for like ~5% of total train time
         # Update the train camera locations based on optimization
         assert self.camera_handles is not None
-        if hasattr(self.pipeline.datamanager, "train_camera_optimizer"):
-            camera_optimizer = self.pipeline.datamanager.train_camera_optimizer
-        elif hasattr(self.pipeline.model, "camera_optimizer"):
+        if hasattr(self.pipeline.model, "camera_optimizer"):
             camera_optimizer = self.pipeline.model.camera_optimizer
         else:
             return
@@ -440,21 +460,26 @@ class Viewer:
             c2w = camera.camera_to_worlds.cpu().numpy()
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
-            camera_handle = self.viser_server.add_camera_frustum(
+            camera_handle = self.viser_server.scene.add_camera_frustum(
                 name=f"/cameras/camera_{idx:05d}",
-                fov=float(2 * np.arctan(camera.cx / camera.fx[0])),
+                fov=float(2 * np.arctan((camera.cx / camera.fx[0]).cpu())),
                 scale=self.config.camera_frustum_scale,
-                aspect=float(camera.cx[0] / camera.cy[0]),
+                aspect=float((camera.cx[0] / camera.cy[0]).cpu()),
                 image=image_uint8,
                 wxyz=R.wxyz,
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
             )
 
-            @camera_handle.on_click
-            def _(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
-                with event.client.atomic():
-                    event.client.camera.position = event.target.position
-                    event.client.camera.wxyz = event.target.wxyz
+            def create_on_click_callback(capture_idx):
+                def on_click_callback(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
+                    with event.client.atomic():
+                        event.client.camera.position = event.target.position
+                        event.client.camera.wxyz = event.target.wxyz
+                        self.current_camera_idx = capture_idx
+
+                return on_click_callback
+
+            camera_handle.on_click(create_on_click_callback(idx))
 
             self.camera_handles[idx] = camera_handle
             self.original_c2w[idx] = c2w

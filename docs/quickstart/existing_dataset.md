@@ -17,6 +17,7 @@ ns-download-data blender
 ns-download-data nerfstudio --capture-name nerfstudio-dataset
 
 # Download a few room-scale scenes from the EyefulTower dataset at different resolutions
+pip install awscli # Install `awscli` for EyefulTower downloads.
 ns-download-data eyefultower --capture-name riverview seating_area apartment --resolution-name jpeg_1k jpeg_2k
 
 # Download the full D-NeRF dataset of dynamic synthetic scenes
@@ -87,3 +88,10 @@ In the tables below, each dataset was placed into a bucket based on the table's 
 [record3d]: https://record3d.app/
 [sdfstudio]: https://github.com/autonomousvision/sdfstudio/blob/master/docs/sdfstudio-data.md#Existing-dataset
 [sitcoms3d]: https://github.com/ethanweber/sitcoms3D/blob/master/METADATA.md
+
+### Eyeful Tower
+Downloading Eyeful Tower scenes requires installing the AWS CLI, an optional dependency. To do so, run:
+```bash
+conda activate nerfstudio
+pip install awscli
+```

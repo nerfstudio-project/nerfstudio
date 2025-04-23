@@ -308,7 +308,7 @@ class TensoRFModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
-        image = batch["image"][..., :3].to(device)
+        image = batch["image"].to(device)
         pred_image, image = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb"],
             pred_accumulation=outputs["accumulation"],
@@ -327,9 +327,9 @@ class TensoRFModel(Model):
         elif self.config.regularization == "tv":
             density_plane_coef = self.field.density_encoding.plane_coef
             color_plane_coef = self.field.color_encoding.plane_coef
-            assert isinstance(color_plane_coef, torch.Tensor) and isinstance(
-                density_plane_coef, torch.Tensor
-            ), "TV reg only supported for TensoRF encoding types with plane_coef attribute"
+            assert isinstance(color_plane_coef, torch.Tensor) and isinstance(density_plane_coef, torch.Tensor), (
+                "TV reg only supported for TensoRF encoding types with plane_coef attribute"
+            )
             loss_dict["tv_reg_density"] = tv_loss(density_plane_coef)
             loss_dict["tv_reg_color"] = tv_loss(color_plane_coef)
         elif self.config.regularization == "none":

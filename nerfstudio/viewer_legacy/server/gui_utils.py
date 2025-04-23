@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Utilities for generating custom gui elements in the viewer """
+"""Utilities for generating custom gui elements in the viewer"""
 
 from __future__ import annotations
 

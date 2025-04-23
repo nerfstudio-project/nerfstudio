@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Phototourism dataset parser. Datasets and documentation here: http://phototour.cs.washington.edu/datasets/"""
+
 from __future__ import annotations
 
 import math

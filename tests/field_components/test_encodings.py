@@ -1,6 +1,7 @@
 """
 Encoding Tests
 """
+
 import pytest
 import torch
 
@@ -124,11 +125,11 @@ def test_tensor_cp_encoder():
 def test_tensor_sh_encoder():
     """Test Spherical Harmonic encoder"""
 
-    levels = 4
+    levels = 5
     out_dim = levels**2
 
     with pytest.raises(ValueError):
-        encoder = encodings.SHEncoding(levels=5)
+        encoder = encodings.SHEncoding(levels=6)
 
     encoder = encodings.SHEncoding(levels=levels)
     assert encoder.get_out_dim() == out_dim

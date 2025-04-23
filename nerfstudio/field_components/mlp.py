@@ -15,6 +15,7 @@
 """
 Multi Layer Perceptron
 """
+
 from typing import Literal, Optional, Set, Tuple, Union
 
 import numpy as np

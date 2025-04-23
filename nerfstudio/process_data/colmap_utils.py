@@ -395,6 +395,7 @@ def colmap_to_json(
     image_rename_map: Optional[Dict[str, str]] = None,
     ply_filename="sparse_pc.ply",
     keep_original_world_coordinate: bool = False,
+    use_single_camera_mode: bool = True,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -418,6 +419,13 @@ def colmap_to_json(
     # im_id_to_image = recon.images
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
+    if set(cam_id_to_camera.keys()) != {1}:
+        CONSOLE.print(f"[bold yellow]Warning: More than one camera is found in {recon_dir}")
+        print(cam_id_to_camera)
+        use_single_camera_mode = False  # update bool: one camera per frame
+        out = {}  # out = {"camera_model": parse_colmap_camera_params(cam_id_to_camera[1])["camera_model"]}
+    else:  # one camera for all frames
+        out = parse_colmap_camera_params(cam_id_to_camera[1])
 
     frames = []
     for im_id, im_data in im_id_to_image.items():
@@ -455,11 +463,12 @@ def colmap_to_json(
         if image_id_to_depth_path is not None:
             depth_path = image_id_to_depth_path[im_id]
             frame["depth_file_path"] = str(depth_path.relative_to(depth_path.parent.parent))
+
+        if not use_single_camera_mode:  # add the camera parameters for this frame
+            frame.update(parse_colmap_camera_params(cam_id_to_camera[im_data.camera_id]))
+
         frames.append(frame)
 
-    if set(cam_id_to_camera.keys()) != {1}:
-        raise RuntimeError("Only single camera shared for all images is supported.")
-    out = parse_colmap_camera_params(cam_id_to_camera[1])
     out["frames"] = frames
 
     applied_transform = None

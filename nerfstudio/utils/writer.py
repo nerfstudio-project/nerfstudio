@@ -15,6 +15,7 @@
 """
 Generic Writer class
 """
+
 from __future__ import annotations
 
 import enum
@@ -333,7 +334,7 @@ class WandbWriter(Writer):
         """
         import wandb  # wandb is slow to import, so we only import it if we need it.
 
-        wandb.config.update(config_dict, allow_val_change=True)
+        wandb.config.update(config_dict, allow_val_change=True)  # type: ignore
 
 
 @decorate_all([check_main_thread])
@@ -502,7 +503,7 @@ class LocalWriter:
         """
         step = GLOBAL_BUFFER["step"]
         fraction_done = step / GLOBAL_BUFFER["max_iter"]
-        curr_mssg = f"{step} ({fraction_done*100:.02f}%)"
+        curr_mssg = f"{step} ({fraction_done * 100:.02f}%)"
         curr_mssg = f"{curr_mssg:<20}"
         for name, v in latest_map.items():
             if name in self.stats_to_track:

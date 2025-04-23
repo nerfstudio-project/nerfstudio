@@ -27,7 +27,7 @@ import torch.utils.data
 from nerfstudio.cameras.cameras import Cameras
 
 NERFSTUDIO_COLLATE_ERR_MSG_FORMAT = (
-    "default_collate: batch must contain tensors, numpy arrays, numbers, " "dicts, lists or anything in {}; found {}"
+    "default_collate: batch must contain tensors, numpy arrays, numbers, dicts, lists or anything in {}; found {}"
 )
 np_str_obj_array_pattern = re.compile(r"[SaUO]")
 
@@ -101,7 +101,7 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             storage = elem.storage()._new_shared(numel, device=elem.device)
             out = elem.new(storage).resize_(len(batch), *list(elem.size()))
         return torch.stack(batch, 0, out=out)
-    elif elem_type.__module__ == "numpy" and elem_type.__name__ != "str_" and elem_type.__name__ != "string_":
+    elif elem_type.__module__ == "numpy" and elem_type.__name__ not in ("str_", "string_"):
         if elem_type.__name__ in ("ndarray", "memmap"):
             # array of string classes and object
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
@@ -152,8 +152,23 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
         assert all((isinstance(cam, Cameras) for cam in batch))
         assert all((cam.distortion_params is None for cam in batch)) or all(
             (cam.distortion_params is not None for cam in batch)
-        ), "All cameras must have distortion parameters or none of them should have distortion parameters.\
+        ), (
+            "All cameras must have distortion parameters or none of them should have distortion parameters.\
             Generalized batching will be supported in the future."
+        )
+
+        if batch[0].metadata is not None:
+            metadata_keys = batch[0].metadata.keys()
+            assert all((cam.metadata.keys() == metadata_keys for cam in batch)), (
+                "All cameras must have the same metadata keys."
+            )
+        else:
+            assert all((cam.metadata is None for cam in batch)), "All cameras must have the same metadata keys."
+
+        if batch[0].times is not None:
+            assert all((cam.times is not None for cam in batch)), "All cameras must have times present or absent."
+        else:
+            assert all((cam.times is None for cam in batch)), "All cameras must have times present or absent."
 
         # If no batch dimension exists, then we need to stack everything and create a batch dimension on 0th dim
         if elem.shape == ():
@@ -163,11 +178,23 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             op = torch.cat
 
         # Create metadata dictionary
-        metadata_keys = batch[0].metadata.keys()
-        assert all(
-            (cam.metadata.keys() == metadata_keys for cam in batch)
-        ), "All cameras must have the same metadata keys."
-        metadata = {key: op([cam.metadata[key] for cam in batch], dim=0) for key in metadata_keys}
+        if batch[0].metadata is not None:
+            metadata = {key: op([cam.metadata[key] for cam in batch], dim=0) for key in batch[0].metadata.keys()}
+        else:
+            metadata = None
+
+        if batch[0].distortion_params is not None:
+            distortion_params = op(
+                [cameras.distortion_params for cameras in batch],
+                dim=0,
+            )
+        else:
+            distortion_params = None
+
+        if batch[0].times is not None:
+            times = torch.stack([cameras.times for cameras in batch], dim=0)
+        else:
+            times = None
 
         return Cameras(
             op([cameras.camera_to_worlds for cameras in batch], dim=0),
@@ -177,20 +204,9 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
             op([cameras.cy for cameras in batch], dim=0),
             height=op([cameras.height for cameras in batch], dim=0),
             width=op([cameras.width for cameras in batch], dim=0),
-            distortion_params=op(
-                [
-                    cameras.distortion_params
-                    if cameras.distortion_params is not None
-                    else torch.zeros_like(cameras.distortion_params)
-                    for cameras in batch
-                ],
-                dim=0,
-            ),
+            distortion_params=distortion_params,
             camera_type=op([cameras.camera_type for cameras in batch], dim=0),
-            times=torch.stack(
-                [cameras.times if cameras.times is not None else -torch.ones_like(cameras.times) for cameras in batch],
-                dim=0,
-            ),
+            times=times,
             metadata=metadata,
         )
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Common Colors"""
+
 from typing import Union
 
 import torch

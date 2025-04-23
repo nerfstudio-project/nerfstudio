@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" This file contains the render state machine, which is responsible for deciding when to render the image """
+"""This file contains the render state machine, which is responsible for deciding when to render the image"""
+
 from __future__ import annotations
 
 import contextlib
@@ -147,6 +148,7 @@ class RenderStateMachine(threading.Thread):
                         device=self.viewer.get_model().device,
                     )
                     self.viewer.get_model().set_background(background_color)
+                was_training = self.viewer.get_model().training
                 self.viewer.get_model().eval()
                 step = self.viewer.step
                 try:
@@ -167,9 +169,10 @@ class RenderStateMachine(threading.Thread):
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
                             outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
                 except viewer_utils.IOChangeException:
-                    self.viewer.get_model().train()
                     raise
-                self.viewer.get_model().train()
+                finally:
+                    if was_training:
+                        self.viewer.get_model().train()
             num_rays = (camera.height * camera.width).item()
             if self.viewer.control_panel.layer_depth:
                 if isinstance(self.viewer.get_model(), SplatfactoModel):
@@ -179,7 +182,9 @@ class RenderStateMachine(threading.Thread):
 
                     desired_depth_pixels = {"low_move": 128, "low_static": 128, "high": 512}[self.state] ** 2
                     current_depth_pixels = outputs["depth"].shape[0] * outputs["depth"].shape[1]
-                    scale = min(desired_depth_pixels / current_depth_pixels, 1.0)
+
+                    # from the panel of ns-viewer, it is possible for user to enter zero resolution
+                    scale = min(desired_depth_pixels / max(1, current_depth_pixels), 1.0)
 
                     outputs["gl_z_buf_depth"] = F.interpolate(
                         outputs["depth"].squeeze(dim=-1)[None, None, ...],
@@ -300,7 +305,7 @@ class RenderStateMachine(threading.Thread):
             if self.viewer.render_tab_state.preview_render
             else 40
         )
-        self.client.set_background_image(
+        self.client.scene.set_background_image(
             selected_output,
             format=self.viewer.config.image_format,
             jpeg_quality=jpg_quality,

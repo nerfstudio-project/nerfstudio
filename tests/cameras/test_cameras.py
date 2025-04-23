@@ -1,6 +1,7 @@
 """
 Test the camera classes.
 """
+
 import dataclasses
 from itertools import product
 

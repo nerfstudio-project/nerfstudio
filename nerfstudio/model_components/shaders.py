@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Shaders for rendering."""
+
 from typing import Optional
 
 from jaxtyping import Float

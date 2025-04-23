@@ -14,7 +14,6 @@
 
 """TensoRF Field"""
 
-
 from typing import Dict, Optional
 
 import torch

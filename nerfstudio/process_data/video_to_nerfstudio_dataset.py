@@ -16,7 +16,7 @@
 
 import shutil
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 from nerfstudio.process_data import equirect_utils, process_data_utils
 from nerfstudio.process_data.colmap_converter_to_nerfstudio_dataset import ColmapConverterToNerfstudioDataset
@@ -41,6 +41,10 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
     should only be used for videos."""
+    random_seed: Optional[int] = None
+    """Random seed to select video frames for training set"""
+    eval_random_seed: Optional[int] = None
+    """Random seed to select video frames for eval set"""
 
     def main(self) -> None:
         """Process video into a nerfstudio dataset."""
@@ -59,6 +63,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 num_downscales=0,
                 crop_factor=(0.0, 0.0, 0.0, 0.0),
                 verbose=self.verbose,
+                random_seed=self.random_seed,
             )
         else:
             # If we're not dealing with equirects we can downscale in one step.
@@ -71,6 +76,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                 verbose=self.verbose,
                 image_prefix="frame_train_" if self.eval_data is not None else "frame_",
                 keep_image_dir=False,
+                random_seed=self.random_seed,
             )
             if self.eval_data is not None:
                 summary_log_eval, num_extracted_frames_eval = process_data_utils.convert_video_to_images(
@@ -82,6 +88,7 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
                     verbose=self.verbose,
                     image_prefix="frame_eval_",
                     keep_image_dir=True,
+                    random_seed=self.eval_random_seed,
                 )
                 summary_log += summary_log_eval
                 num_extracted_frames += num_extracted_frames_eval

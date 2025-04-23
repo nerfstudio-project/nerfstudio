@@ -31,11 +31,21 @@ Because the method trains on *full images* instead of bundles of rays, there is 
 ### Running the Method
 To run splatfacto, run `ns-train splatfacto --data <data>`. Just like NeRF methods, the splat can be interactively viewed in the web-viewer, loaded from a checkpoint, rendered, and exported.
 
+We provide a few additional variants:
+
+| Method           | Description                    | Memory | Speed   |
+| ---------------- | ------------------------------ | ------ | ------- |
+| `splatfacto`     | Default Model                  | ~6GB   | Fast    |
+| `splatfacto-big` | More Gaussians, Higher Quality | ~12GB  | Slower  |
+
+
+A full evalaution of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/main/tests/eval.html).
+
 #### Quality and Regularization
 The default settings provided maintain a balance between speed, quality, and splat file size, but if you care more about quality than training speed or size, you can decrease the alpha cull threshold 
 (threshold to delete translucent gaussians) and disable culling after 15k steps like so: `ns-train splatfacto --pipeline.model.cull_alpha_thresh=0.005 --pipeline.model.continue_cull_post_densification=False --data <data>`
 
-A common artifact in splatting is long, spikey gaussians. [PhysGaussian](https://xpandora.github.io/PhysGaussian/) proposes a scale regularizer that encourages gaussians to be more evenly shaped. To enable this, set the `use_scale_regularization` flag to `True`.
+A common artifact in splatting is long, spikey gaussians. [PhysGaussian](https://xpandora.github.io/PhysGaussian/) proposes a scale regularizer that encourages gaussians to be more evenly shaped. To enable this, set the `pipeline.model.use_scale_regularization` flag to `True`.
 
 ### Details
 For more details on the method, see the [original paper](https://arxiv.org/abs/2308.04079). Additionally, for a detailed derivation of the gradients used in the gsplat library, see [here](https://arxiv.org/abs/2312.02121).

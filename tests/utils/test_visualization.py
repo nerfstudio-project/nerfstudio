@@ -1,6 +1,7 @@
 """
 Test colormaps
 """
+
 import torch
 
 from nerfstudio.utils import colormaps, plotly_utils

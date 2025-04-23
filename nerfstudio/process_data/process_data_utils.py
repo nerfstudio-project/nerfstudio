@@ -15,6 +15,7 @@
 """Helper utils for processing data into the nerfstudio format."""
 
 import math
+import random
 import re
 import shutil
 import sys
@@ -49,16 +50,20 @@ class CameraModel(Enum):
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
     EQUIRECTANGULAR = "EQUIRECTANGULAR"
+    PINHOLE = "PINHOLE"
+    SIMPLE_PINHOLE = "SIMPLE_PINHOLE"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
     "equirectangular": CameraModel.EQUIRECTANGULAR,
+    "pinhole": CameraModel.PINHOLE,
+    "simple_pinhole": CameraModel.SIMPLE_PINHOLE,
 }
 
 
-def list_images(data: Path, recursive: bool = False) -> List[Path]:
+def list_images(data: Path, recursive: bool = True) -> List[Path]:
     """Lists all supported images in a directory
 
     Args:
@@ -122,6 +127,7 @@ def convert_video_to_images(
     verbose: bool = False,
     image_prefix: str = "frame_",
     keep_image_dir: bool = False,
+    random_seed: Optional[int] = None,
 ) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
@@ -134,6 +140,7 @@ def convert_video_to_images(
         verbose: If True, logs the output of the command.
         image_prefix: Prefix to use for the image filenames.
         keep_image_dir: If True, don't delete the output directory if it already exists.
+        random_seed: If set, the seed used to choose the frames of the video
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
     """
@@ -174,8 +181,6 @@ def convert_video_to_images(
             start_y = crop_factor[0]
             crop_cmd = f"crop=w=iw*{width}:h=ih*{height}:x=iw*{start_x}:y=ih*{start_y},"
 
-        spacing = num_frames // num_frames_target
-
         downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}[out{i}]" for i in range(num_downscales + 1)]
         downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
         downscale_paths = [downscale_dirs[i] / f"{image_prefix}%05d.png" for i in range(num_downscales + 1)]
@@ -192,8 +197,15 @@ def convert_video_to_images(
 
         ffmpeg_cmd += " -vsync vfr"
 
-        if spacing > 1:
-            CONSOLE.print("Number of frames to extract:", math.ceil(num_frames / spacing))
+        # Evenly distribute frame selection if random seed does not exist
+        spacing = num_frames // num_frames_target
+        if random_seed:
+            random.seed(random_seed)
+            frame_indices = sorted(random.sample(range(num_frames), num_frames_target))
+            select_cmd = "select='" + "+".join([f"eq(n\,{idx})" for idx in frame_indices]) + "',setpts=N/TB,"
+            CONSOLE.print(f"Extracting {num_frames_target} frames using seed {random_seed} random selection.")
+        elif spacing > 1:
+            CONSOLE.print(f"Extracting {math.ceil(num_frames / spacing)} frames in evenly spaced intervals")
             select_cmd = f"thumbnail={spacing},setpts=N/TB,"
         else:
             CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
@@ -306,7 +318,7 @@ def copy_images_list(
 
         crop_cmd = ""
         if crop_border_pixels is not None:
-            crop_cmd = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}[cropped];[cropped]"
+            crop_cmd = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}[cropped];[cropped]"
         elif crop_factor != (0.0, 0.0, 0.0, 0.0):
             height = 1 - crop_factor[0] - crop_factor[1]
             width = 1 - crop_factor[2] - crop_factor[3]
@@ -472,7 +484,7 @@ def downscale_images(
                 run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
-    downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
+    downscale_text = [f"[bold blue]{2 ** (i + 1)}x[/bold blue]" for i in range(num_downscales)]
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
 

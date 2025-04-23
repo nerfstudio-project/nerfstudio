@@ -19,7 +19,7 @@ Implementation of Instant NGP.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Tuple, Type
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import nerfacc
 import torch
@@ -49,7 +49,7 @@ class InstantNGPModelConfig(ModelConfig):
     """Whether to create a scene collider to filter rays."""
     collider_params: Optional[Dict[str, float]] = None
     """Instant NGP doesn't use a collider."""
-    grid_resolution: int = 128
+    grid_resolution: Union[int, List[int]] = 128
     """Resolution of the grid used for the field."""
     grid_levels: int = 4
     """Levels of the grid used for the field."""
@@ -72,7 +72,10 @@ class InstantNGPModelConfig(ModelConfig):
     use_appearance_embedding: bool = False
     """Whether to use an appearance embedding."""
     background_color: Literal["random", "black", "white"] = "random"
-    """The color that is given to untrained areas."""
+    """
+    The color that is given to masked areas.
+    These areas are used to force the density in those regions to be zero.
+    """
     disable_scene_contraction: bool = False
     """Whether to disable scene contraction or not."""
 
@@ -223,7 +226,7 @@ class NGPModel(Model):
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
-        image = batch["image"][..., :3].to(self.device)
+        image = batch["image"].to(self.device)
         pred_rgb, image = self.renderer_rgb.blend_background_for_loss_computation(
             pred_image=outputs["rgb"],
             pred_accumulation=outputs["accumulation"],

@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Control panel for the viewer """
+"""Control panel for the viewer"""
+
 from collections import defaultdict
 from typing import Callable, DefaultDict, List, Tuple, get_args
 

@@ -16,6 +16,7 @@
 """
 render.py
 """
+
 from __future__ import annotations
 
 import gzip
@@ -196,6 +197,9 @@ def _render_trajectory_video(
                         outputs = pipeline.model.get_outputs_for_camera(
                             cameras[camera_idx : camera_idx + 1], obb_box=obb_box
                         )
+                        if rendered_output_names is not None and "rgba" in rendered_output_names:
+                            rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
+                            outputs["rgba"] = rgba
 
                 render_image = []
                 for rendered_output_name in rendered_output_names:
@@ -220,6 +224,8 @@ def _render_trajectory_video(
                             .cpu()
                             .numpy()
                         )
+                    elif rendered_output_name == "rgba":
+                        output_image = output_image.detach().cpu().numpy()
                     else:
                         output_image = (
                             colormaps.apply_colormap(
@@ -429,6 +435,8 @@ class BaseRender:
     """Whether to render the nearest training camera to the rendered camera."""
     check_occlusions: bool = False
     """If true, checks line-of-sight occlusions when computing camera distance and rejects cameras not visible to each other"""
+    camera_idx: Optional[int] = None
+    """Index of the training camera to render."""
 
 
 @dataclass
@@ -478,6 +486,9 @@ class RenderCameraPath(BaseRender):
         # add mp4 suffix to video output if none is specified
         if self.output_format == "video" and str(self.output_path.suffix) == "":
             self.output_path = self.output_path.with_suffix(".mp4")
+
+        if self.camera_idx is not None:
+            camera_path.metadata = {"cam_idx": self.camera_idx}
 
         _render_trajectory_video(
             pipeline,
@@ -545,9 +556,9 @@ class RenderCameraPath(BaseRender):
                     self.output_path = Path(str(left_eye_path.parent)[:-5])
                     self.output_path.mkdir(parents=True, exist_ok=True)
                     if self.image_format == "png":
-                        ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.png")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.png")}" -filter_complex vstack -start_number 0 "{str(self.output_path)+"//%05d.png"}"'
+                        ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.png")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.png")}" -filter_complex vstack -start_number 0 "{str(self.output_path) + "//%05d.png"}"'
                     elif self.image_format == "jpeg":
-                        ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.jpg")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.jpg")}" -filter_complex vstack -start_number 0 "{str(self.output_path)+"//%05d.jpg"}"'
+                        ffmpeg_ods_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.jpg")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.jpg")}" -filter_complex vstack -start_number 0 "{str(self.output_path) + "//%05d.jpg"}"'
                     run_command(ffmpeg_ods_command, verbose=False)
 
                 # remove the temp files directory
@@ -566,9 +577,9 @@ class RenderCameraPath(BaseRender):
                     self.output_path = Path(str(left_eye_path.parent)[:-5])
                     self.output_path.mkdir(parents=True, exist_ok=True)
                     if self.image_format == "png":
-                        ffmpeg_vr180_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.png")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.png")}" -filter_complex hstack -start_number 0 "{str(self.output_path)+"//%05d.png"}"'
+                        ffmpeg_vr180_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.png")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.png")}" -filter_complex hstack -start_number 0 "{str(self.output_path) + "//%05d.png"}"'
                     elif self.image_format == "jpeg":
-                        ffmpeg_vr180_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.jpg")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.jpg")}" -filter_complex hstack -start_number 0 "{str(self.output_path)+"//%05d.jpg"}"'
+                        ffmpeg_vr180_command = f'ffmpeg -y -pattern_type glob -i "{str(left_eye_path.with_suffix("") / "*.jpg")}"  -pattern_type glob -i "{str(right_eye_path.with_suffix("") / "*.jpg")}" -filter_complex hstack -start_number 0 "{str(self.output_path) + "//%05d.jpg"}"'
                     run_command(ffmpeg_vr180_command, verbose=False)
 
                 # remove the temp files directory
@@ -615,6 +626,9 @@ class RenderInterpolated(BaseRender):
             steps=self.interpolation_steps,
             order_poses=self.order_poses,
         )
+
+        if self.camera_idx is not None:
+            camera_path.metadata = {"cam_idx": self.camera_idx}
 
         _render_trajectory_video(
             pipeline,
@@ -667,6 +681,9 @@ class SpiralRender(BaseRender):
         steps = int(self.frame_rate * self.seconds)
         camera_start, _ = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
         camera_path = get_spiral_path(camera_start, steps=steps, radius=self.radius)
+
+        if self.camera_idx is not None:
+            camera_path.metadata = {"cam_idx": self.camera_idx}
 
         _render_trajectory_video(
             pipeline,
@@ -778,6 +795,9 @@ class DatasetRender(BaseRender):
                 for camera_idx, (camera, batch) in enumerate(progress.track(dataloader, total=len(dataset))):
                     with torch.no_grad():
                         outputs = pipeline.model.get_outputs_for_camera(camera)
+                        if self.rendered_output_names is not None and "rgba" in self.rendered_output_names:
+                            rgba = pipeline.model.get_rgba_image(outputs=outputs, output_name="rgb")
+                            outputs["rgba"] = rgba
 
                     gt_batch = batch.copy()
                     gt_batch["rgb"] = gt_batch.pop("image")
@@ -829,11 +849,12 @@ class DatasetRender(BaseRender):
                                 output_image = gt_batch[output_name]
                             else:
                                 output_image = outputs[output_name]
-                        del output_name
 
                         # Map to color spaces / numpy
                         if is_raw:
                             output_image = output_image.cpu().numpy()
+                        elif output_name == "rgba":
+                            output_image = output_image.detach().cpu().numpy()
                         elif is_depth:
                             output_image = (
                                 colormaps.apply_depth_colormap(

@@ -1,6 +1,7 @@
 """
 Tests for the nerfstudio.plugins.registry module.
 """
+
 import os
 import sys
 from dataclasses import dataclass, field
@@ -19,10 +20,12 @@ else:
 
 @dataclass
 class TestConfigClass(MethodSpecification):
-    config: TrainerConfig = TrainerConfig(
-        method_name="test-method",
-        pipeline=VanillaPipelineConfig(),
-        optimizers={},
+    config: TrainerConfig = field(
+        default_factory=lambda: TrainerConfig(
+            method_name="test-method",
+            pipeline=VanillaPipelineConfig(),
+            optimizers={},
+        )
     )
     description: str = "Test description"
 

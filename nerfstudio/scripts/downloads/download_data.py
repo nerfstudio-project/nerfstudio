@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Download datasets and specific captures from the datasets."""
+
 from __future__ import annotations
 
 import json
@@ -31,7 +32,6 @@ import tyro
 from typing_extensions import Annotated
 
 from nerfstudio.process_data import process_data_utils
-from nerfstudio.scripts.downloads.eyeful_tower import EyefulTowerDownload
 from nerfstudio.scripts.downloads.utils import DatasetDownload
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.scripts import run_command
@@ -108,7 +108,7 @@ nerfstudio_file_ids = {
     "campanile": grab_file_id("https://drive.google.com/file/d/13aOfGJRRH05pOOk9ikYGTwqFc2L1xskU/view?usp=sharing"),
     "desolation": grab_file_id("https://drive.google.com/file/d/14IzOOQm9KBJ3kPbunQbUTHPnXnmZus-f/view?usp=sharing"),
     "library": grab_file_id("https://drive.google.com/file/d/1Hjbh_-BuaWETQExn2x2qGD74UwrFugHx/view?usp=sharing"),
-    "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
+    "poster": grab_file_id("https://drive.google.com/file/d/1FceQ5DX7bbTbHeL26t0x6ku56cwsRs6t/view?usp=sharing"),
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
@@ -171,6 +171,7 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
     with zipfile.ZipFile(download_path, "r") as zip_ref:
         zip_ref.extractall(tmp_path)
     inner_folders = os.listdir(tmp_path)
+    inner_folders = [folder for folder in inner_folders if folder != "__MACOSX"]
     assert len(inner_folders) == 1, f"There is more than one folder inside this zip file: {inner_folders}"
     folder = os.path.join(tmp_path, inner_folders[0])
     shutil.rmtree(target_path)
@@ -288,9 +289,9 @@ class PhototourismDownload(DatasetDownload):
                     PhototourismDownload(capture_name=capture_name).download(save_dir)
             return
 
-        assert (
-            self.capture_name in phototourism_downloads
-        ), f"Capture name {self.capture_name} not found in {phototourism_downloads.keys()}"
+        assert self.capture_name in phototourism_downloads, (
+            f"Capture name {self.capture_name} not found in {phototourism_downloads.keys()}"
+        )
         url = phototourism_downloads[self.capture_name]
         target_path = str(save_dir / "phototourism" / self.capture_name)
         os.makedirs(target_path, exist_ok=True)
@@ -349,9 +350,9 @@ class SDFstudioDemoDownload(DatasetDownload):
                     SDFstudioDemoDownload(dataset_name=dataset_name).download(save_dir)
             return
 
-        assert (
-            self.dataset_name in sdfstudio_downloads
-        ), f"Capture name {self.dataset_name} not found in {sdfstudio_downloads.keys()}"
+        assert self.dataset_name in sdfstudio_downloads, (
+            f"Capture name {self.dataset_name} not found in {sdfstudio_downloads.keys()}"
+        )
 
         url = sdfstudio_downloads[self.dataset_name]
 
@@ -420,9 +421,9 @@ class NeRFOSRDownload(DatasetDownload):
                     NeRFOSRDownload(capture_name=capture_name).download(save_dir)
             return
 
-        assert (
-            self.capture_name in nerfosr_downloads
-        ), f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
+        assert self.capture_name in nerfosr_downloads, (
+            f"Capture name {self.capture_name} not found in {nerfosr_downloads.keys()}"
+        )
         url = nerfosr_downloads[self.capture_name]
         target_path = str(save_dir / "nerfosr" / self.capture_name)
         os.makedirs(target_path, exist_ok=True)
@@ -474,9 +475,9 @@ class Mill19Download(DatasetDownload):
                     Mill19Download(capture_name=capture_name).download(save_dir)
             return
 
-        assert (
-            self.capture_name in mill19_downloads
-        ), f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
+        assert self.capture_name in mill19_downloads, (
+            f"Capture name {self.capture_name} not found in {mill19_downloads.keys()}"
+        )
         url = mill19_downloads[self.capture_name]
         target_path = save_dir / "mill19" / self.capture_name
         target_path.mkdir(parents=True, exist_ok=True)
@@ -549,8 +550,38 @@ Commands = Union[
     Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
     Annotated[NeRFOSRDownload, tyro.conf.subcommand(name="nerfosr")],
     Annotated[Mill19Download, tyro.conf.subcommand(name="mill19")],
-    Annotated[EyefulTowerDownload, tyro.conf.subcommand(name="eyefultower")],
 ]
+
+
+@dataclass
+class NotInstalled(DatasetDownload):
+    def main(self) -> None: ...
+
+
+# Add eyefultower subcommand if awscli is installed.
+try:
+    import awscli
+except ImportError:
+    awscli = None
+
+if awscli is not None:
+    from nerfstudio.scripts.downloads.eyeful_tower import EyefulTowerDownload
+
+    Commands = Union[
+        Commands,
+        Annotated[EyefulTowerDownload, tyro.conf.subcommand(name="eyefultower")],
+    ]
+else:
+    Commands = Union[
+        Commands,
+        Annotated[
+            NotInstalled,
+            tyro.conf.subcommand(
+                name="eyefultower",
+                description="**Not installed.** Downloading EyefulTower data requires `pip install awscli`.",
+            ),
+        ],
+    ]
 
 
 def main(

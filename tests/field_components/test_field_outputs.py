@@ -1,6 +1,7 @@
 """
 Field output tests
 """
+
 import pytest
 import torch
 from torch import nn

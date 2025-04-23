@@ -115,7 +115,7 @@ Rending RGB images is not the only type of output render supported. It is possib
 Associated nerfstudio code:
 
 ```python
-from nerfstudio.renderers.renderers import RGBRenderer
+from nerfstudio.model_components.renderers import RGBRenderer
 
 renderer_rgb = RGBRenderer(background_color=colors.WHITE)
 # Ray samples discussed in the next section

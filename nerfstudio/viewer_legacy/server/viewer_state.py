@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-""" Manage the state of the viewer """
+"""Manage the state of the viewer"""
+
 from __future__ import annotations
 
 import threading
@@ -115,8 +116,10 @@ class ViewerLegacyState:
         self.output_type_changed = True
         self.output_split_type_changed = True
         self.step = 0
-        self.train_btn_state: Literal["training", "paused", "completed"] = "training"
-        self._prev_train_state: Literal["training", "paused", "completed"] = "training"
+        self.train_btn_state: Literal["training", "paused", "completed"] = (
+            "training" if self.trainer is None else self.trainer.training_state
+        )
+        self._prev_train_state: Literal["training", "paused", "completed"] = self.train_btn_state
 
         self.camera_message = None
 
@@ -391,7 +394,7 @@ class ViewerLegacyState:
                 bgr[:, :t, :] = bc
 
                 camera_json = eval_dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
-                self.viser_server.add_dataset_image(idx=f"{idx+len(train_dataset):06d}", json=camera_json)
+                self.viser_server.add_dataset_image(idx=f"{idx + len(train_dataset):06d}", json=camera_json)
 
         # draw the scene box (i.e., the bounding box)
         self.viser_server.update_scene_box(train_dataset.scene_box)

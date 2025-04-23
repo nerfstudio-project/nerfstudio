@@ -15,6 +15,7 @@
 """
 Some ray datastructures.
 """
+
 import random
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Literal, Optional, Tuple, Union, overload
@@ -153,15 +154,13 @@ class RaySamples(TensorDataclass):
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
         alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[True]
-    ) -> Float[Tensor, "*batch num_samples 1"]:
-        ...
+    ) -> Float[Tensor, "*batch num_samples 1"]: ...
 
     @overload
     @staticmethod
     def get_weights_and_transmittance_from_alphas(
         alphas: Float[Tensor, "*batch num_samples 1"], weights_only: Literal[False] = False
-    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]:
-        ...
+    ) -> Tuple[Float[Tensor, "*batch num_samples 1"], Float[Tensor, "*batch num_samples 1"]]: ...
 
     @staticmethod
     def get_weights_and_transmittance_from_alphas(

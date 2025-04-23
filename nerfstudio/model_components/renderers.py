@@ -26,6 +26,7 @@ Example:
     rgb = rgb_renderer(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
 
 """
+
 import contextlib
 import math
 from typing import Generator, Literal, Optional, Tuple, Union
@@ -37,7 +38,8 @@ from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils import colors
-from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
+from nerfstudio.utils.math import safe_normalize
+from nerfstudio.utils.spherical_harmonics import components_from_spherical_harmonics
 
 BackgroundColor = Union[Literal["random", "last_sample", "black", "white"], Float[Tensor, "3"], Float[Tensor, "*bs 3"]]
 BACKGROUND_COLOR_OVERRIDE: Optional[Float[Tensor, "3"]] = None
@@ -267,7 +269,7 @@ class SHRenderer(nn.Module):
         sh = sh.view(*sh.shape[:-1], 3, sh.shape[-1] // 3)
 
         levels = int(math.sqrt(sh.shape[-1]))
-        components = components_from_spherical_harmonics(levels=levels, directions=directions)
+        components = components_from_spherical_harmonics(degree=levels - 1, directions=directions)
 
         rgb = sh * components[..., None, :]  # [..., num_samples, 3, sh_components]
         rgb = torch.sum(rgb, dim=-1)  # [..., num_samples, 3]

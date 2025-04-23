@@ -1,0 +1,35 @@
+[project]
+name = "nerfstudio"
+description = "All-in-one repository for state-of-the-art NeRFs"
+channels = ["nvidia/label/cuda-11.8.0", "nvidia", "conda-forge", "pytorch"]
+platforms = ["linux-64"]
+
+[system-requirements]
+libc = { family="glibc", version="2.30" }
+
+[tasks]
+# || operator in pixi allows running a command after only if the command before || fails
+tcnn-install = "python -c 'import tinycudann as tcnn' || python -m pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
+make-third_party-dir = {cmd="ls third_party || mkdir third_party"}
+clone-hloc = {cmd="ls Hierarchical-Localization || git clone --recursive https://github.com/cvg/Hierarchical-Localization/", cwd = "third_party", depends-on=["make-third_party-dir"] }
+hloc-install = {cmd="python -m pip install -e .", cwd = "third_party/Hierarchical-Localization" , depends-on=["clone-hloc"], outputs=["third_party/Hierarchical-Localization/hloc.egg-info/PKG-INFO"]}
+post-install = {cmd="pwd", depends-on=["hloc-install", "tcnn-install"]}
+
+download-dozer-data = {cmd="ls data/nerfstudio/dozer || ns-download-data nerfstudio --capture-name dozer"}
+train-example-splat = {cmd="ns-train splatfacto --data data/nerfstudio/dozer/", depends-on=["post-install", "download-dozer-data"]}
+train-example-nerf = {cmd="ns-train nerfacto --data data/nerfstudio/dozer/", depends-on=["post-install", "download-dozer-data"]}
+
+
+[dependencies]
+python = ">=3.8,<3.11"
+pip = ">=24.0,<25"
+cuda = {version = "*", channel="nvidia/label/cuda-11.8.0"}
+pytorch-cuda = {version = "11.8.*", channel="pytorch"}
+pytorch = {version = ">=2.2.0,<2.3", channel="pytorch"}
+torchvision = {version = ">=0.17.0,<0.18", channel="pytorch"}
+pyarrow = ">=15.0.2,<15.1"
+colmap = ">=3.9.1,<3.10"
+
+
+[pypi-dependencies]
+nerfstudio = { path = ".", editable = true}

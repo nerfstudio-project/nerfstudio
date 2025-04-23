@@ -13,16 +13,50 @@
 # limitations under the License.
 
 """Utility functions to allow easy re-use of common operations across dataloaders"""
+
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import IO, List, Tuple, Union
 
 import cv2
 import numpy as np
 import torch
 from PIL import Image
+from PIL.Image import Image as PILImage
 
 
-def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
+def pil_to_numpy(im: PILImage) -> np.ndarray:
+    """Converts a PIL Image object to a NumPy array.
+
+    Args:
+        im (PIL.Image.Image): The input PIL Image object.
+
+    Returns:
+        numpy.ndarray representing the image data.
+    """
+    # Load in image completely (PIL defaults to lazy loading)
+    im.load()
+
+    # Unpack data
+    e = Image._getencoder(im.mode, "raw", im.mode)
+    e.setimage(im.im)
+
+    # NumPy buffer for the result
+    shape, typestr = Image._conv_type_shape(im)
+    data = np.empty(shape, dtype=np.dtype(typestr))
+    mem = data.data.cast("B", (data.data.nbytes,))
+
+    bufsize, s, offset = 65536, 0, 0
+    while not s:
+        _, s, d = e.encode(bufsize)
+        mem[offset : offset + len(d)] = d
+        offset += len(d)
+    if s < 0:
+        raise RuntimeError("encoder error %d in tobytes" % s)
+
+    return data
+
+
+def get_image_mask_tensor_from_path(filepath: Union[Path, IO[bytes]], scale_factor: float = 1.0) -> torch.Tensor:
     """
     Utility function to read a mask image from the given path and return a boolean tensor
     """
@@ -30,8 +64,8 @@ def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -
     if scale_factor != 1.0:
         width, height = pil_mask.size
         newsize = (int(width * scale_factor), int(height * scale_factor))
-        pil_mask = pil_mask.resize(newsize, resample=Image.NEAREST)
-    mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
+        pil_mask = pil_mask.resize(newsize, resample=Image.Resampling.NEAREST)
+    mask_tensor = torch.from_numpy(pil_to_numpy(pil_mask)).unsqueeze(-1).bool()
     if len(mask_tensor.shape) != 3:
         raise ValueError("The mask image should have 1 channel")
     return mask_tensor
@@ -50,7 +84,7 @@ def get_semantics_and_mask_tensors_from_path(
     if scale_factor != 1.0:
         width, height = pil_image.size
         newsize = (int(width * scale_factor), int(height * scale_factor))
-        pil_image = pil_image.resize(newsize, resample=Image.NEAREST)
+        pil_image = pil_image.resize(newsize, resample=Image.Resampling.NEAREST)
     semantics = torch.from_numpy(np.array(pil_image, dtype="int64"))[..., None]
     mask = torch.sum(semantics == mask_indices, dim=-1, keepdim=True) == 0
     return semantics, mask
@@ -77,10 +111,15 @@ def get_depth_image_from_path(
         Depth image torch tensor with shape [height, width, 1].
     """
     if filepath.suffix == ".npy":
-        image = np.load(filepath) * scale_factor
+        image = np.load(filepath).astype(np.float32) * scale_factor
         image = cv2.resize(image, (width, height), interpolation=interpolation)
     else:
         image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
-        image = image.astype(np.float64) * scale_factor
+        image = image.astype(np.float32) * scale_factor
         image = cv2.resize(image, (width, height), interpolation=interpolation)
     return torch.from_numpy(image[:, :, np.newaxis])
+
+
+def identity_collate(x):
+    """This function does nothing but serves to help our dataloaders have a pickleable function, as lambdas are not pickleable"""
+    return x

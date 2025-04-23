@@ -214,11 +214,7 @@ class Model(nn.Module):
             RGBA image.
         """
         accumulation_name = output_name.replace("rgb", "accumulation")
-        if (
-            not hasattr(self, "renderer_rgb")
-            or not hasattr(self.renderer_rgb, "background_color")
-            or accumulation_name not in outputs
-        ):
+        if accumulation_name not in outputs:
             raise NotImplementedError(f"get_rgba_image is not implemented for model {self.__class__.__name__}")
         rgb = outputs[output_name]
         if self.renderer_rgb.background_color == "random":  # type: ignore

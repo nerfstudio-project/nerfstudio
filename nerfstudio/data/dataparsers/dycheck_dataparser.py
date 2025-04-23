@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Data parser for DyCheck (https://arxiv.org/abs/2210.13445) dataset of `iphone` subset"""
+
 from __future__ import annotations
 
 import math
@@ -46,7 +47,7 @@ def downscale(img, scale: int) -> np.ndarray:
         return img
     height, width = img.shape[:2]
     if height % scale > 0 or width % scale > 0:
-        raise ValueError(f"Image shape ({height},{width}) must be divisible by the" f" scale ({scale}).")
+        raise ValueError(f"Image shape ({height},{width}) must be divisible by the scale ({scale}).")
     out_height, out_width = height // scale, width // scale
     resized = cv2.resize(img, (out_width, out_height), cv2.INTER_AREA)  # type: ignore
     return resized

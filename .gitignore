@@ -188,3 +188,6 @@ camera_paths/
 */**/.DS_Store
 */**/._.DS_Store
 
+# pixi environments
+.pixi
+/third_party

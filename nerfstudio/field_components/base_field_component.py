@@ -15,6 +15,7 @@
 """
 The field module baseclass.
 """
+
 from abc import abstractmethod
 from typing import Optional
 

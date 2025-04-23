@@ -136,7 +136,7 @@ def cameras2nerfds(
     shots_dict = {}
     reconstruction = None
 
-    if reconstruction_file.exists:
+    if reconstruction_file.exists():
         reconstruction = get_reconstruction(reconstruction_file)
         shots = reconstruction.get("shots", [])
         for filename in shots:

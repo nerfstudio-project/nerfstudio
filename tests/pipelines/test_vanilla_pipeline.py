@@ -1,6 +1,7 @@
 """
 Test pipeline
 """
+
 from pathlib import Path
 
 import torch
@@ -41,7 +42,7 @@ def test_load_state_dict():
     """Test pipeline load_state_dict calls model's load_state_dict"""
     was_called = False
 
-    class MockedModel(Model):  #
+    class MockedModel(Model):
         """Mocked model"""
 
         def __init__(self, *args, **kwargs):

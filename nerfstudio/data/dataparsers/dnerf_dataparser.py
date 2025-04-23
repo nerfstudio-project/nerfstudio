@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Data parser for blender dataset"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
