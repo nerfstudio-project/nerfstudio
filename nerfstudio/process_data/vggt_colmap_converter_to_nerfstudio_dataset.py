@@ -1,3 +1,6 @@
+import sys
+sys.path.append('./vggt')
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -8,7 +11,7 @@ from nerfstudio.process_data.colmap_utils import colmap_to_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
 # Adjusted imports for VGGT utilities
-from vggt.vggt_to_colmap import load_model, process_images, extrinsic_to_colmap_format, filter_and_prepare_points, write_colmap_cameras_txt, write_colmap_images_txt, write_colmap_points3D_txt, write_colmap_cameras_bin, write_colmap_images_bin, write_colmap_points3D_bin
+from vggt_to_colmap import load_model, process_images, extrinsic_to_colmap_format, filter_and_prepare_points, write_colmap_cameras_txt, write_colmap_images_txt, write_colmap_points3D_txt, write_colmap_cameras_bin, write_colmap_images_bin, write_colmap_points3D_bin
 
 @dataclass
 class VGGTColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
@@ -36,7 +39,7 @@ class VGGTColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     def _run_vggt_to_colmap(self):
         """Run VGGT to generate COLMAP-compatible data."""
         model, device = load_model()
-        predictions, image_names = process_images(self.image_dir, model, device, self.output_dir)
+        predictions, image_names = process_images(self.image_dir, model, device)
 
         quaternions, translations = extrinsic_to_colmap_format(predictions["extrinsic"])
         points3D, image_points2D = filter_and_prepare_points(
@@ -118,6 +121,9 @@ class VGGTColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         
         # Copy downscaled images from the input directory to the output directory
         downscaled_image_dir = self.image_dir / "downscaled"
+        if not downscaled_image_dir.exists():
+            raise FileNotFoundError(f"Expected downscaled directory at {downscaled_image_dir}, but it does not exist.")
+
         output_image_dir = self.output_dir / "images"
         output_image_dir.mkdir(parents=True, exist_ok=True)
 
