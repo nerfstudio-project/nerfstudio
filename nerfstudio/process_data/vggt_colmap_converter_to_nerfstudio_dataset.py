@@ -127,7 +127,7 @@ class VGGTColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         output_image_dir = self.output_dir / "images"
         output_image_dir.mkdir(parents=True, exist_ok=True)
 
-        for image_file in downscaled_image_dir.iterdir():
+        for image_file in self.image_dir.iterdir():
             if image_file.is_file():
                 shutil.copy(image_file, output_image_dir)
 
