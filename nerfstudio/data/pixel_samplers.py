@@ -587,3 +587,33 @@ class PairPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         pair_indices += indices
         indices = torch.hstack((indices, pair_indices)).view(rays_to_sample * 2, 3)
         return indices
+
+
+@dataclass
+class AllPixelSamplerConfig(PixelSamplerConfig):
+    _target: Type = field(default_factory=lambda: AllPixelSampler)
+
+
+class AllPixelSampler(PixelSampler):
+    config: AllPixelSamplerConfig
+
+    def sample(self, image_batch: Dict):
+        """
+        Samples all pixels from a single image. The image is selected randomly from the batch.
+        """
+        device = image_batch["image"][0].device
+        num_images, image_height, image_width, _ = image_batch["image"].shape
+
+        image_index = torch.randint(num_images, (1,), device=device)
+        i, j = torch.meshgrid(
+            torch.arange(image_height, device=device), torch.arange(image_width, device=device), indexing="ij"
+        )
+
+        pixels = torch.stack([j, i], dim=-1).reshape(-1, 2)
+        pixels = torch.cat((image_index.repeat(pixels.shape[0], 1), pixels), dim=1)
+
+        collated_batch = {}
+        collated_batch["image"] = image_batch["image"][image_index]
+        collated_batch["indices"] = pixels
+
+        return collated_batch
