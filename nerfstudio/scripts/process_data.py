@@ -430,6 +430,7 @@ class ProcessMeshroom(BaseConverterToNerfstudioDataset, _NoDefaultProcessMeshroo
             CONSOLE.print(summary, justify="center")
         CONSOLE.rule()
 
+
 @dataclass
 class _NoDefaultProcessRealityCapture:
     """Private class to order the parameters of ProcessRealityCapture in the right order for default values."""
