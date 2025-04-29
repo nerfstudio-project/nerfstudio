@@ -29,6 +29,7 @@ from nerfstudio.model_components import losses
 from nerfstudio.model_components.losses import DepthLossType, depth_loss, depth_ranking_loss
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 
 
 @dataclass
@@ -87,27 +88,34 @@ class DepthNerfactoModel(NerfactoModel):
                 raise ValueError(
                     f"Forcing pseudodepth loss, but depth loss type ({self.config.depth_loss_type}) must be one of {losses.PSEUDODEPTH_COMPATIBLE_LOSSES}"
                 )
-            if self.config.depth_loss_type in (DepthLossType.DS_NERF, DepthLossType.URF):
-                metrics_dict["depth_loss"] = 0.0
-                sigma = self._get_sigma().to(self.device)
-                termination_depth = batch["depth_image"].to(self.device)
-                for i in range(len(outputs["weights_list"])):
-                    metrics_dict["depth_loss"] += depth_loss(
-                        weights=outputs["weights_list"][i],
-                        ray_samples=outputs["ray_samples_list"][i],
-                        termination_depth=termination_depth,
-                        predicted_depth=outputs["expected_depth"],
-                        sigma=sigma,
-                        directions_norm=outputs["directions_norm"],
-                        is_euclidean=self.config.is_euclidean_depth,
-                        depth_loss_type=self.config.depth_loss_type,
-                    ) / len(outputs["weights_list"])
-            elif self.config.depth_loss_type in (DepthLossType.SPARSENERF_RANKING,):
-                metrics_dict["depth_ranking"] = depth_ranking_loss(
-                    outputs["expected_depth"], batch["depth_image"].to(self.device)
-                )
-            else:
-                raise NotImplementedError(f"Unknown depth loss type {self.config.depth_loss_type}")
+            # if self.config.depth_loss_type in (DepthLossType.DS_NERF, DepthLossType.URF):
+            #     metrics_dict["depth_loss"] = 0.0
+            #     sigma = self._get_sigma().to(self.device)
+            #     termination_depth = batch["depth_image"].to(self.device)
+            #     for i in range(len(outputs["weights_list"])):
+            #         metrics_dict["depth_loss"] += depth_loss(
+            #             weights=outputs["weights_list"][i],
+            #             ray_samples=outputs["ray_samples_list"][i],
+            #             termination_depth=termination_depth,
+            #             predicted_depth=outputs["expected_depth"],
+            #             sigma=sigma,
+            #             directions_norm=outputs["directions_norm"],
+            #             is_euclidean=self.config.is_euclidean_depth,
+            #             depth_loss_type=self.config.depth_loss_type,
+            #         ) / len(outputs["weights_list"])
+            # elif self.config.depth_loss_type in (DepthLossType.SPARSENERF_RANKING,):
+            #     metrics_dict["depth_ranking"] = depth_ranking_loss(
+            #         outputs["expected_depth"], batch["depth_image"].to(self.device)
+            #     )
+            # else:
+            #     raise NotImplementedError(f"Unknown depth loss type {self.config.depth_loss_type}")
+
+            termination_depth = batch["depth_image"].to(self.device)
+            predicted_depth = outputs["expected_depth"]
+            # import pdb; pdb.set_trace();
+            if not self.config.is_euclidean_depth:
+                termination_depth = termination_depth * outputs["directions_norm"]
+            metrics_dict["depth_loss"] = torch.mean((termination_depth - predicted_depth) ** 2)
 
         return metrics_dict
 
