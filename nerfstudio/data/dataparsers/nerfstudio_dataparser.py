@@ -319,7 +319,12 @@ class Nerfstudio(DataParser):
         # - dataparser_transform_matrix contains the transformation to dataparser output coordinates from original data coordinates.
         # - applied_transform contains the transformation to saved coordinates from original data coordinates.
         applied_transform = None
-        colmap_path = self.config.data / "colmap/sparse/0"
+        
+        sparse_path = self.config.data / "colmap/sparse"
+        all_sparse_runs = [int(f.name) for f in sparse_path.iterdir() if f.is_dir()]
+        latest_run_number = max(all_sparse_runs)
+        colmap_path = sparse_path / str(latest_run_number)
+        
         if "applied_transform" in meta:
             applied_transform = torch.tensor(meta["applied_transform"], dtype=transform_matrix.dtype)
         elif colmap_path.exists():
