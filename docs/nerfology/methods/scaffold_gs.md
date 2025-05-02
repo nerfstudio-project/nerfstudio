@@ -1,11 +1,16 @@
-# Scaffold-GS
+# Scaffold-GS + GSDF
 
-<h4>Unofficial implementation of "Scaffold-GS: Structured 3D Gaussians for View-Adaptive Rendering"</h4>
+<h4>Unofficial implementations of "Scaffold-GS: Structured 3D Gaussians for View-Adaptive Rendering" and "GSDF: 3DGS Meets SDF for Improved Neural Rendering and Reconstruction"</h4>
 
 ```{button-link} https://city-super.github.io/scaffold-gs/
 :color: primary
 :outline:
-Paper Website
+Scaffold-GS Website
+```
+```{button-link} https://city-super.github.io/GSDF/
+:color: primary
+:outline:
+GSDF Website
 ```
 ```{button-link} https://github.com/brian-xu/scaffold-gs-nerfstudio
 :color: primary
@@ -28,11 +33,16 @@ You must also install the correct torch_scatter for your environment (https://py
 
 ### Running Model
 
-This repository creates a new Nerfstudio method named "scaffold-gs". To train with it, run the command:
+This repository creates two new Nerfstudio methods, named "scaffold-gs" and "gsdf". To train with them, run the following commands:
 
 ```bash
 ns-train scaffold-gs --data [PATH]
+ns-train gsdf --data [PATH]
 ```
+
+GSDF also supports mesh export. Follow the guide for [exporting geometry](../../quickstart/export_geometry.md). 
 
 ## Overview
 Scaffold-GS replaces the Gaussian kernel described in [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) with neural Gaussians that are bound to anchor points. During rasterization, the attributes (opacity, color, scale, rotation) of these neural Gaussians are calculated with respect to the viewing direction and distance. This view-adaptive rendering improves results in challenging conditions, such as texture-less areas, insufficient observations, fine-scale details, view-dependent light effects and multi-scale observations.
+
+GSDF is a dual-branch model that uses 3D Gaussian Splatting to supervise the training of a neural Signed Distance Field. The gaussian splatting branch provides depth maps to supervise SDF training. Once sufficiently initialized, the SDF can be used to guide the splitting and pruning of gaussians, ensuring geometric consistency and reducing floaters. 
