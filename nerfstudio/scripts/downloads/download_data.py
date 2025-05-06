@@ -189,7 +189,7 @@ class NerfstudioDownload(DatasetDownload):
     https://drive.google.com/drive/folders/19TV6kdVGcmg3cGZ1bNIUnBBMD-iQjRbG?usp=drive_link.
     """
 
-    capture_name: NerfstudioCaptureName = "bww_entrance"
+    capture_name: NerfstudioCaptureName = "nerfstudio-dataset"
 
     def download(self, save_dir: Path):
         """Download the nerfstudio dataset."""
