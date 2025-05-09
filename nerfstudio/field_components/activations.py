@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING
 import torch
 from jaxtyping import Float
 from torch import Tensor
-from torch.autograd import Function
 from torch.amp import custom_bwd, custom_fwd
+from torch.autograd import Function
 
 
 class _TruncExp(Function):
