@@ -574,18 +574,18 @@ class RayBatchStream(IterableDataset):
             """
             Here, the variable 'batch' refers to the output of our pixel sampler.
                 - batch is a dict_keys(['image', 'indices'])
-                - batch['image'] returns a pytorch tensor with shape `torch.Size([4096, 3])` , where 4096 = num_rays_per_batch. 
+                - batch['image'] returns a `torch.Size([4096, 3])` tensor on CPU, where 4096 = num_rays_per_batch. 
                     - Note: each row in this tensor represents the RGB values as floats in [0, 1] of the pixel the ray goes through. 
                     - The info of what specific image index that pixel belongs to is stored within batch[’indices’]
-                - batch['indices'] returns a pytorch tensor `torch.Size([4096, 3])` tensor where each row represents (image_idx, pixelRow, pixelCol)
+                - batch['indices'] returns a `torch.Size([4096, 3])` tensor on CPU where each row represents (image_idx, pixelRow, pixelCol)
             pixel_sampler (for variable_res_collate) will loop though each image, samples pixel within the mask, and returns 
             them as the variable `indices` which has shape torch.Size([4096, 3]), where each row represents a pixel (image_idx, pixelRow, pixelCol)
             """
             batch = worker_pixel_sampler.sample(collated_batch)  # type: ignore
             # Note: collated_batch["image"].get_device() will return CPU if self.exclude_batch_keys_from_device contains 'image'
             ray_indices = batch["indices"]
-            # the ray_bundle is on the GPU; batch["image"] is on the CPU, here we move it to the GPU
-            ray_bundle = self.ray_generator(ray_indices).to(self.device)
+            # Both ray_bundle and batch["image"] are on the CPU and will be moved to the GPU in the main process (parallel_datamanager.py)
+            ray_bundle = self.ray_generator(ray_indices)
             if self.custom_ray_processor:
                 ray_bundle, batch = self.custom_ray_processor(ray_bundle, batch)
 
@@ -645,10 +645,6 @@ class ImageBatchStream(IterableDataset):
                 camera, data = self.custom_image_processor(camera, data)
 
             i += 1
-            camera = camera.to(self.device)
-            for k in data.keys():
-                if isinstance(data[k], torch.Tensor):
-                    data[k] = data[k].to(self.device)
             yield camera, data
 
 
