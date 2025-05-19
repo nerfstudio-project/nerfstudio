@@ -1,0 +1,17 @@
+services:
+  nerfstudio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    shm_size: 12gb
+    ports:
+      - 7007:7007
+    volumes:
+      - ./workspace:/workspace/
+      - ./cache:/home/user/.cache/
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
