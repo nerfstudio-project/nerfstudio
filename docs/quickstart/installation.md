@@ -263,6 +263,16 @@ docker run --gpus all \                                         # Give the conta
             nerfstudio                                          # Docker image tag if you built the image from the Dockerfile by yourself using the command from above.
 ```
 
+You can also start an interactive terminal with [docker compose](https://docs.docker.com/compose/) by taking the following steps.
+
+```
+docker compose up -d                 # Start the server
+docker compose exec nerfstudio bash  # Start the shell
+docker compose down                  # Stop the server
+```
+
+Docker compose fetches the image from the Internet by default. If you want to build it from the source code, please edit compose.yaml and restart the server.
+
 ### Call nerfstudio commands directly
 
 Besides, the container can also directly be used by adding the nerfstudio command to the end.
