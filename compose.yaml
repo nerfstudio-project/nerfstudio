@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    hostname: nerfstudio
     shm_size: 12gb
     ports:
       - 7007:7007
