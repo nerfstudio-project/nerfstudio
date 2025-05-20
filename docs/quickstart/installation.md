@@ -271,7 +271,7 @@ docker compose exec nerfstudio bash  # Start the shell
 docker compose down                  # Stop the server
 ```
 
-Docker compose fetches the image from the Internet by default. If you want to build it from the source code, please edit compose.yaml and restart the server.
+Docker compose fetches the latest image from the Internet by default. If you want to build it from the source code or apply custom settings, please edit compose.yaml and restart the server.
 
 ### Call nerfstudio commands directly
 
