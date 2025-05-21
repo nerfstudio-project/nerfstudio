@@ -1,0 +1,22 @@
+services:
+  nerfstudio:
+    #image: ghcr.io/nerfstudio-project/nerfstudio:latest
+    # If you want to build from the source code, please delete image: directive and use the build: directive following
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: nerfstudio
+    shm_size: 12gb
+    ports:
+      - 7007:7007
+    volumes:
+      - ./workspace:/workspace/
+      - ./cache:/home/user/.cache/
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
