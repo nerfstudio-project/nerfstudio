@@ -514,7 +514,7 @@ class Mill19Download(DatasetDownload):
             split_filepaths = []
             for image_path, new_image_path in copied_images.items():
                 metadata_path = image_path.parent.parent / "metadata" / f"{image_path.stem}.pt"
-                metadata = torch.load(metadata_path, map_location="cpu")
+                metadata = torch.load(metadata_path, map_location="cpu", weights_only=False)
                 c2w = torch.eye(4)
                 c2w[:3] = metadata["c2w"]
                 file_path = str(Path("images") / f"{new_image_path.name}")
