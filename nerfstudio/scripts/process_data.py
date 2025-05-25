@@ -26,6 +26,7 @@ import tyro
 from typing_extensions import Annotated
 
 from nerfstudio.process_data import (
+    meshroom_utils,
     metashape_utils,
     odm_utils,
     polycam_utils,
@@ -331,6 +332,106 @@ class ProcessMetashape(BaseConverterToNerfstudioDataset, _NoDefaultProcessMetash
 
 
 @dataclass
+class _NoDefaultProcessMeshroom:
+    """Private class to order the parameters of ProcessMeshroom in the right order for default values."""
+
+    json: Path
+    """Path to the Meshroom sfm.json file."""
+
+
+@dataclass
+class ProcessMeshroom(BaseConverterToNerfstudioDataset, _NoDefaultProcessMeshroom):
+    """Process Meshroom data into a nerfstudio dataset.
+
+    This script assumes that cameras have been aligned using Meshroom. After alignment, it is necessary to export the
+    camera poses as a `.json` file.
+
+    Optional: Meshroom does not align or constrain solved cameras, you may want to add a SfMTransform after the StructureFromMotion node, set the Transformation Method to Manual, and adjust camera positioning.
+
+    When you Start Meshroom processing, it generates an output folder for the ConvertSfMFormat node (right click > Open Folder). The sfm.json file needed for this script's --input function will be generated there.
+
+    This script does the following:
+    1. Scales images to a specified size.
+    2. Converts Meshroom poses into the nerfstudio format.
+    """
+
+    ply: Optional[Path] = None
+    """Path to the Meshroom point export ply file."""
+
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    max_dataset_size: int = 600
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
+
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+
+        if self.json.suffix != ".json":
+            raise ValueError(f"JSON file {self.json} must have a .json extension")
+        if not self.json.exists():
+            raise ValueError(f"JSON file {self.json} doesn't exist")
+        if self.eval_data is not None:
+            raise ValueError("Cannot use eval_data since cameras were already aligned with Meshroom.")
+
+        if self.ply is not None:
+            if self.ply.suffix != ".ply":
+                raise ValueError(f"PLY file {self.ply} must have a .ply extension")
+            if not self.ply.exists():
+                raise ValueError(f"PLY file {self.ply} doesn't exist")
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+
+        # Copy images to output directory
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
+        copied_image_paths = process_data_utils.copy_images_list(
+            image_filenames,
+            image_dir=image_dir,
+            verbose=self.verbose,
+            num_downscales=self.num_downscales,
+        )
+        num_frames = len(copied_image_paths)
+
+        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+        original_names = [image_path.stem for image_path in image_filenames]
+        image_filename_map = dict(zip(original_names, copied_image_paths))
+
+        if self.max_dataset_size > 0 and num_frames != num_orig_images:
+            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
+            summary_log.append(
+                "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
+                f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
+            )
+        else:
+            summary_log.append(f"Started with {num_frames} images")
+
+        # Save json
+        if num_frames == 0:
+            CONSOLE.print("[bold red]No images found, exiting")
+            sys.exit(1)
+        summary_log.extend(
+            meshroom_utils.meshroom_to_json(
+                image_filename_map=image_filename_map,
+                json_filename=self.json,
+                output_dir=self.output_dir,
+                ply_filename=self.ply,
+                verbose=self.verbose,
+            )
+        )
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
+@dataclass
 class _NoDefaultProcessRealityCapture:
     """Private class to order the parameters of ProcessRealityCapture in the right order for default values."""
 
@@ -529,6 +630,7 @@ Commands = Union[
     Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
     Annotated[ProcessODM, tyro.conf.subcommand(name="odm")],
+    Annotated[ProcessMeshroom, tyro.conf.subcommand(name="meshroom")],
 ]
 
 # Add aria subcommand if projectaria_tools is installed.
