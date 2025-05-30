@@ -33,6 +33,7 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -216,6 +217,12 @@ class Viewer:
         with tabs.add_tab("Export", viser.Icon.PACKAGE_EXPORT):
             populate_export_tab(self.viser_server, self.control_panel, config_path, self.pipeline.model)
 
+        self.update_scene_box_button = self.viser_server.add_gui_button(
+            label="Update Scene Box", disabled=False, icon=None
+        )
+        # Set the on_click event for the button
+        self.update_scene_box_button.on_click(lambda _: self.update_scene_box())
+
         # Keep track of the pointers to generated GUI folders, because each generated folder holds a unique ID.
         viewer_gui_folders = dict()
 
@@ -288,7 +295,149 @@ class Viewer:
                 point_shape="circle",
                 visible=False,  # Hidden by default.
             )
+
+        self.toggle_pause_button()
+        self._toggle_training_state(None)
+
+        if hasattr(self.pipeline.model, "seed_points"):
+            if self.pipeline.model.seed_points[0] is not None:
+                self.viser_server.add_point_cloud(
+                    "/seed_points",
+                    points=self.pipeline.model.seed_points[0].numpy(force=True) * VISER_NERFSTUDIO_SCALE_RATIO,
+                    colors=self.pipeline.model.seed_points[1].numpy(force=True),
+                    point_size=0.1,
+                    point_shape="circle",
+                    visible=False,
+                )
+
+        scene_box = pipeline.model.scene_box
+        aabb = scene_box.aabb.detach().cpu().numpy() * VISER_NERFSTUDIO_SCALE_RATIO
+
+        # Extract the min and max coordinates from the AABB
+        min_coords = aabb[0]
+        max_coords = aabb[1]
+
+        # Initialize points for interactive bounding box
+        point1 = min_coords
+        point2 = max_coords
+        self.transform_controls = []
+        self.points = [point1, point2]
+
+        for i, point in enumerate(self.points):
+            control = self.viser_server.add_transform_controls(
+                name=f"/point{i + 1}",
+                position=point,
+                scale=1,
+                disable_axes=False,
+                disable_sliders=False,
+                disable_rotations=True,
+                visible=True,
+            )
+            self.transform_controls.append(control)
+
+        tab_group = self.viser_server.add_gui_tab_group()
+
+        with tab_group.add_tab("Scene Box"):
+            gui_point_position_0 = self.viser_server.add_gui_vector3(
+                label="aabb[0]",
+                initial_value=self.points[0],
+                step=0.05,
+            )
+            gui_point_position_1 = self.viser_server.add_gui_vector3(
+                label="aabb[0]",
+                initial_value=self.points[1],
+                step=0.05,
+            )
+
+        self.gui_point_positions = [gui_point_position_0, gui_point_position_1]
+
+        # Function to update the bounding box and GUI elements
+        self.update_bounding_box()
+
+        # Set up callbacks to update the bounding box when points are moved
+        for i, control in enumerate(self.transform_controls):
+            self.set_callback_in_closure(i, control)
+
         self.ready = True
+
+    @staticmethod
+    def convert_aabb_to_bounding_box(min_coords, max_coords):
+        """Convert a SceneBox AABB to vertices and triangular faces for a bounding box."""
+        min_corner = min_coords
+        max_corner = max_coords
+
+        vertices = np.array(
+            [
+                [min_corner[0], min_corner[1], min_corner[2]],  # Vertex 0
+                [max_corner[0], min_corner[1], min_corner[2]],  # Vertex 1
+                [max_corner[0], max_corner[1], min_corner[2]],  # Vertex 2
+                [min_corner[0], max_corner[1], min_corner[2]],  # Vertex 3
+                [min_corner[0], min_corner[1], max_corner[2]],  # Vertex 4
+                [max_corner[0], min_corner[1], max_corner[2]],  # Vertex 5
+                [max_corner[0], max_corner[1], max_corner[2]],  # Vertex 6
+                [min_corner[0], max_corner[1], max_corner[2]],  # Vertex 7
+            ]
+        )
+
+        faces = np.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],  # Bottom face
+                [4, 5, 6],
+                [4, 6, 7],  # Top face
+                [0, 1, 5],
+                [0, 5, 4],  # Side face
+                [1, 2, 6],
+                [1, 6, 5],  # Side face
+                [2, 3, 7],
+                [2, 7, 6],  # Side face
+                [3, 0, 4],
+                [3, 4, 7],  # Side face
+            ]
+        )
+
+        return vertices, faces
+
+    def set_callback_in_closure(self, i, control):
+        @control.on_update
+        def _(_):
+            self.update_bounding_box()
+
+    def update_bounding_box(self):
+        min_coords = np.minimum(self.transform_controls[0].position, self.transform_controls[1].position)
+        max_coords = np.maximum(self.transform_controls[0].position, self.transform_controls[1].position)
+        vertices, faces = Viewer.convert_aabb_to_bounding_box(min_coords, max_coords)
+
+        # Add or update the bounding box mesh in the Viser scene
+        self.viser_server.add_mesh_simple(
+            name="/bounding_box",
+            vertices=vertices,
+            faces=faces,
+            color=(255, 255, 255),
+            wireframe=True,
+            opacity=1.0,
+            material="standard",
+            flat_shading=False,
+            side="double",
+        )
+
+        # Update the GUI elements with the new positions
+        for i, control in enumerate(self.transform_controls):
+            self.gui_point_positions[i].value = control.position
+
+    def update_scene_box(self):
+        min_coords = np.minimum(self.transform_controls[0].position, self.transform_controls[1].position)
+        max_coords = np.maximum(self.transform_controls[0].position, self.transform_controls[1].position)
+
+        new_aabb = torch.tensor(
+            [min_coords / VISER_NERFSTUDIO_SCALE_RATIO, max_coords / VISER_NERFSTUDIO_SCALE_RATIO],
+            device=self.pipeline.model.device,
+            requires_grad=False,
+        )
+
+        self.pipeline.model.scene_box = SceneBox(aabb=new_aabb)
+        self.pipeline.model.render_aabb = SceneBox(aabb=new_aabb)
+        self.pipeline.model.populate_modules()
 
     def toggle_pause_button(self) -> None:
         self.pause_train.visible = not self.pause_train.visible
