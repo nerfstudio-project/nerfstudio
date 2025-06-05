@@ -99,6 +99,7 @@ def run_colmap(
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
+    mapper: Literal["colmap", "glomap"] = "colmap",
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -111,7 +112,8 @@ def run_colmap(
         verbose: If True, logs the output of the command.
         matching_method: Matching method to use.
         refine_intrinsics: If True, refine intrinsics.
-        colmap_cmd: Path to the COLMAP executable.
+        colmap_cmd: Path to the COLMAP executable for feature extraction and matching.
+        mapper: Binary to use for the mapping stage ("colmap" or "glomap").
     """
 
     colmap_version = get_colmap_version(colmap_cmd)
@@ -154,7 +156,7 @@ def run_colmap(
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
     mapper_cmd = [
-        f"{colmap_cmd} mapper",
+        f"{mapper} mapper",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
