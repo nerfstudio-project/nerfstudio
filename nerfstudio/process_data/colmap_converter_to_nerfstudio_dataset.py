@@ -83,6 +83,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    mapper: Literal["colmap", "glomap"] = "colmap"
+    """Binary to use for the mapping stage. Either ``colmap`` or ``glomap``."""
     images_per_equirect: Literal[8, 14] = 8
     """Number of samples per image to take from each equirectangular image.
        Used only when camera-type is equirectangular.
@@ -219,6 +221,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 matching_method=self.matching_method,
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
+                mapper=self.mapper,
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
@@ -245,6 +248,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         super().__post_init__()
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed(self.colmap_cmd)
+        if self.mapper == "glomap":
+            install_checks.check_colmap_installed("glomap")
 
         if self.crop_bottom < 0.0 or self.crop_bottom > 1:
             raise RuntimeError("crop_bottom must be set between 0 and 1.")
