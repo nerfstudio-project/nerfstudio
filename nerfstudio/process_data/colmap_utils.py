@@ -113,7 +113,8 @@ def run_colmap(
         matching_method: Matching method to use.
         refine_intrinsics: If True, refine intrinsics.
         colmap_cmd: Path to the COLMAP executable for feature extraction and matching.
-        mapper: Binary to use for the mapping stage ("colmap" or "glomap").
+        mapper: Binary used only for the mapping stage. Set to ``glomap`` to call
+            :command:`glomap` instead of :command:`colmap`.
     """
 
     colmap_version = get_colmap_version(colmap_cmd)

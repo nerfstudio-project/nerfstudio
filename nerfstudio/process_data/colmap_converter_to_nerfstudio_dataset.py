@@ -84,7 +84,11 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
     mapper: Literal["colmap", "glomap"] = "colmap"
-    """Binary to use for the mapping stage. Either ``colmap`` or ``glomap``."""
+    """Binary to use for the mapping stage.
+
+    Only the COLMAP ``mapper`` command is affected by this flag, allowing the
+    use of :command:`glomap` if installed. Defaults to ``colmap``.
+    """
     images_per_equirect: Literal[8, 14] = 8
     """Number of samples per image to take from each equirectangular image.
        Used only when camera-type is equirectangular.
