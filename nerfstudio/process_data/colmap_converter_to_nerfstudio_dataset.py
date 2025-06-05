@@ -110,6 +110,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     use_single_camera_mode: bool = True
     """Whether to assume all images taken with the same camera characteristics, set to False for multiple cameras in colmap (only works with hloc sfm_tool).
     """
+    estimate_affine_shape: bool = False
+    """If True, enable affine shape estimation during SIFT feature extraction."""
+    domain_size_pooling: bool = False
+    """If True, enable domain size pooling during SIFT feature extraction."""
 
     @staticmethod
     def default_colmap_path() -> Path:
@@ -226,6 +230,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
                 mapper=self.mapper,
+                estimate_affine_shape=self.estimate_affine_shape,
+                domain_size_pooling=self.domain_size_pooling,
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
