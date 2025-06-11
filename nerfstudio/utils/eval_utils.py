@@ -28,8 +28,36 @@ import yaml
 
 from nerfstudio.configs.method_configs import all_methods
 from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.data.dataparsers.mock_dataparser import MockDataParserConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import CONSOLE
+
+
+def patch_config_for_mock_data(config: TrainerConfig) -> TrainerConfig:
+    """Patch config to use mock data if original data path doesn't exist.
+    
+    This allows viewing checkpoints without requiring the original training data.
+    
+    Args:
+        config: The original trainer config
+        
+    Returns:
+        Modified config that uses mock data if original data is not available
+    """
+    # Check if the data path exists
+    data_path = config.pipeline.datamanager.dataparser.data
+    
+    if not data_path.exists():
+        CONSOLE.print(f"[yellow]Original data path {data_path} not found. Using mock data for inference.[/yellow]")
+        
+        # Replace the dataparser with MockDataParserConfig
+        config.pipeline.datamanager.dataparser = MockDataParserConfig()
+        
+        # If the datamanager has a data field, update it too
+        if hasattr(config.pipeline.datamanager, 'data'):
+            config.pipeline.datamanager.data = data_path  # Keep original for reference
+    
+    return config
 
 
 def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Tuple[Path, int]:
@@ -96,6 +124,9 @@ def eval_setup(
 
     if update_config_callback is not None:
         config = update_config_callback(config)
+
+    # Patch config to use mock data if original data is not available
+    config = patch_config_for_mock_data(config)
 
     # load checkpoints from wherever they were saved
     # TODO: expose the ability to choose an arbitrary checkpoint
