@@ -44,18 +44,23 @@ def patch_config_for_mock_data(config: TrainerConfig) -> TrainerConfig:
     Returns:
         Modified config that uses mock data if original data is not available
     """
-    # Check if the data path exists
-    data_path = config.pipeline.datamanager.dataparser.data
+    # Determine the actual data path that will be used by the dataparser
+    dataparser_data = config.pipeline.datamanager.dataparser.data
+    datamanager_data = getattr(config.pipeline.datamanager, 'data', None)
     
-    if not data_path.exists():
-        CONSOLE.print(f"[yellow]Original data path {data_path} not found. Using mock data for inference.[/yellow]")
+    # The dataparser will use its own data field if it's meaningful, otherwise it inherits from datamanager
+    if dataparser_data and str(dataparser_data) != "." and dataparser_data.name != "":
+        actual_data_path = dataparser_data
+    else:
+        actual_data_path = datamanager_data
+    
+    # Check if the actual data path exists
+    if not actual_data_path or not actual_data_path.exists():
+        CONSOLE.print(f"[yellow]Original data path {actual_data_path} not found. Using mock data for inference.[/yellow]")
         
         # Replace the dataparser with MockDataParserConfig
         config.pipeline.datamanager.dataparser = MockDataParserConfig()
-        
-        # If the datamanager has a data field, update it too
-        if hasattr(config.pipeline.datamanager, 'data'):
-            config.pipeline.datamanager.data = data_path  # Keep original for reference
+        CONSOLE.print("[green]Successfully switched to mock dataparser for inference.[/green]")
     
     return config
 
@@ -129,8 +134,14 @@ def eval_setup(
     config = patch_config_for_mock_data(config)
 
     # load checkpoints from wherever they were saved
-    # TODO: expose the ability to choose an arbitrary checkpoint
-    config.load_dir = config.get_checkpoint_dir()
+    # For shared checkpoints, the checkpoints should be relative to the config file location
+    config_dir = config_path.parent
+    expected_checkpoint_dir = config_dir / "nerfstudio_models"
+    if expected_checkpoint_dir.exists():
+        config.load_dir = expected_checkpoint_dir
+    else:
+        # Fallback to the original behavior
+        config.load_dir = config.get_checkpoint_dir()
 
     # setup pipeline (which includes the DataManager)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
