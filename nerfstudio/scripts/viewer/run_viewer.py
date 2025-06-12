@@ -87,8 +87,18 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
         pipeline: Pipeline instance of which to load weights
         step: Step at which the pipeline was saved
     """
-    base_dir = config.get_base_dir()
-    viewer_log_path = base_dir / config.viewer.relative_log_filename
+    # Check if we're using a shared checkpoint (load_dir is outside the standard experiment structure)
+    try:
+        base_dir = config.get_base_dir()
+        # If get_base_dir() would create a path that doesn't exist, we're likely using a shared checkpoint
+        if not base_dir.parent.exists():
+            # Use the checkpoint directory as the base for log files
+            viewer_log_path = config.load_dir / config.viewer.relative_log_filename
+        else:
+            viewer_log_path = base_dir / config.viewer.relative_log_filename
+    except (FileNotFoundError, OSError):
+        # Fallback to using the checkpoint directory for shared checkpoints
+        viewer_log_path = config.load_dir / config.viewer.relative_log_filename
     banner_messages = None
     viewer_state = None
     viewer_callback_lock = Lock()
