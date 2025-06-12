@@ -49,6 +49,7 @@ def patch_config_for_mock_data(config: TrainerConfig) -> TrainerConfig:
     datamanager_data = getattr(config.pipeline.datamanager, 'data', None)
     
     # The dataparser will use its own data field if it's meaningful, otherwise it inherits from datamanager
+    # TODO: this is a hack, but I really need to change this
     if dataparser_data and str(dataparser_data) != "." and dataparser_data.name != "":
         actual_data_path = dataparser_data
     else:
