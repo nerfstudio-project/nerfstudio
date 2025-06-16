@@ -32,6 +32,7 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_filename,
     get_train_eval_split_fraction,
     get_train_eval_split_interval,
+    get_train_eval_split_indices
 )
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
@@ -59,7 +60,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The method to use to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    eval_mode: Literal["fraction", "filename", "interval", "all"] = "fraction"
+    eval_mode: Literal["fraction", "filename", "interval", "all", "indices"] = "fraction"
     """
     The method to use for splitting the dataset into train and eval.
     Fraction splits based on a percentage for train and the remaining for eval.
@@ -77,6 +78,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Replace the unknown pixels with this color. Relevant if you have a mask but still sample everywhere."""
     load_3D_points: bool = False
     """Whether to load the 3D points from the colmap reconstruction."""
+    eval_image_indices: Tuple[int, ...] = (0,)
+    """Specifies the image indices to use during eval; if None, uses all."""
 
 
 @dataclass
@@ -212,6 +215,8 @@ class Nerfstudio(DataParser):
                 i_train, i_eval = get_train_eval_split_filename(image_filenames)
             elif self.config.eval_mode == "interval":
                 i_train, i_eval = get_train_eval_split_interval(image_filenames, self.config.eval_interval)
+            elif self.config.eval_mode == "indices":
+                i_train, i_eval = get_train_eval_split_indices(image_filenames, self.config.eval_image_indices)
             elif self.config.eval_mode == "all":
                 CONSOLE.log(
                     "[yellow] Be careful with '--eval-mode=all'. If using camera optimization, the cameras may diverge in the current implementation, giving unpredictable results."
