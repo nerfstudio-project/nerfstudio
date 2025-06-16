@@ -100,7 +100,10 @@ def get_train_eval_split_all(image_filenames: List) -> Tuple[np.ndarray, np.ndar
     i_eval = i_all
     return i_train, i_eval
 
-def get_train_eval_split_indices(image_filenames: List, eval_image_indices: Tuple[int, ...]) -> Tuple[np.ndarray, np.ndarray]:
+
+def get_train_eval_split_indices(
+    image_filenames: List, eval_image_indices: Tuple[int, ...]
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Get the train/eval split based on specified indices in the config.
 
@@ -116,4 +119,3 @@ def get_train_eval_split_indices(image_filenames: List, eval_image_indices: Tupl
     train_indices = all_indices - eval_indices
 
     return np.array(sorted(train_indices)), np.array(sorted(eval_indices))
-

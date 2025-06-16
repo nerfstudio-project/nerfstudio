@@ -31,8 +31,8 @@ from nerfstudio.data.utils.dataparsers_utils import (
     get_train_eval_split_all,
     get_train_eval_split_filename,
     get_train_eval_split_fraction,
+    get_train_eval_split_indices,
     get_train_eval_split_interval,
-    get_train_eval_split_indices
 )
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
