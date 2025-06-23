@@ -1021,3 +1021,34 @@ class Cameras(TensorDataclass):
             self.width = torch.ceil(self.width * scaling_factor).to(torch.int64)
         else:
             raise ValueError("Scale rounding mode must be 'floor', 'round' or 'ceil'.")
+
+    def update_tiling_intrinsics(self, tiling_factor: int) -> None:
+        """
+        Update camera intrinsics based on tiling_factor.
+        Must match tiling logic as defined in dataparser.
+
+        Args:
+            tiling_factor: Tiling factor to apply to the camera intrinsics.
+        """
+        if tiling_factor == 1:
+            return
+
+        num_tiles = tiling_factor**2
+
+        # Compute tile sizes
+        base_tile_w, remainder_w = self.width // tiling_factor, self.width % tiling_factor
+        base_tile_h, remainder_h = self.height // tiling_factor, self.height % tiling_factor
+
+        tile_indices = torch.arange(len(self.cx), device=self.cx.device).unsqueeze(1) % num_tiles
+        row_indices, col_indices = tile_indices // tiling_factor, tile_indices % tiling_factor
+
+        x_offsets = col_indices * base_tile_w + torch.minimum(col_indices, remainder_w)
+        y_offsets = row_indices * base_tile_h + torch.minimum(row_indices, remainder_h)
+
+        # Adjust principal points
+        self.cx = self.cx - x_offsets
+        self.cy = self.cy - y_offsets
+
+        # Adjust height/width
+        self.width = base_tile_w + (col_indices < remainder_w).to(torch.int)
+        self.height = base_tile_h + (row_indices < remainder_h).to(torch.int)
