@@ -251,8 +251,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 predictions,
                 conf_threshold=50.0,
                 mask_sky=False,
-                mask_black_bg=False,
-                mask_white_bg=False,
+                mask_black_bg=True,
+                mask_white_bg=True,
                 stride=1,
             )
 

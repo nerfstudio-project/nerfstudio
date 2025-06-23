@@ -554,15 +554,6 @@ else:
         ],
     ]
 
-from nerfstudio.process_data.vggt_colmap_converter_to_nerfstudio_dataset import VGGTColmapConverterToNerfstudioDataset
-
-# Add VGGTColmapConverterToNerfstudioDataset to the Commands union
-Commands = Union[
-    Commands,
-    Annotated[VGGTColmapConverterToNerfstudioDataset, tyro.conf.subcommand(name="images-vggt")],
-]
-
-
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")

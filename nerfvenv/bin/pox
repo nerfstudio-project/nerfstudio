@@ -1,0 +1,27 @@
+#!/home/jack/nerfstudio/nerfvenv/bin/python3
+#
+# Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
+# Copyright (c) 2018-2024 The Uncertainty Quantification Foundation.
+# License: 3-clause BSD.  The full license text is available at:
+#  - https://github.com/uqfoundation/pox/blob/master/LICENSE
+
+import pox.__main__
+from pox.__main__ import *
+__doc__ = pox.__main__.__doc__
+
+
+if __name__=='__main__':
+    import sys
+    try:
+        func = sys.argv[1]
+    except: func = None
+    if func:
+        try:
+            exec('print(%s)' % func)
+        except:
+            print("Error: incorrect syntax '%s'\n" % func)
+            exec('print(%s.__doc__)' % func.split('(')[0])
+    else: help()
+
+
+# End of file 
