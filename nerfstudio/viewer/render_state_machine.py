@@ -147,10 +147,9 @@ class RenderStateMachine(threading.Thread):
                         [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
                         device=self.viewer.get_model().device,
                     )
-                    self.viewer.get_model().set_background(background_color)
+                    self.viewer.get_model().set_background(background_color)  # type: ignore[reportCallIssue]
                 was_training = self.viewer.get_model().training
                 self.viewer.get_model().eval()
-                step = self.viewer.step
                 try:
                     if self.viewer.control_panel.crop_viewport:
                         color = self.viewer.control_panel.background_color
