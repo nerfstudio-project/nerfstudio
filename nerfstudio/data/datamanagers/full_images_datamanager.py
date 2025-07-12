@@ -26,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
+from itertools import islice
 from pathlib import Path
 from typing import Dict, ForwardRef, Generic, List, Literal, Optional, Tuple, Type, Union, cast, get_args, get_origin
 
@@ -45,7 +46,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.data_utils import identity_collate
 from nerfstudio.data.utils.dataloaders import ImageBatchStream, _undistort_image
-from nerfstudio.utils.misc import get_orig_class
+from nerfstudio.utils.misc import get_dict_to_torch, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -84,7 +85,7 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 4
+    prefetch_factor: Optional[int] = 4
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
@@ -356,9 +357,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
                 self.eval_imagebatch_stream,
                 batch_size=1,
                 num_workers=0,
-                collate_fn=identity_collate,
+                collate_fn=lambda x: x[0],
             )
-            return [batch[0] for batch in dataloader]
+            return list(islice(dataloader, len(self.eval_dataset)))
 
         image_indices = [i for i in range(len(self.eval_dataset))]
         data = [d.copy() for d in self.cached_eval]
@@ -388,6 +389,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_count += 1
         if self.config.cache_images == "disk":
             camera, data = next(self.iter_train_image_dataloader)[0]
+            camera = camera.to(self.device)
+            data = get_dict_to_torch(data, self.device)
             return camera, data
 
         image_idx = self.train_unseen_cameras.pop(0)
@@ -414,6 +417,8 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.eval_count += 1
         if self.config.cache_images == "disk":
             camera, data = next(self.iter_eval_image_dataloader)[0]
+            camera = camera.to(self.device)
+            data = get_dict_to_torch(data, self.device)
             return camera, data
 
         return self.next_eval_image(step=step)

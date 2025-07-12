@@ -2,7 +2,7 @@
 
 > We have a real-time web viewer that requires no installation. It's available at [https://viewer.nerf.studio/](https://viewer.nerf.studio/), where you can connect to your training job.
 
-The viewer is built on [Viser](https://github.com/brentyi/viser/tree/main/viser) using [ThreeJS](https://threejs.org/) and packaged into a [ReactJS](https://reactjs.org/) application. This client viewer application will connect via a websocket to a server running on your machine.
+The viewer is built on [Viser](https://github.com/nerfstudio-project/viser) using [ThreeJS](https://threejs.org/) and packaged into a [ReactJS](https://reactjs.org/) application. This client viewer application will connect via a websocket to a server running on your machine.
 
 ```{toctree}
 :titlesonly:

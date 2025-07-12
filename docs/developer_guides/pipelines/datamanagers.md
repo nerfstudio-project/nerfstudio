@@ -115,6 +115,32 @@ To train splatfacto with a large dataset that's unable to fit in memory, please 
 ns-train splatfacto --data {PROCESSED_DATA_DIR} --pipeline.datamanager.cache-images disk
 ```
 
+Checkout these flowcharts for more customization on large datasets!
+
+```{image} imgs/DatamanagerGuide-LargeNeRF-light.png
+:align: center
+:class: only-light
+:width: 600
+```
+
+```{image} imgs/DatamanagerGuide-LargeNeRF-dark.png
+:align: center
+:class: only-dark
+:width: 600
+```
+
+```{image} imgs/DatamanagerGuide-Large3DGS-light.png
+:align: center
+:class: only-light
+:width: 600
+```
+
+```{image} imgs/DatamanagerGuide-Large3DGS-dark.png
+:align: center
+:class: only-dark
+:width: 600
+```
+
 ## Migrating Your DataManager to the new DataManager 
 Many methods subclass a DataManager and add extra data to it. If you would like your custom datamanager to also support new parallel features, you can migrate any custom dataloading logic to the new `custom_ray_processor()` API. This function takes in a full training batch (either image or ray bundle) and allows the user to modify or add to it. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. This API provides an interface to attach new information to the RayBundle (for ray based methods), Cameras object (for splatting based methods), or ground truth dictionary. It runs in a background process if disk caching is enabled, otherwise it runs in the main process.
 

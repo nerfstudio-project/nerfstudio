@@ -40,7 +40,7 @@ from nerfstudio.data.utils.dataloaders import (
     RayBatchStream,
     variable_res_collate,
 )
-from nerfstudio.utils.misc import get_orig_class
+from nerfstudio.utils.misc import get_dict_to_torch, get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
 
@@ -56,7 +56,7 @@ class ParallelDataManagerConfig(VanillaDataManagerConfig):
     dataloader_num_workers: int = 4
     """The number of workers performing the dataloading from either disk/RAM, which 
     includes collating, pixel sampling, unprojecting, ray generation etc."""
-    prefetch_factor: int = 10
+    prefetch_factor: Optional[int] = 10
     """The limit number of batches a worker will start loading once an iterator is created. 
     More details are described here: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader"""
     cache_compressed_images: bool = False
@@ -241,12 +241,16 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
         ray_bundle, batch = next(self.iter_train_raybundles)[0]
+        ray_bundle = ray_bundle.to(self.device)
+        batch = get_dict_to_torch(batch, self.device)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
         ray_bundle, batch = next(self.iter_train_raybundles)[0]
+        ray_bundle = ray_bundle.to(self.device)
+        batch = get_dict_to_torch(batch, self.device)
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[Cameras, Dict]:
