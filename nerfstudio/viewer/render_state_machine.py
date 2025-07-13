@@ -200,7 +200,10 @@ class RenderStateMachine(threading.Thread):
         render_time = vis_t.duration
         if writer.is_initialized() and render_time != 0:
             writer.put_time(
-                name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.viewer.step, avg_over_steps=True
+                name=EventName.VIS_RAYS_PER_SEC,
+                duration=num_rays / render_time,
+                step=self.viewer.step,
+                avg_over_steps=True,
             )
         return outputs
 

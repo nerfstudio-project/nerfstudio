@@ -77,9 +77,9 @@ def _undistort_image(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
-        assert distortion_params[3] == 0, (
-            "We don't support the 4th Brown parameter for image undistortion, Only k1, k2, k3, p1, p2 can be non-zero."
-        )
+        assert (
+            distortion_params[3] == 0
+        ), "We don't support the 4th Brown parameter for image undistortion, Only k1, k2, k3, p1, p2 can be non-zero."
         # we rearrange the distortion parameters because OpenCV expects the order (k1, k2, p1, p2, k3)
         # see https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
         distortion_params = np.array(
