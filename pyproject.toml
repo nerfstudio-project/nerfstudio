@@ -103,8 +103,7 @@ dev = [
     # NOTE: Disabling projectaria-tools because it doesn't have prebuilt windows wheels
     # Syntax comes from here: https://pip.pypa.io/en/stable/reference/requirement-specifiers/
     "projectaria-tools>=1.3.1; sys_platform != 'win32'",
-    # We could pin torch to <=2.1 to fix https://github.com/pytorch/pytorch/issues/118736
-    "torch>=1.13.1,<2.2",
+    "torch==2.7.1",
     "awscli==1.33.18"
 ]
 
