@@ -159,14 +159,6 @@ defineConstant = { DEBUG = true }
 reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
-# reportUndefinedVariable = false  # Suppress jaxtyping false positives
-# reportInvalidTypeForm = false    # Suppress jaxtyping syntax errors
-# reportGeneralTypeIssues = "warning"  # Keep as warning instead of error
-# reportAttributeAccessIssue = "warning"  # Reduce severity
-# reportOptionalMemberAccess = "warning"  # Reduce severity
-# reportIncompatibleVariableOverride = "warning"  # Complex inheritance patterns
-# reportIncompatibleMethodOverride = "warning"   # Complex inheritance patterns
-# reportArgumentType = "warning"  # Reduce severity for type mismatches
 
 pythonPlatform = "Linux"
 
