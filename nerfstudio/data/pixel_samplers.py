@@ -227,6 +227,7 @@ class PixelSampler:
 
                 rand_samples = torch.rand((samples_needed, 2), device=device)
                 # Convert random samples to radius and theta.
+                assert self.config.fisheye_crop_radius is not None
                 radii = self.config.fisheye_crop_radius * torch.sqrt(rand_samples[:, 0])
                 theta = 2.0 * torch.pi * rand_samples[:, 1]
 

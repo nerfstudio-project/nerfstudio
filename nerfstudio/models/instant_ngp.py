@@ -19,7 +19,7 @@ Implementation of Instant NGP.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union, cast
 
 import nerfacc
 import torch
@@ -152,7 +152,7 @@ class NGPModel(Model):
         def update_occupancy_grid(step: int):
             self.occupancy_grid.update_every_n_steps(
                 step=step,
-                occ_eval_fn=lambda x: self.field.density_fn(x) * self.config.render_step_size,
+                occ_eval_fn=lambda x: self.field.density_fn(x) * cast(float, self.config.render_step_size),
             )
 
         return [
@@ -170,7 +170,7 @@ class NGPModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    def get_outputs(self, ray_bundle: RayBundle):
+    def get_outputs(self, ray_bundle: RayBundle):  # type: ignore
         assert self.field is not None
         num_rays = len(ray_bundle)
 

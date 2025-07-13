@@ -21,7 +21,7 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, OrderedDict, Tuple, Union
+from typing import List, Literal, Optional, OrderedDict, Tuple, Union, cast
 
 import cv2
 import imageio
@@ -95,7 +95,7 @@ def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List
     else:
         idx = np.arange(num_orig_images)
 
-    image_filenames = list(np.array(image_paths)[idx])
+    image_filenames = cast(List[Path], list(np.array(image_paths)[idx]))
 
     return image_filenames, num_orig_images
 
@@ -596,7 +596,7 @@ def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np
     mask = np.zeros((height, width), dtype=np.uint8)
     center = (width // 2, height // 2)
     radius = int(percent_radius * np.sqrt(width**2 + height**2) / 2.0)
-    cv2.circle(mask, center, radius, 1, -1)
+    cv2.circle(mask, center, radius, 1, -1)  # type: ignore
     return mask
 
 

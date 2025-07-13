@@ -58,7 +58,7 @@ dependencies = [
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==0.2.7",
+    "viser==1.0.0",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
@@ -103,7 +103,7 @@ dev = [
     # NOTE: Disabling projectaria-tools because it doesn't have prebuilt windows wheels
     # Syntax comes from here: https://pip.pypa.io/en/stable/reference/requirement-specifiers/
     "projectaria-tools>=1.3.1; sys_platform != 'win32'",
-    # pin torch to <=2.1 to fix https://github.com/pytorch/pytorch/issues/118736
+    # We could pin torch to <=2.1 to fix https://github.com/pytorch/pytorch/issues/118736
     "torch>=1.13.1,<2.2",
     "awscli==1.33.18"
 ]
@@ -160,16 +160,15 @@ defineConstant = { DEBUG = true }
 reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
-reportUndefinedVariable = false  # Suppress jaxtyping false positives
-reportInvalidTypeForm = false    # Suppress jaxtyping syntax errors
-reportGeneralTypeIssues = "warning"  # Keep as warning instead of error
-reportAttributeAccessIssue = "warning"  # Reduce severity
-reportOptionalMemberAccess = "warning"  # Reduce severity
-reportIncompatibleVariableOverride = "warning"  # Complex inheritance patterns
-reportIncompatibleMethodOverride = "warning"   # Complex inheritance patterns
-reportArgumentType = "warning"  # Reduce severity for type mismatches
+# reportUndefinedVariable = false  # Suppress jaxtyping false positives
+# reportInvalidTypeForm = false    # Suppress jaxtyping syntax errors
+# reportGeneralTypeIssues = "warning"  # Keep as warning instead of error
+# reportAttributeAccessIssue = "warning"  # Reduce severity
+# reportOptionalMemberAccess = "warning"  # Reduce severity
+# reportIncompatibleVariableOverride = "warning"  # Complex inheritance patterns
+# reportIncompatibleMethodOverride = "warning"   # Complex inheritance patterns
+# reportArgumentType = "warning"  # Reduce severity for type mismatches
 
-pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 [tool.ruff]
