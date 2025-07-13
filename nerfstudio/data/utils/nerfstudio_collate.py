@@ -152,14 +152,16 @@ def nerfstudio_collate(batch: Any, extra_mappings: Union[Dict[type, Callable], N
         assert all((isinstance(cam, Cameras) for cam in batch))
         assert all((cam.distortion_params is None for cam in batch)) or all(
             (cam.distortion_params is not None for cam in batch)
-        ), "All cameras must have distortion parameters or none of them should have distortion parameters.\
+        ), (
+            "All cameras must have distortion parameters or none of them should have distortion parameters.\
             Generalized batching will be supported in the future."
+        )
 
         if batch[0].metadata is not None:
             metadata_keys = batch[0].metadata.keys()
-            assert all(
-                (cam.metadata.keys() == metadata_keys for cam in batch)
-            ), "All cameras must have the same metadata keys."
+            assert all((cam.metadata.keys() == metadata_keys for cam in batch)), (
+                "All cameras must have the same metadata keys."
+            )
         else:
             assert all((cam.metadata is None for cam in batch)), "All cameras must have the same metadata keys."
 
