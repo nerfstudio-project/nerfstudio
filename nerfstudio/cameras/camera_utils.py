@@ -172,7 +172,7 @@ def get_interpolated_poses(pose_a: NDArray, pose_b: NDArray, steps: int = 10) ->
     quat_b = quaternion_from_matrix(pose_b[:3, :3])
 
     ts = np.linspace(0, 1, steps)
-    quats = [quaternion_slerp(quat_a, quat_b, t) for t in ts]
+    quats = [quaternion_slerp(quat_a, quat_b, float(t)) for t in ts]
     trans = [(1 - t) * pose_a[:3, 3] + t * pose_b[:3, 3] for t in ts]
 
     poses_ab = []
@@ -199,7 +199,7 @@ def get_interpolated_k(
         List of interpolated camera poses
     """
     Ks: List[Float[Tensor, "3 3"]] = []
-    ts = np.linspace(0, 1, steps)
+    ts = torch.linspace(0, 1, steps, dtype=k_a.dtype, device=k_a.device)
     for t in ts:
         new_k = k_a * (1.0 - t) + k_b * t
         Ks.append(new_k)
@@ -218,7 +218,7 @@ def get_interpolated_time(
         steps: number of steps the interpolated pose path should contain
     """
     times: List[Float[Tensor, "1"]] = []
-    ts = np.linspace(0, 1, steps)
+    ts = torch.linspace(0, 1, steps, dtype=time_a.dtype, device=time_a.device)
     for t in ts:
         new_t = time_a * (1.0 - t) + time_b * t
         times.append(new_t)

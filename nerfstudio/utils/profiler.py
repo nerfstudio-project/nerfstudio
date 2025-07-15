@@ -58,7 +58,7 @@ def time_function(name_or_func: Union[CallableT, str]) -> Union[CallableT, Conte
     Returns:
         A wrapped function or context to use in a `with` statement.
     """
-    return _TimeFunction(name_or_func)
+    return _TimeFunction(name_or_func)  # type: ignore[reportReturnType]
 
 
 class _TimeFunction(ContextDecorator):

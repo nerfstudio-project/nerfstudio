@@ -120,7 +120,7 @@ class EyefulTowerDownload(DatasetDownload):
 
         root = transformed.getroot()
         assert len(root) == 1
-        chunk = root[0]
+        chunk = root[0]  # type: ignore[reportOptionalSubscript]
         sensors = chunk.find("sensors")
         assert sensors is not None
 

@@ -455,6 +455,7 @@ class ColmapDataParser(DataParser):
                 points3D_image_ids.append(
                     torch.cat((nids, torch.full((max_num_points - len(nids),), -1, dtype=torch.int64)))
                 )
+                assert downscale_factor is not None
                 points3D_image_xy.append(
                     torch.cat((nxy, torch.full((max_num_points - len(nxy), nxy.shape[-1]), 0, dtype=torch.float32)))
                     / downscale_factor
