@@ -1,0 +1,672 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Autodesk Maya Plug-in" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/extensions/maya_plugin.html" />
+  
+<meta property="og:description" content="Overview: Link to the plug-in This extension allows users to combine animated scenes and VFX in Autodesk Maya with NeRF renders in Nerfacto. The extension creates a camera path JSON file that can b..." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Autodesk Maya Plug-in" />
+  <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Exporting to Unreal Engine" href="unreal_engine.html" /><link rel="prev" title="Blender VFX add-on" href="blender_addon.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Autodesk Maya Plug-in - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    <script src="../_static/clipboard.min.js"></script>
+    <script src="../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/require.min.js"></script>
+    <script src="../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Autodesk Maya Plug-in</a></li>
+<li class="toctree-l1"><a class="reference internal" href="unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/feature_splatting.html">    Feature-Splatting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="autodesk-maya-plug-in">
+<h1>Autodesk Maya Plug-in<a class="headerlink" href="#autodesk-maya-plug-in" title="Permalink to this heading">#</a></h1>
+<p align="center">
+    <img width="500" alt="image" src="https://github.com/user-attachments/assets/8fde7cae-d320-4de7-a5af-cb0204dd7959">
+</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">#</a></h2>
+<p><strong><a class="reference external" href="https://github.com/nerfstudio-project/nerfstudio/tree/main/nerfstudio/scripts/maya">Link to the plug-in</a></strong></p>
+<p>This extension allows users to combine animated scenes and VFX in Autodesk Maya with NeRF renders in Nerfacto. The extension creates a camera path JSON file that can be read by both Maya and Nerfstudio, then the user composites together an exported mp4 render from Nerfstudio and animation frames from Maya.</p>
+<center>
+<img width="800" alt="1" src="https://github.com/user-attachments/assets/8b85ee8a-f365-4de1-a47d-ef4db5a6184d" />
+</center>
+<p>This plugin only supports perspective cameras as of now, and can support any renderer (e.g. Arnold, Redshift).</p>
+<p>This plugin is available in Blender as well. See <a class="reference external" href="https://docs.nerf.studio/extensions/blender_addon.html">Blender VFX add-on</a></p>
+</section>
+<section id="loading-the-plugin">
+<h2>Loading the plugin<a class="headerlink" href="#loading-the-plugin" title="Permalink to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Download the plug-in titled nerfplugin_maya.py, and save it to a safe place on your computer.</p></li>
+<li><p>On the top bar, Windows&gt;Settings/Preferences&gt;Plugin Manager&gt;Browse, and locate nerfplugin_maya.py then click Open</p></li>
+</ol>
+<center>
+<img width="800" alt="1" src="https://github.com/user-attachments/assets/bf0b9408-ffda-466f-b322-0858367218c2" />
+</center>
+<center>
+<img width="800" alt="2" src="https://github.com/user-attachments/assets/4cdd93f0-bea4-4e03-bcb0-aca34f5e9a8c" />
+</center>
+<ol class="arabic simple" start="3">
+<li><p>You will find that there is a new shelf item called “Nerfstudio”. Click into it, and click on the only icon in it.</p></li>
+</ol>
+<center>
+<img width="800" alt="3" src="https://github.com/user-attachments/assets/db7a8e29-5e88-42a4-93fc-d3a49b3e50ab" />
+</center>
+<ol class="arabic simple" start="4">
+<li><p>A window will pop up that looks like the image below. Let’s go over what each option in the window means:</p>
+<ul class="simple">
+<li><p>NeRF Representation (mesh): Expects a nerf scene in the form of a mesh object exported from Nerfstudio. Select the desired mesh, then click the Store button. Note that it only accepts one mesh object, and not multiple.</p></li>
+<li><p>Camera object: Expects a camera object. Select the camera, then click the Store button. Note that it only takes one camera, and not multiple.</p></li>
+<li><p>Camera path for Nerfstudio: Expects a file path to a folder so it can generate a json file and store it in that folder</p></li>
+<li><p>Create camera from Nerfstudio JSON: Expects a camera json file so it can read and load its camera path into the scene</p></li>
+</ul>
+</li>
+</ol>
+<center>
+<img width="400" alt="4" src="https://github.com/user-attachments/assets/62ec35d0-afe2-42a4-a2ca-9315d391aeb3" />
+</center>
+</section>
+<section id="setting-up-the-scene">
+<h2>Setting up the scene<a class="headerlink" href="#setting-up-the-scene" title="Permalink to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Export the mesh of the NeRF from Nerfstudio, This will be used as reference for the actual NeRF in Maya. It usually helps to crop the viewport in order to get rid of any artifacts that might affect the output mesh’s geometry. Under Export, select Use Crop and Remove Outliers. Then, generate the command to export the nerf mesh. This exports the mesh with its associated material and texture map.</p></li>
+<li><p>Import the mesh of the NeRF into the Maya scene. You can do this by dragging and dropping the exported .obj file into the scene.</p>
+<ul class="simple">
+<li><p>You will need to resize, position, and rotate the NeRF representation to fit your scene, since Nerfstudio and Autodesk Maya use different default coordinate systems. The NeRF representation is used as a reference for any animation or VFX done in Maya, and won’t be visible in the final render. Do not delete the history of your NeRF mesh representation at any point!</p></li>
+</ul>
+</li>
+<li><p>The hotkey ‘6’ toggles the shaded display if you’d like to view the corresponding texture map onto the mesh.</p></li>
+<li><p>Feel free to import as many nerf representations into one scene as you would like, if you want to composite different nerfs together.</p></li>
+<li><p>Start animating and keying camera movements!</p></li>
+</ol>
+</section>
+<section id="exporting-a-camera-path-from-maya-into-nerfstudio">
+<h2>Exporting a camera path from Maya into Nerfstudio<a class="headerlink" href="#exporting-a-camera-path-from-maya-into-nerfstudio" title="Permalink to this heading">#</a></h2>
+<section id="generating-the-json-file">
+<h3>Generating the JSON File<a class="headerlink" href="#generating-the-json-file" title="Permalink to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>After you finished animating, open up the Nerf VFX Settings window</p></li>
+<li><p>Select the NeRF mesh representation. Then under NeRF Representation (mesh) in the window, click Store</p></li>
+<li><p>Select the camera you’d like to render from. Then under Camera object in the window, click Store</p></li>
+<li><p>Under Camera path for NeRFStudio, click on the folder icon and locate a folder in which you’d like to save your camera_path.json file. Click Generate JSON File. A camera_path.json file will be generated in this folder. This json file will be used by Nerfstudio to generate a camera in the Nerfstudio viewer.</p></li>
+</ol>
+<center>
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/311e1ef4-a63b-4d31-a50f-a2a4b20653e6" />
+</center>
+<p>Note that only perspective cameras are supported as of now.</p>
+</section>
+<section id="rendering-in-nerfstudio">
+<h3>Rendering in Nerfstudio<a class="headerlink" href="#rendering-in-nerfstudio" title="Permalink to this heading">#</a></h3>
+<ol class="arabic">
+<li><p>Run the following command in your terminal to export an mp4 file of the nerf scene:
+<code>ns-render camera-path –load-config {path/to/config.yml} –camera-path-filename  {path/to/camera_path.json} –output-path  {path/to/nerf_maya_render.mp4}</code>
+OR
+Put your camera_path.json file in {path/to/nerfdata/camera_paths/camera_path.json}. You can open up the Nerfstudio viewer, click on the Render tab, and under “Load path,” select the camera_path.json file. Then, click “Generate Command” and copy and paste the command in the terminal to render out an mp4 file.</p>
+<center>
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/1a775099-6201-494f-bb99-dfbba72289d2" />
+</center>
+</li>
+</ol>
+</section>
+</section>
+<section id="exporting-a-camera-path-from-nerfstudio-into-maya">
+<h2>Exporting a camera path from Nerfstudio into Maya<a class="headerlink" href="#exporting-a-camera-path-from-nerfstudio-into-maya" title="Permalink to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Create a camera path in Nerfstudio. Export the nerf as a mesh if you haven’t done so already. Adjust the FOV and resolution as needed. Note that only perspective cameras are supported as of now. Hit “Generate Command” and run the command in the terminal. This will export a .mp4 file of the nerf scene in your renders folder, and a camera path json file in the same folder as your nerf data.</p></li>
+</ol>
+ <center>
+   <img width="800" alt="image" src="https://github.com/user-attachments/assets/2dc92418-787e-4fc8-8218-8f33ee0a2f88" />
+</center>
+<ol class="arabic simple" start="2">
+<li><p>Open up Autodesk Maya. Under NeRF Representation (mesh), select your Nerf mesh representation and click Store. Under Create camera from Nerfstudio JSON, click on the folder icon and locate your camera path json file that you just exported from Nerfstudio. Click on “Create Camera from JSON.” This will generate a new camera in Maya that has the same camera path from Nerfstudio.</p></li>
+</ol>
+<center>
+   <img width="800" alt="image" src="https://github.com/user-attachments/assets/37608bc8-0b40-42b5-bf51-d821b0beae35" />
+</center>
+</section>
+<section id="bringing-it-together">
+<h2>Bringing it together!<a class="headerlink" href="#bringing-it-together" title="Permalink to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Render your animation in Autodesk Maya with your render engine of choice. Be sure to hide your NeRF mesh representation before doing so. Maya uses Arnold by default, but it should not matter whether you use a different one.</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.ucbugg.com/labs/Post_Production/rendering_arnold#heading-2">Click here to learn how to render with Arnold</a></p></li>
+<li><p><a class="reference external" href="https://www.youtube.com/watch?v=2G9wYcI3fSg">Click here to learn how to render out shadows separately</a></p></li>
+</ul>
+</li>
+<li><p>Composite your NeRF mp4 file from Nerfstudio with the animation frames and optional shadow frames rendered from Maya. The NeRF mp4 file runs in 24 fps, so be sure to adjust accordingly when importing your rendered Maya frames.</p>
+<ul class="simple">
+<li><p>You can use any compositing software of choice; Adobe AfterEffects tends to a popular choice. <a class="reference external" href="https://www.ucbugg.com/labs/Post_Production/compositing_layer_management#heading-6">Click here to learn the basics</a></p></li>
+</ul>
+</li>
+</ol>
+<center>
+   <img width="1481" alt="9" src="https://github.com/user-attachments/assets/678027ac-37d5-4fca-81ce-a7190f83fda4" />
+</center>
+</section>
+<section id="implementation">
+<h2>Implementation<a class="headerlink" href="#implementation" title="Permalink to this heading">#</a></h2>
+<p>This plugin is designed to create and process JSON files that Nerfstudio exports as a camera path. When creating a camera path from a selected camera and meshed Nerf in Maya, we calculate three things for the camera: the transformation matrix relative to the meshed Nerf, the field of view, and the aspect ratio. We also set the frame rate to default at 24 frames per second. Because Autodesk Maya uses a Y-up coordinate system by default, whereas Nerfstudio uses a Z-up coordinate system, we must apply the transformation matrix along with this conversion. After querying this information per frame, we write into a JSON file that can be parsed by Nerfstudio and replicate the camera motion that was in Maya.</p>
+<p>When importing a camera path into Maya, the plugin reads all the information from the exported camera path JSON file and sets a keyframe at every frame in the animation. It calculates where the position of the camera would be relative to the meshed Nerf, as well as its focal length and aspect ratio, and creates a camera within Maya based off of these attributes.</p>
+<p>Happy rendering!</p>
+</section>
+<section id="credits">
+<h2>Credits<a class="headerlink" href="#credits" title="Permalink to this heading">#</a></h2>
+<p>Models and rigs taken from <a class="reference external" href="https://agora.community">Agora</a>.</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://agora.community/content/pizza-maya">Link to Pizza rig</a></p></li>
+<li><p><a class="reference external" href="https://agora.community/content/seagull">Link to Seagull rig</a></p></li>
+</ul>
+<p>Datasets from Cyrus Vachha</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="unreal_engine.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Exporting to Unreal Engine</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="blender_addon.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Blender VFX add-on</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Autodesk Maya Plug-in</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#loading-the-plugin">Loading the plugin</a></li>
+<li><a class="reference internal" href="#setting-up-the-scene">Setting up the scene</a></li>
+<li><a class="reference internal" href="#exporting-a-camera-path-from-maya-into-nerfstudio">Exporting a camera path from Maya into Nerfstudio</a><ul>
+<li><a class="reference internal" href="#generating-the-json-file">Generating the JSON File</a></li>
+<li><a class="reference internal" href="#rendering-in-nerfstudio">Rendering in Nerfstudio</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#exporting-a-camera-path-from-nerfstudio-into-maya">Exporting a camera path from Nerfstudio into Maya</a></li>
+<li><a class="reference internal" href="#bringing-it-together">Bringing it together!</a></li>
+<li><a class="reference internal" href="#implementation">Implementation</a></li>
+<li><a class="reference internal" href="#credits">Credits</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>
