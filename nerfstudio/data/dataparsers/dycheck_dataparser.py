@@ -289,8 +289,8 @@ class Dycheck(DataParser):
             cam_json = load_from_json(self.data / f"camera/{frame}.json")
             c2w = torch.as_tensor(cam_json["orientation"]).T
             position = torch.as_tensor(cam_json["position"])
-            position -= self._center  # some scenes look weird (wheel)
-            position *= self._scale * self.config.scale_factor
+            position -= torch.as_tensor(self._center)  # some scenes look weird (wheel)
+            position *= torch.as_tensor(self._scale) * self.config.scale_factor
             pose = torch.zeros([3, 4])
             pose[:3, :3] = c2w
             pose[:3, 3] = position
