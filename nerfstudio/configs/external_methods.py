@@ -298,6 +298,21 @@ To enable Splatfacto-W, you must install it first by running:
     )
 )
 
+# UnMix-NeRF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]UnMix-NeRF[/bold yellow]
+For more information visit: https://docs.nerf.studio/nerfology/methods/unmix_nerf.html
+
+To enable UnMix-NeRF, you must install it first by running:
+  [grey]pip install git+https://github.com/Factral/UnMix-NeRF[/grey]""",
+        configurations=[
+            ("unmix-nerf", "UnMix-NeRF, used in paper"),
+        ],
+        pip_package="git+https://github.com/Factral/UnMix-NeRF",
+    )
+)
+
 
 @dataclass
 class ExternalMethodDummyTrainerConfig:
