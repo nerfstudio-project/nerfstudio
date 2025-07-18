@@ -140,7 +140,7 @@ data/
 
 Update your `transforms.json`:
 
-```json
+```text
 {
   "frames": [
     {
