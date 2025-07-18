@@ -148,6 +148,7 @@ This documentation is organized into 3 parts:
 
 ### Third-party Methods
 
+- [UnMix-NeRF](nerfology/methods/unmix_nerf.md): Spectral-Unmixing Meets Neural Radiance Fields
 - [BioNeRF](nerfology/methods/bionerf.md): Biologically Plausible Neural Radiance Fields for View Synthesis
 - [Instruct-NeRF2NeRF](nerfology/methods/in2n.md): Editing 3D Scenes with Instructions
 - [Instruct-GS2GS](nerfology/methods/igs2gs.md): Editing 3DGS Scenes with Instructions
