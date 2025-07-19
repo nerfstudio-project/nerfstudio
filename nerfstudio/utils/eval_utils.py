@@ -68,7 +68,7 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Tuple[Pat
 def eval_setup(
     config_path: Path,
     eval_num_rays_per_chunk: Optional[int] = None,
-    test_mode: Literal["test", "val", "inference"] = "test",
+    test_mode: Optional[Literal["test", "val", "inference", "train"]] = "test",
     update_config_callback: Optional[Callable[[TrainerConfig], TrainerConfig]] = None,
 ) -> Tuple[TrainerConfig, Pipeline, Path, int]:
     """Shared setup for loading a saved pipeline for evaluation.
@@ -80,6 +80,7 @@ def eval_setup(
             'val': loads train/val datasets into memory
             'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
+            'train': loads train/train dataset into memory - useful for evaluation on `train` set.
         update_config_callback: Callback to update the config before loading the pipeline
 
 
