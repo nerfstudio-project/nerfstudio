@@ -1,0 +1,1294 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Models" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/reference/api/models.html" />
+  
+<meta property="og:description" content="Base: Base Model implementation which takes in RayBundles or Cameras Instant NGP: Implementation of Instant NGP. Semantic NeRF-W: Semantic NeRF-W implementation which should be fast enough to view ..." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Models" />
+  <link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Model components" href="model_components/index.html" /><link rel="prev" title="Spatial Distortions" href="field_components/spatial_distortions.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Models - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/scripts/furo.js"></script>
+    <script src="../../_static/clipboard.min.js"></script>
+    <script src="../../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../../_static/design-tabs.js"></script>
+    <script src="../../_static/require.min.js"></script>
+    <script src="../../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/maya_plugin.html">Autodesk Maya Plug-in</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/livescene.html">    LiveScene</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/feature_splatting.html">    Feature-Splatting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">API</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="models">
+<span id="graphs"></span><h1>Models<a class="headerlink" href="#models" title="Permalink to this heading">#</a></h1>
+<section id="base">
+<h2>Base<a class="headerlink" href="#base" title="Permalink to this heading">#</a></h2>
+<p>Base Model implementation which takes in RayBundles or Cameras</p>
+<span class="target" id="module-nerfstudio.models.base_model"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.base_model.</span></span><span class="sig-name descname"><span class="pre">Model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig" title="nerfstudio.models.base_model.ModelConfig"><span class="pre">ModelConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_box</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data/index.html#nerfstudio.data.scene_box.SceneBox" title="nerfstudio.data.scene_box.SceneBox"><span class="pre">SceneBox</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_train_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Model class
+Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
+subclassed for custom NeRF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – configuration for instantiating model</p></li>
+<li><p><strong>scene_box</strong> – dataset scene box</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.device">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#nerfstudio.models.base_model.Model.device" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the device that the model is on.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_bundle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.forward" title="Permalink to this definition">#</a></dt>
+<dd><p>Run forward starting with a ray bundle. This outputs different things depending on the configuration
+of the model and whether or not the batch is provided (whether or not we are training basically)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ray_bundle</strong> – containing all the information needed to render that ray latents included</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_image_metrics_and_images">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_image_metrics_and_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_image_metrics_and_images"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_image_metrics_and_images" title="Permalink to this definition">#</a></dt>
+<dd><p>Writes the test image outputs.
+TODO: This shouldn’t return a loss</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_idx</strong> – Index of the image.</p></li>
+<li><p><strong>step</strong> – Current step.</p></li>
+<li><p><strong>batch</strong> – Batch of data.</p></li>
+<li><p><strong>outputs</strong> – Outputs of the model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary of metrics.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_loss_dict">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_loss_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_loss_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_loss_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the losses dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+<li><p><strong>metrics_dict</strong> – dictionary of metrics, some of which we can use for loss</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_metrics_dict">
+<span class="sig-name descname"><span class="pre">get_metrics_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_metrics_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_metrics_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Compute and returns metrics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_outputs">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_bundle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Takes in a Ray Bundle and returns a dictionary of outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_bundle</strong> – Input bundle of rays. This raybundle should have all the</p></li>
+<li><p><strong>outputs.</strong> (<em>needed information to compute the</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Outputs of model. (ie. rendered colors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_outputs_for_camera">
+<span class="sig-name descname"><span class="pre">get_outputs_for_camera</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">camera</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.cameras.Cameras" title="nerfstudio.cameras.cameras.Cameras"><span class="pre">Cameras</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">obb_box</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="data/index.html#nerfstudio.data.scene_box.OrientedBox" title="nerfstudio.data.scene_box.OrientedBox"><span class="pre">OrientedBox</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_outputs_for_camera"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_outputs_for_camera" title="Permalink to this definition">#</a></dt>
+<dd><p>Takes in a camera, generates the raybundle, and computes the output of the model.
+Assumes a ray-based model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>camera</strong> – generates raybundle</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_outputs_for_camera_ray_bundle">
+<span class="sig-name descname"><span class="pre">get_outputs_for_camera_ray_bundle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">camera_ray_bundle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_outputs_for_camera_ray_bundle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_outputs_for_camera_ray_bundle" title="Permalink to this definition">#</a></dt>
+<dd><p>Takes in camera parameters and computes the output of the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>camera_ray_bundle</strong> – ray bundle to calculate outputs over</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_param_groups">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_param_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_param_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_param_groups" title="Permalink to this definition">#</a></dt>
+<dd><p>Obtain the parameter groups for the optimizers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping of different parameter groups</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_rgba_image">
+<span class="sig-name descname"><span class="pre">get_rgba_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'rgb'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_rgba_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_rgba_image" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns the RGBA image from the outputs of the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>outputs</strong> – Outputs of the model.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>RGBA image.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.get_training_callbacks">
+<span class="sig-name descname"><span class="pre">get_training_callbacks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_callback_attributes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="optimizers.html#nerfstudio.engine.callbacks.TrainingCallbackAttributes" title="nerfstudio.engine.callbacks.TrainingCallbackAttributes"><span class="pre">TrainingCallbackAttributes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="optimizers.html#nerfstudio.engine.callbacks.TrainingCallback" title="nerfstudio.engine.callbacks.TrainingCallback"><span class="pre">TrainingCallback</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.get_training_callbacks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.get_training_callbacks" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns a list of callbacks that run functions at the specified training iterations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.load_model">
+<span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loaded_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.load_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.load_model" title="Permalink to this definition">#</a></dt>
+<dd><p>Load the checkpoint from the given path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>loaded_state</strong> – dictionary of pre-trained model states</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.populate_modules">
+<span class="sig-name descname"><span class="pre">populate_modules</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.populate_modules"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.populate_modules" title="Permalink to this definition">#</a></dt>
+<dd><p>Set the necessary modules to get the network working.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.Model.update_to_step">
+<span class="sig-name descname"><span class="pre">update_to_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#Model.update_to_step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.Model.update_to_step" title="Permalink to this definition">#</a></dt>
+<dd><p>Called when loading a model from a checkpoint. Sets any model parameters that change over
+training to the correct value, based on the training step of the checkpoint.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> – training step of the loaded checkpoint</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.ModelConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.base_model.</span></span><span class="sig-name descname"><span class="pre">ModelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">~typing.Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_collider:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collider_params:</span> <span class="pre">~typing.Optional[~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_coefficients:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_num_rays_per_chunk:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt:</span> <span class="pre">~typing.Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/base_model.html#ModelConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.base_model.ModelConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="config.html#nerfstudio.configs.base_config.InstantiateConfig" title="nerfstudio.configs.base_config.InstantiateConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">InstantiateConfig</span></code></a></p>
+<p>Configuration for model instantiation</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.ModelConfig.collider_params">
+<span class="sig-name descname"><span class="pre">collider_params</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#nerfstudio.models.base_model.ModelConfig.collider_params" title="Permalink to this definition">#</a></dt>
+<dd><p>parameters to instantiate scene collider with</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.ModelConfig.enable_collider">
+<span class="sig-name descname"><span class="pre">enable_collider</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#nerfstudio.models.base_model.ModelConfig.enable_collider" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to create a scene collider to filter rays.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.ModelConfig.eval_num_rays_per_chunk">
+<span class="sig-name descname"><span class="pre">eval_num_rays_per_chunk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4096</span></em><a class="headerlink" href="#nerfstudio.models.base_model.ModelConfig.eval_num_rays_per_chunk" title="Permalink to this definition">#</a></dt>
+<dd><p>specifies number of rays per chunk during eval</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.ModelConfig.loss_coefficients">
+<span class="sig-name descname"><span class="pre">loss_coefficients</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#nerfstudio.models.base_model.ModelConfig.loss_coefficients" title="Permalink to this definition">#</a></dt>
+<dd><p>parameters to instantiate density field with</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.base_model.ModelConfig.prompt">
+<span class="sig-name descname"><span class="pre">prompt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#nerfstudio.models.base_model.ModelConfig.prompt" title="Permalink to this definition">#</a></dt>
+<dd><p>A prompt to be used in text to NeRF models</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="instant-ngp">
+<h2>Instant NGP<a class="headerlink" href="#instant-ngp" title="Permalink to this heading">#</a></h2>
+<p>Implementation of Instant NGP.</p>
+<span class="target" id="module-nerfstudio.models.instant_ngp"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.instant_ngp.</span></span><span class="sig-name descname"><span class="pre">InstantNGPModelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">~typing.Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_collider:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collider_params:</span> <span class="pre">~typing.Optional[~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_coefficients:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_num_rays_per_chunk:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt:</span> <span class="pre">~typing.Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_resolution:</span> <span class="pre">~typing.Union[int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">~typing.List[int]]</span> <span class="pre">=</span> <span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_levels:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">19</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_thre:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cone_angle:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.004</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">render_step_size:</span> <span class="pre">~typing.Optional[float]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">near_plane:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">far_plane:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gradient_scaling:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_appearance_embedding:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background_color:</span> <span class="pre">~typing.Literal['random'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'white']</span> <span class="pre">=</span> <span class="pre">'random'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disable_scene_contraction:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#InstantNGPModelConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig" title="nerfstudio.models.base_model.ModelConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelConfig</span></code></a></p>
+<p>Instant NGP Model Config</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.alpha_thre">
+<span class="sig-name descname"><span class="pre">alpha_thre</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.01</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.alpha_thre" title="Permalink to this definition">#</a></dt>
+<dd><p>Threshold for opacity skipping.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.background_color">
+<span class="sig-name descname"><span class="pre">background_color</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'random'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'black'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'white'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'random'</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.background_color" title="Permalink to this definition">#</a></dt>
+<dd><p>The color that is given to masked areas.
+These areas are used to force the density in those regions to be zero.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.collider_params">
+<span class="sig-name descname"><span class="pre">collider_params</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.collider_params" title="Permalink to this definition">#</a></dt>
+<dd><p>Instant NGP doesn’t use a collider.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.cone_angle">
+<span class="sig-name descname"><span class="pre">cone_angle</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.004</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.cone_angle" title="Permalink to this definition">#</a></dt>
+<dd><p>Should be set to 0.0 for blender scenes but 1./256 for real scenes.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.disable_scene_contraction">
+<span class="sig-name descname"><span class="pre">disable_scene_contraction</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.disable_scene_contraction" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to disable scene contraction or not.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.enable_collider">
+<span class="sig-name descname"><span class="pre">enable_collider</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.enable_collider" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to create a scene collider to filter rays.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.far_plane">
+<span class="sig-name descname"><span class="pre">far_plane</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1000.0</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.far_plane" title="Permalink to this definition">#</a></dt>
+<dd><p>How far along ray to stop sampling.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.grid_levels">
+<span class="sig-name descname"><span class="pre">grid_levels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.grid_levels" title="Permalink to this definition">#</a></dt>
+<dd><p>Levels of the grid used for the field.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.grid_resolution">
+<span class="sig-name descname"><span class="pre">grid_resolution</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">128</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.grid_resolution" title="Permalink to this definition">#</a></dt>
+<dd><p>Resolution of the grid used for the field.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.log2_hashmap_size">
+<span class="sig-name descname"><span class="pre">log2_hashmap_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">19</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.log2_hashmap_size" title="Permalink to this definition">#</a></dt>
+<dd><p>Size of the hashmap for the base mlp</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.max_res">
+<span class="sig-name descname"><span class="pre">max_res</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2048</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.max_res" title="Permalink to this definition">#</a></dt>
+<dd><p>Maximum resolution of the hashmap for the base mlp.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.near_plane">
+<span class="sig-name descname"><span class="pre">near_plane</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.05</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.near_plane" title="Permalink to this definition">#</a></dt>
+<dd><p>How far along ray to start sampling.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.render_step_size">
+<span class="sig-name descname"><span class="pre">render_step_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.render_step_size" title="Permalink to this definition">#</a></dt>
+<dd><p>Minimum step size for rendering.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.use_appearance_embedding">
+<span class="sig-name descname"><span class="pre">use_appearance_embedding</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.use_appearance_embedding" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use an appearance embedding.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.InstantNGPModelConfig.use_gradient_scaling">
+<span class="sig-name descname"><span class="pre">use_gradient_scaling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.use_gradient_scaling" title="Permalink to this definition">#</a></dt>
+<dd><p>Use gradient scaler where the gradients are lower for points closer to the camera.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.instant_ngp.</span></span><span class="sig-name descname"><span class="pre">NGPModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig" title="nerfstudio.models.instant_ngp.InstantNGPModelConfig"><span class="pre">InstantNGPModelConfig</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.models.base_model.Model" title="nerfstudio.models.base_model.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a></p>
+<p>Instant NGP model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> – instant NGP configuration to instantiate model</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.get_image_metrics_and_images">
+<span class="sig-name descname"><span class="pre">get_image_metrics_and_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.get_image_metrics_and_images"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.get_image_metrics_and_images" title="Permalink to this definition">#</a></dt>
+<dd><p>Writes the test image outputs.
+TODO: This shouldn’t return a loss</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_idx</strong> – Index of the image.</p></li>
+<li><p><strong>step</strong> – Current step.</p></li>
+<li><p><strong>batch</strong> – Batch of data.</p></li>
+<li><p><strong>outputs</strong> – Outputs of the model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary of metrics.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.get_loss_dict">
+<span class="sig-name descname"><span class="pre">get_loss_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.get_loss_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.get_loss_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the losses dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+<li><p><strong>metrics_dict</strong> – dictionary of metrics, some of which we can use for loss</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.get_metrics_dict">
+<span class="sig-name descname"><span class="pre">get_metrics_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.get_metrics_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.get_metrics_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Compute and returns metrics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_bundle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Takes in a Ray Bundle and returns a dictionary of outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_bundle</strong> – Input bundle of rays. This raybundle should have all the</p></li>
+<li><p><strong>outputs.</strong> (<em>needed information to compute the</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Outputs of model. (ie. rendered colors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.get_param_groups">
+<span class="sig-name descname"><span class="pre">get_param_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.get_param_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.get_param_groups" title="Permalink to this definition">#</a></dt>
+<dd><p>Obtain the parameter groups for the optimizers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping of different parameter groups</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.get_training_callbacks">
+<span class="sig-name descname"><span class="pre">get_training_callbacks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_callback_attributes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="optimizers.html#nerfstudio.engine.callbacks.TrainingCallbackAttributes" title="nerfstudio.engine.callbacks.TrainingCallbackAttributes"><span class="pre">TrainingCallbackAttributes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="optimizers.html#nerfstudio.engine.callbacks.TrainingCallback" title="nerfstudio.engine.callbacks.TrainingCallback"><span class="pre">TrainingCallback</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.get_training_callbacks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.get_training_callbacks" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns a list of callbacks that run functions at the specified training iterations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.instant_ngp.NGPModel.populate_modules">
+<span class="sig-name descname"><span class="pre">populate_modules</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/instant_ngp.html#NGPModel.populate_modules"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.instant_ngp.NGPModel.populate_modules" title="Permalink to this definition">#</a></dt>
+<dd><p>Set the fields and modules.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="semantic-nerf-w">
+<h2>Semantic NeRF-W<a class="headerlink" href="#semantic-nerf-w" title="Permalink to this heading">#</a></h2>
+<p>Semantic NeRF-W implementation which should be fast enough to view in the viewer.</p>
+<span class="target" id="module-nerfstudio.models.semantic_nerfw"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.semantic_nerfw.</span></span><span class="sig-name descname"><span class="pre">SemanticNerfWModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig" title="nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig"><span class="pre">SemanticNerfWModelConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.models.base_model.Model" title="nerfstudio.models.base_model.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a></p>
+<p>Nerfacto model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> – Nerfacto configuration to instantiate model</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_image_metrics_and_images">
+<span class="sig-name descname"><span class="pre">get_image_metrics_and_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.get_image_metrics_and_images"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_image_metrics_and_images" title="Permalink to this definition">#</a></dt>
+<dd><p>Writes the test image outputs.
+TODO: This shouldn’t return a loss</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_idx</strong> – Index of the image.</p></li>
+<li><p><strong>step</strong> – Current step.</p></li>
+<li><p><strong>batch</strong> – Batch of data.</p></li>
+<li><p><strong>outputs</strong> – Outputs of the model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary of metrics.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_loss_dict">
+<span class="sig-name descname"><span class="pre">get_loss_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.get_loss_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_loss_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the losses dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+<li><p><strong>metrics_dict</strong> – dictionary of metrics, some of which we can use for loss</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_metrics_dict">
+<span class="sig-name descname"><span class="pre">get_metrics_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.get_metrics_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_metrics_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Compute and returns metrics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_bundle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Takes in a Ray Bundle and returns a dictionary of outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_bundle</strong> – Input bundle of rays. This raybundle should have all the</p></li>
+<li><p><strong>outputs.</strong> (<em>needed information to compute the</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Outputs of model. (ie. rendered colors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_param_groups">
+<span class="sig-name descname"><span class="pre">get_param_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.get_param_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_param_groups" title="Permalink to this definition">#</a></dt>
+<dd><p>Obtain the parameter groups for the optimizers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping of different parameter groups</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_training_callbacks">
+<span class="sig-name descname"><span class="pre">get_training_callbacks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">training_callback_attributes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="optimizers.html#nerfstudio.engine.callbacks.TrainingCallbackAttributes" title="nerfstudio.engine.callbacks.TrainingCallbackAttributes"><span class="pre">TrainingCallbackAttributes</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="optimizers.html#nerfstudio.engine.callbacks.TrainingCallback" title="nerfstudio.engine.callbacks.TrainingCallback"><span class="pre">TrainingCallback</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.get_training_callbacks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_training_callbacks" title="Permalink to this definition">#</a></dt>
+<dd><p>Returns a list of callbacks that run functions at the specified training iterations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModel.populate_modules">
+<span class="sig-name descname"><span class="pre">populate_modules</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModel.populate_modules"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.populate_modules" title="Permalink to this definition">#</a></dt>
+<dd><p>Set the fields and modules.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.semantic_nerfw.</span></span><span class="sig-name descname"><span class="pre">SemanticNerfWModelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_collider:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collider_params:</span> <span class="pre">Optional[Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_coefficients:</span> <span class="pre">Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_num_rays_per_chunk:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">near_plane:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">far_plane:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background_color:</span> <span class="pre">Literal['random'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'last_sample'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'white']</span> <span class="pre">=</span> <span class="pre">'last_sample'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim_color:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim_transient:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_levels:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_res:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log2_hashmap_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">19</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_per_level:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_proposal_samples_per_ray:</span> <span class="pre">Tuple[int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">...]</span> <span class="pre">=</span> <span class="pre">(256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">96)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_nerf_samples_per_ray:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">48</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_update_every:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_warmup:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">5000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_proposal_iterations:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_same_proposal_network:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_net_args_list:</span> <span class="pre">List[Dict]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_initial_sampler:</span> <span class="pre">Literal['piecewise'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'uniform']</span> <span class="pre">=</span> <span class="pre">'piecewise'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interlevel_loss_mult:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distortion_loss_mult:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.002</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orientation_loss_mult:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_normal_loss_mult:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_proposal_weight_anneal:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_appearance_embedding:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_average_appearance_embedding:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_weights_anneal_slope:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proposal_weights_anneal_max_num_iters:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_single_jitter:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predict_normals:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disable_scene_contraction:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gradient_scaling:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">implementation:</span> <span class="pre">Literal['tcnn'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'torch']</span> <span class="pre">=</span> <span class="pre">'tcnn'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">appearance_embed_dim:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">average_init_density:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_optimizer:</span> <span class="pre">CameraOptimizerConfig</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_transient_embedding:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semantic_loss_weight:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass_semantic_gradients:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/semantic_nerfw.html#SemanticNerfWModelConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">NerfactoModelConfig</span></code></p>
+<p>Nerfacto Model Config</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig.use_transient_embedding">
+<span class="sig-name descname"><span class="pre">use_transient_embedding</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig.use_transient_embedding" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to use transient embedding.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="nerf">
+<h2>NeRF<a class="headerlink" href="#nerf" title="Permalink to this heading">#</a></h2>
+<p>Implementation of vanilla nerf.</p>
+<span class="target" id="module-nerfstudio.models.vanilla_nerf"></span><dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.NeRFModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.vanilla_nerf.</span></span><span class="sig-name descname"><span class="pre">NeRFModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig" title="nerfstudio.models.vanilla_nerf.VanillaModelConfig"><span class="pre">VanillaModelConfig</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#NeRFModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.NeRFModel" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.models.base_model.Model" title="nerfstudio.models.base_model.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a></p>
+<p>Vanilla NeRF model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> – Basic NeRF configuration to instantiate model</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.NeRFModel.get_image_metrics_and_images">
+<span class="sig-name descname"><span class="pre">get_image_metrics_and_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#NeRFModel.get_image_metrics_and_images"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_image_metrics_and_images" title="Permalink to this definition">#</a></dt>
+<dd><p>Writes the test image outputs.
+TODO: This shouldn’t return a loss</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_idx</strong> – Index of the image.</p></li>
+<li><p><strong>step</strong> – Current step.</p></li>
+<li><p><strong>batch</strong> – Batch of data.</p></li>
+<li><p><strong>outputs</strong> – Outputs of the model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary of metrics.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.NeRFModel.get_loss_dict">
+<span class="sig-name descname"><span class="pre">get_loss_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#NeRFModel.get_loss_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_loss_dict" title="Permalink to this definition">#</a></dt>
+<dd><p>Computes and returns the losses dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> – the output to compute loss dict to</p></li>
+<li><p><strong>batch</strong> – ground truth batch corresponding to outputs</p></li>
+<li><p><strong>metrics_dict</strong> – dictionary of metrics, some of which we can use for loss</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.NeRFModel.get_outputs">
+<span class="sig-name descname"><span class="pre">get_outputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_bundle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cameras.html#nerfstudio.cameras.rays.RayBundle" title="nerfstudio.cameras.rays.RayBundle"><span class="pre">RayBundle</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#NeRFModel.get_outputs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_outputs" title="Permalink to this definition">#</a></dt>
+<dd><p>Takes in a Ray Bundle and returns a dictionary of outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ray_bundle</strong> – Input bundle of rays. This raybundle should have all the</p></li>
+<li><p><strong>outputs.</strong> (<em>needed information to compute the</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Outputs of model. (ie. rendered colors)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.NeRFModel.get_param_groups">
+<span class="sig-name descname"><span class="pre">get_param_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#NeRFModel.get_param_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_param_groups" title="Permalink to this definition">#</a></dt>
+<dd><p>Obtain the parameter groups for the optimizers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping of different parameter groups</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.NeRFModel.populate_modules">
+<span class="sig-name descname"><span class="pre">populate_modules</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#NeRFModel.populate_modules"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.NeRFModel.populate_modules" title="Permalink to this definition">#</a></dt>
+<dd><p>Set the fields and modules</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">nerfstudio.models.vanilla_nerf.</span></span><span class="sig-name descname"><span class="pre">VanillaModelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_target:</span> <span class="pre">Type</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_collider:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collider_params:</span> <span class="pre">Optional[Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_coefficients:</span> <span class="pre">Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_num_rays_per_chunk:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_coarse_samples:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_importance_samples:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_temporal_distortion:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal_distortion_params:</span> <span class="pre">Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Any]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gradient_scaling:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background_color:</span> <span class="pre">Literal['random'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'last_sample'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'white']</span> <span class="pre">=</span> <span class="pre">'white'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/nerfstudio/models/vanilla_nerf.html#VanillaModelConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig" title="Permalink to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig" title="nerfstudio.models.base_model.ModelConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelConfig</span></code></a></p>
+<p>Vanilla Model Config</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig.background_color">
+<span class="sig-name descname"><span class="pre">background_color</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'random'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'last_sample'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'black'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'white'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'white'</span></em><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.background_color" title="Permalink to this definition">#</a></dt>
+<dd><p>Whether to randomize the background color.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig.enable_temporal_distortion">
+<span class="sig-name descname"><span class="pre">enable_temporal_distortion</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.enable_temporal_distortion" title="Permalink to this definition">#</a></dt>
+<dd><p>Specifies whether or not to include ray warping based on time.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig.num_coarse_samples">
+<span class="sig-name descname"><span class="pre">num_coarse_samples</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">64</span></em><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.num_coarse_samples" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of samples in coarse field evaluation</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig.num_importance_samples">
+<span class="sig-name descname"><span class="pre">num_importance_samples</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">128</span></em><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.num_importance_samples" title="Permalink to this definition">#</a></dt>
+<dd><p>Number of samples in fine field evaluation</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig.temporal_distortion_params">
+<span class="sig-name descname"><span class="pre">temporal_distortion_params</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.temporal_distortion_params" title="Permalink to this definition">#</a></dt>
+<dd><p>Parameters to instantiate temporal distortion with</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="nerfstudio.models.vanilla_nerf.VanillaModelConfig.use_gradient_scaling">
+<span class="sig-name descname"><span class="pre">use_gradient_scaling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.use_gradient_scaling" title="Permalink to this definition">#</a></dt>
+<dd><p>Use gradient scaler where the gradients are lower for points closer to the camera.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="model_components/index.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Model components</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="field_components/spatial_distortions.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Spatial Distortions</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Models</a><ul>
+<li><a class="reference internal" href="#base">Base</a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.device"><code class="docutils literal notranslate"><span class="pre">Model.device</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.forward"><code class="docutils literal notranslate"><span class="pre">Model.forward()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_image_metrics_and_images"><code class="docutils literal notranslate"><span class="pre">Model.get_image_metrics_and_images()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_loss_dict"><code class="docutils literal notranslate"><span class="pre">Model.get_loss_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_metrics_dict"><code class="docutils literal notranslate"><span class="pre">Model.get_metrics_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_outputs"><code class="docutils literal notranslate"><span class="pre">Model.get_outputs()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_outputs_for_camera"><code class="docutils literal notranslate"><span class="pre">Model.get_outputs_for_camera()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_outputs_for_camera_ray_bundle"><code class="docutils literal notranslate"><span class="pre">Model.get_outputs_for_camera_ray_bundle()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_param_groups"><code class="docutils literal notranslate"><span class="pre">Model.get_param_groups()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_rgba_image"><code class="docutils literal notranslate"><span class="pre">Model.get_rgba_image()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.get_training_callbacks"><code class="docutils literal notranslate"><span class="pre">Model.get_training_callbacks()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.load_model"><code class="docutils literal notranslate"><span class="pre">Model.load_model()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.populate_modules"><code class="docutils literal notranslate"><span class="pre">Model.populate_modules()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.Model.update_to_step"><code class="docutils literal notranslate"><span class="pre">Model.update_to_step()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig"><code class="docutils literal notranslate"><span class="pre">ModelConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig.collider_params"><code class="docutils literal notranslate"><span class="pre">ModelConfig.collider_params</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig.enable_collider"><code class="docutils literal notranslate"><span class="pre">ModelConfig.enable_collider</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig.eval_num_rays_per_chunk"><code class="docutils literal notranslate"><span class="pre">ModelConfig.eval_num_rays_per_chunk</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig.loss_coefficients"><code class="docutils literal notranslate"><span class="pre">ModelConfig.loss_coefficients</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.base_model.ModelConfig.prompt"><code class="docutils literal notranslate"><span class="pre">ModelConfig.prompt</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instant-ngp">Instant NGP</a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.alpha_thre"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.alpha_thre</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.background_color"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.background_color</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.collider_params"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.collider_params</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.cone_angle"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.cone_angle</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.disable_scene_contraction"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.disable_scene_contraction</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.enable_collider"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.enable_collider</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.far_plane"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.far_plane</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.grid_levels"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.grid_levels</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.grid_resolution"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.grid_resolution</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.log2_hashmap_size"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.log2_hashmap_size</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.max_res"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.max_res</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.near_plane"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.near_plane</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.render_step_size"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.render_step_size</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.use_appearance_embedding"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.use_appearance_embedding</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.InstantNGPModelConfig.use_gradient_scaling"><code class="docutils literal notranslate"><span class="pre">InstantNGPModelConfig.use_gradient_scaling</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel"><code class="docutils literal notranslate"><span class="pre">NGPModel</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.get_image_metrics_and_images"><code class="docutils literal notranslate"><span class="pre">NGPModel.get_image_metrics_and_images()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.get_loss_dict"><code class="docutils literal notranslate"><span class="pre">NGPModel.get_loss_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.get_metrics_dict"><code class="docutils literal notranslate"><span class="pre">NGPModel.get_metrics_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.get_outputs"><code class="docutils literal notranslate"><span class="pre">NGPModel.get_outputs()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.get_param_groups"><code class="docutils literal notranslate"><span class="pre">NGPModel.get_param_groups()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.get_training_callbacks"><code class="docutils literal notranslate"><span class="pre">NGPModel.get_training_callbacks()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.instant_ngp.NGPModel.populate_modules"><code class="docutils literal notranslate"><span class="pre">NGPModel.populate_modules()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semantic-nerf-w">Semantic NeRF-W</a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_image_metrics_and_images"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.get_image_metrics_and_images()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_loss_dict"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.get_loss_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_metrics_dict"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.get_metrics_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_outputs"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.get_outputs()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_param_groups"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.get_param_groups()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.get_training_callbacks"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.get_training_callbacks()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModel.populate_modules"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModel.populate_modules()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModelConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.semantic_nerfw.SemanticNerfWModelConfig.use_transient_embedding"><code class="docutils literal notranslate"><span class="pre">SemanticNerfWModelConfig.use_transient_embedding</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerf">NeRF</a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.NeRFModel"><code class="docutils literal notranslate"><span class="pre">NeRFModel</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_image_metrics_and_images"><code class="docutils literal notranslate"><span class="pre">NeRFModel.get_image_metrics_and_images()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_loss_dict"><code class="docutils literal notranslate"><span class="pre">NeRFModel.get_loss_dict()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_outputs"><code class="docutils literal notranslate"><span class="pre">NeRFModel.get_outputs()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.NeRFModel.get_param_groups"><code class="docutils literal notranslate"><span class="pre">NeRFModel.get_param_groups()</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.NeRFModel.populate_modules"><code class="docutils literal notranslate"><span class="pre">NeRFModel.populate_modules()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig</span></code></a><ul>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.background_color"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig.background_color</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.enable_temporal_distortion"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig.enable_temporal_distortion</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.num_coarse_samples"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig.num_coarse_samples</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.num_importance_samples"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig.num_importance_samples</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.temporal_distortion_params"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig.temporal_distortion_params</span></code></a></li>
+<li><a class="reference internal" href="#nerfstudio.models.vanilla_nerf.VanillaModelConfig.use_gradient_scaling"><code class="docutils literal notranslate"><span class="pre">VanillaModelConfig.use_gradient_scaling</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>
