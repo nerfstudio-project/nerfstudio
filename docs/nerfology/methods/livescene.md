@@ -2,7 +2,7 @@
 
 <h4>Language Embedding Interactive Radiance Fields for Physical Scene Rendering and Control</h4>
 
-```{button-link} https://livescenes.github.io/
+```{button-link} https://tavish9.github.io/livescene//
 :color: primary
 :outline:
 Paper Website
@@ -15,7 +15,7 @@ Code
 ```
 
 <video id="demo" muted autoplay playsinline loop controls width="100%">
-    <source id="mp4" src="https://livescenes.github.io/static/video/demo.mp4" type="video/mp4">
+    <source id="mp4" src="https://tavish9.github.io/livescene//static/video/demo.mp4" type="video/mp4">
 </video>
 
 **The first scene-level language-embedded interactive radiance field, which efficiently reconstructs and controls complex physical scenes, enabling manipulation of multiple articulated objects and language-based interaction.**
@@ -60,26 +60,26 @@ LiveScene proposes an efficient factorization that decomposes the interactive sc
 
 Given a camera view and control variable $\boldsymbol{\kappa}$ of one specific interactive object, a series 3D points are sampled in a local deformable field that models the interactive motions of this specific interactive object, and then the interactive object with novel interactive motion state is generated via volume-rendering. Moreover, an interaction-aware language embedding is utilized to localize and control individual interactive objects using natural language.
 
-<img id="livescene_pipeline" src="https://livescenes.github.io/static/image/pipeline.png" style="background-color:white;" width="100%">
+<img id="livescene_pipeline" src="https://tavish9.github.io/livescene//static/image/pipeline.png" style="background-color:white;" width="100%">
 
 ### Multi-scale Interaction Space Factorization
 
 LiveScene maintains mutiple local deformable fields $\left \{\mathcal{R}_1, \mathcal{R}\_2, \cdots \mathcal{R}_\alpha \right \}$ for each interactive object in the 4D space, and project high-dimensional interaction features into a compact multi-scale 4D space. In training, LiveScene denotes a feature repulsion loss and to amplify the feature differences between distinct deformable scenes, which relieve the boundary ray sampling and feature storage conflicts.
 
-<img id="livescene_factorization" src="https://livescenes.github.io/static/image/decompose.png" style="background-color:white;" width="100%">
+<img id="livescene_factorization" src="https://tavish9.github.io/livescene//static/image/decompose.png" style="background-color:white;" width="100%">
 
 ### Interaction-Aware Language Embedding
 
 LiveScene Leverages the proposed multi-scale interaction space factorization to efficiently store language features in lightweight planes by indexing the maximum probability sampling instead of 3D fields in LERF. For any sampling point $\mathbf{p}$, it retrieves local language feature group, and perform bilinear interpolation to obtain a language embedding that adapts to interactive variable changes from surrounding clip features.
 
-<img id="livescene_language" src="https://livescenes.github.io/static/image/embeds.png" style="background-color:white;" width="100%">
+<img id="livescene_language" src="https://tavish9.github.io/livescene//static/image/embeds.png" style="background-color:white;" width="100%">
 
 ## Dataset
 
 To our knowledge, existing view synthetic datasets for interactive scene rendering are primarily limited to a few interactive objects, making it impractical to scale up to real scenarios involving multi-object interactions. To bridge this gap, we construct two scene-level, high-quality annotated datasets to advance research progress in reconstructing and understanding interactive scenes: OminiSim and InterReal, containing 28 subsets and 70 interactive objects with 2 million samples, providing rgbd images, camera trajectories, interactive object masks, prompt captions, and corresponding object state quantities at each time step.
 
 <video id="dataset" muted autoplay playsinline loop controls width="100%">
-    <source id="mp4" src="https://livescenes.github.io/static/video/livescene_dataset.mp4" type="video/mp4">
+    <source id="mp4" src="https://tavish9.github.io/livescene//static/video/livescene_dataset.mp4" type="video/mp4">
 </video>
 
 ## Interaction
