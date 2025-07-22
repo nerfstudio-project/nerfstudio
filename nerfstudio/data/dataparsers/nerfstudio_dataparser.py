@@ -484,6 +484,7 @@ class Nerfstudio(DataParser):
                 CONSOLE.log(f"Auto image downscale factor of {self.downscale_factor}")
             else:
                 self.downscale_factor = self.config.downscale_factor
+            assert self.downscale_factor is not None
 
         if self.downscale_factor > 1:
             return data_dir / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
