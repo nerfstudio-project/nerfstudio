@@ -50,6 +50,7 @@ The following methods are supported in nerfstudio:
     BioNeRF<bionerf.md>
     NeRFtoGSandBack<nerf2gs2nerf.md>
     OpenNeRF<opennerf.md>
+    UnMix-NeRF<unmix_nerf.md>
 ```
 
 (own_method_docs)=
