@@ -99,6 +99,9 @@ def run_colmap(
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
+    mapper: Literal["colmap", "glomap"] = "colmap",
+    estimate_affine_shape: bool = False,
+    domain_size_pooling: bool = False,
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -111,7 +114,15 @@ def run_colmap(
         verbose: If True, logs the output of the command.
         matching_method: Matching method to use.
         refine_intrinsics: If True, refine intrinsics.
-        colmap_cmd: Path to the COLMAP executable.
+        colmap_cmd: Path to the COLMAP executable for feature extraction and matching.
+<<<<<<< HEAD
+        mapper: Binary used only for the mapping stage. Set to ``glomap`` to call
+            :command:`glomap` instead of :command:`colmap`.
+=======
+        mapper: Binary to use for the mapping stage ("colmap" or "glomap").
+        estimate_affine_shape: If True, enable affine shape estimation for SIFT.
+        domain_size_pooling: If True, enable domain size pooling for SIFT.
+>>>>>>> origin
     """
 
     colmap_version = get_colmap_version(colmap_cmd)
@@ -127,6 +138,8 @@ def run_colmap(
         "--ImageReader.single_camera 1",
         f"--ImageReader.camera_model {camera_model.value}",
         f"--SiftExtraction.use_gpu {int(gpu)}",
+        f"--SiftExtraction.estimate_affine_shape {int(estimate_affine_shape)}",
+        f"--SiftExtraction.domain_size_pooling {int(domain_size_pooling)}",
     ]
     if camera_mask_path is not None:
         feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
@@ -154,7 +167,7 @@ def run_colmap(
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
     mapper_cmd = [
-        f"{colmap_cmd} mapper",
+        f"{mapper} mapper",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",

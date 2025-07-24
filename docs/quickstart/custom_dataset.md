@@ -42,6 +42,7 @@ To assist running on custom data we have a script that will process a video or f
 ```bash
 ns-process-data {images, video} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 ```
+Advanced SIFT feature extraction options such as `--estimate-affine-shape` and `--domain-size-pooling` can also be passed to `ns-process-data` if desired.
 
 ### Training on your data
 
