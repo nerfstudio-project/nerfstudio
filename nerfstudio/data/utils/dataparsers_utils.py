@@ -99,3 +99,23 @@ def get_train_eval_split_all(image_filenames: List) -> Tuple[np.ndarray, np.ndar
     i_train = i_all
     i_eval = i_all
     return i_train, i_eval
+
+
+def get_train_eval_split_indices(
+    image_filenames: List, eval_image_indices: Tuple[int, ...]
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Get the train/eval split based on specified indices in the config.
+
+    Args:
+        image_filenames: list of image filenames
+        eval_image_indices: Tuple of indices to use for evaluation.
+    """
+    for idx in eval_image_indices:
+        if idx >= len(image_filenames) or idx < 0:
+            raise ValueError(f"Eval index {idx} is out of bounds for the number of images {len(image_filenames)}.")
+    all_indices = set(range(len(image_filenames)))
+    eval_indices = set(eval_image_indices)
+    train_indices = all_indices - eval_indices
+
+    return np.array(sorted(train_indices)), np.array(sorted(eval_indices))
