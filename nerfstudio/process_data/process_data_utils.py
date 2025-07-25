@@ -490,7 +490,7 @@ def downscale_images(
 
 
 def find_tool_feature_matcher_combination(
-    sfm_tool: Literal["any", "colmap", "hloc"],
+    sfm_tool: Literal["any", "colmap", "hloc", "vggt"],
     feature_type: Literal[
         "any",
         "sift",
@@ -518,11 +518,11 @@ def find_tool_feature_matcher_combination(
 ) -> Union[
     Tuple[None, None, None],
     Tuple[
-        Literal["colmap", "hloc"],
+        Literal["colmap", "hloc", "vggt"],
         Literal[
             "sift",
             "superpoint_aachen",
-            "superpoint_max",
+            "superpoint_max", 
             "superpoint_inloc",
             "r2d2",
             "d2net-ss",
@@ -546,7 +546,7 @@ def find_tool_feature_matcher_combination(
     Basically, replace the default parameters 'any' by usable value
 
     Args:
-        sfm_tool: Sfm tool name (any, colmap, hloc)
+        sfm_tool: Sfm tool name (any, colmap, hloc, vggt)
         feature_type: Type of image features (any, sift, superpoint, ...)
         matcher_type: Type of matching algorithm (any, NN, superglue,...)
 
@@ -555,10 +555,19 @@ def find_tool_feature_matcher_combination(
         Returns (None,None,None) if no valid combination can be found
     """
     if sfm_tool == "any":
-        if (feature_type in ("any", "sift")) and (matcher_type in ("any", "NN")):
-            sfm_tool = "colmap"
-        else:
-            sfm_tool = "hloc"
+        sfm_tool = "colmap"
+
+    if sfm_tool == "vggt":
+        # VGGT does not require feature_type or matcher_type
+        return ("vggt", None, None)
+    elif sfm_tool == "colmap":
+        feature_type = "sift"
+        matcher_type = "NN"
+    elif sfm_tool == "hloc":
+        feature_type = feature_type or "superpoint"
+        matcher_type = matcher_type or "superglue"
+    else:
+        raise ValueError(f"Invalid sfm_tool: {sfm_tool}")
 
     if sfm_tool == "colmap":
         if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
@@ -573,7 +582,8 @@ def find_tool_feature_matcher_combination(
         elif matcher_type == "NN":
             matcher_type = "NN-mutual"
 
-        return (sfm_tool, feature_type, matcher_type)
+        return ("hloc", feature_type, matcher_type)
+
     return (None, None, None)
 
 
