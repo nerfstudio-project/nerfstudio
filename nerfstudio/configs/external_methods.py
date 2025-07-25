@@ -313,6 +313,36 @@ To enable Splatfacto-W, you must install it first by running:
     )
 )
 
+# Scaffold-GS
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]Scaffold-GS[/bold yellow]
+            For more information visit: https://docs.nerf.studio/nerfology/methods/scaffold_gs.html
+
+            To enable Scaffold-GS, you must install it first by running:
+            [grey]pip install git+https://github.com/brian-xu/scaffold-gs-nerfstudio"[/grey]""",
+        configurations=[
+            ("scaffold-gs", "Scaffold-GS: Structured 3D Gaussians for View-Adaptive Rendering"),
+        ],
+        pip_package="git+https://github.com/brian-xu/scaffold-gs-nerfstudio",
+    )
+)
+
+# GSDF
+external_methods.append(
+    ExternalMethod(
+        """[bold yellow]GSDF/bold yellow]
+            For more information visit: https://docs.nerf.studio/nerfology/methods/scaffold_gs.html
+
+            To enable GSDF, you must install it first by running:
+            [grey]pip install git+https://github.com/brian-xu/scaffold-gs-nerfstudio"[/grey]""",
+        configurations=[
+            ("gsdf", "Scaffold-GS: GSDF: 3DGS Meets SDF for Improved Neural Rendering and Reconstruction"),
+        ],
+        pip_package="git+https://github.com/brian-xu/scaffold-gs-nerfstudio",
+    )
+)
+
 
 @dataclass
 class ExternalMethodDummyTrainerConfig:
