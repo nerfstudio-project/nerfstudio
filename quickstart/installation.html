@@ -1,0 +1,925 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Installation" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/quickstart/installation.html" />
+  
+<meta property="og:description" content="Prerequisites: Linux Nerfstudio requires python >= 3.8. We recommend using conda to manage dependencies. Make sure to install Conda before proceeding. Windows Install Git. Install Visual Studio 202..." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Installation" />
+  <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Training your first model" href="first_nerf.html" /><link rel="prev" title="Contents" href="../index.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Installation - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    <script src="../_static/clipboard.min.js"></script>
+    <script src="../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/require.min.js"></script>
+    <script src="../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_dataset.html">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/maya_plugin.html">Autodesk Maya Plug-in</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/livescene.html">    LiveScene</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/feature_splatting.html">    Feature-Splatting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">#</a></h1>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">#</a></h2>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="7e02eb87-bd6b-468e-b52c-7b0bd5dad232" name="4c336851-7965-4381-88d0-40a35c960c48" type="radio">
+</input><label class="sd-tab-label" for="7e02eb87-bd6b-468e-b52c-7b0bd5dad232">
+Linux</label><div class="sd-tab-content docutils">
+<p>Nerfstudio requires <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">&gt;=</span> <span class="pre">3.8</span></code>. We recommend using conda to manage dependencies. Make sure to install <a class="reference external" href="https://docs.conda.io/en/latest/miniconda.html">Conda</a> before proceeding.</p>
+</div>
+<input id="5355ce4b-7f18-4a5c-8657-164878f09d80" name="4c336851-7965-4381-88d0-40a35c960c48" type="radio">
+</input><label class="sd-tab-label" for="5355ce4b-7f18-4a5c-8657-164878f09d80">
+Windows</label><div class="sd-tab-content docutils">
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p>Nerfstudio on Windows is less tested and more fragile, due to way more moving parts outside of Nerfstudio’s control.<br />
+The instructions also tend to break over time as updates to different Windows packages happen.<br />
+Installing Nerfstudio on Linux instead is recommended if you have the option.<br />
+Alternatively, installing Nerfstudio under WSL2 (temporary unofficial guide <a class="reference external" href="https://gist.github.com/SharkWipf/0a3fc1be3ea88b0c9640db6ce15b44b9">here</a>, not guaranteed to work) is also an option, but this comes with its own set of caveats.</p>
+</div>
+<p>Install <a class="reference external" href="https://git-scm.com/downloads">Git</a>.</p>
+<p>Install Visual Studio 2022. This must be done before installing CUDA. The necessary components are included in the <code class="docutils literal notranslate"><span class="pre">Desktop</span> <span class="pre">Development</span> <span class="pre">with</span> <span class="pre">C++</span></code> workflow (also called <code class="docutils literal notranslate"><span class="pre">C++</span> <span class="pre">Build</span> <span class="pre">Tools</span></code> in the BuildTools edition).</p>
+<p>Install Visual Studio Build Tools. If MSVC 143 does not work (usually will fail if your version &gt; 17.10), you may also need to install MSVC 142 for Visual Studio 2019. Ensure your CUDA environment is set up properly.</p>
+<p>Activate your Visual C++ environment:
+Navigate to the directory where <code class="docutils literal notranslate"><span class="pre">vcvars64.bat</span></code> is located. This path might vary depending on your installation. A common path is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span> <span class="n">Files</span> <span class="p">(</span><span class="n">x86</span><span class="p">)</span>\<span class="n">Microsoft</span> <span class="n">Visual</span> <span class="n">Studio</span>\<span class="mi">2022</span>\<span class="n">BuildTools</span>\<span class="n">VC</span>\<span class="n">Auxiliary</span>\<span class="n">Build</span>
+</pre></div>
+</div>
+<p>Run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./vcvars64.bat
+</pre></div>
+</div>
+<p>If the above command does not work, try activating an older version of VC:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./vcvarsall.bat<span class="w"> </span>x64<span class="w"> </span>-vcvars_ver<span class="o">=</span>&lt;your_VC++_compiler_toolset_version&gt;
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">&lt;your_VC++_compiler_toolset_version&gt;</span></code> with the version of your VC++ compiler toolset. The version number should appear in the same folder.</p>
+<p>For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./vcvarsall.bat<span class="w"> </span>x64<span class="w"> </span>-vcvars_ver<span class="o">=</span><span class="m">14</span>.29
+</pre></div>
+</div>
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p>When updating, or if you close your terminal before you finish the installation and run your first <code class="docutils literal notranslate"><span class="pre">splatfacto</span></code>, you have to re-do this environment activation step.</p>
+</div>
+<p>Nerfstudio requires <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">&gt;=</span> <span class="pre">3.8</span></code>. We recommend using conda to manage dependencies. Make sure to install <a class="reference external" href="https://docs.conda.io/en/latest/miniconda.html">Conda</a> before proceeding.</p>
+</div>
+</div>
+</section>
+<section id="create-environment">
+<h2>Create environment<a class="headerlink" href="#create-environment" title="Permalink to this heading">#</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>nerfstudio<span class="w"> </span>-y<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.8
+conda<span class="w"> </span>activate<span class="w"> </span>nerfstudio
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip
+</pre></div>
+</div>
+</section>
+<section id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this heading">#</a></h2>
+<section id="pytorch">
+<span id="id1"></span><h3>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this heading">#</a></h3>
+<p>Note that if a PyTorch version prior to 2.0.1 is installed,
+the previous version of pytorch, functorch, and tiny-cuda-nn should be uninstalled.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>uninstall<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>functorch<span class="w"> </span>tinycudann
+</pre></div>
+</div>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="1c4d279a-b2fc-4f21-956d-c5f6ef5088d1" name="36abf305-8936-4f66-9dae-3a27735b4060" type="radio">
+</input><label class="sd-tab-label" for="1c4d279a-b2fc-4f21-956d-c5f6ef5088d1">
+Torch 2.1.2 with CUDA 11.8 (recommended)</label><div class="sd-tab-content docutils">
+<p>Install PyTorch 2.1.2 with CUDA 11.8:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">2</span>.1.2+cu118<span class="w"> </span><span class="nv">torchvision</span><span class="o">==</span><span class="m">0</span>.16.2+cu118<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+</pre></div>
+</div>
+<p>To build the necessary CUDA extensions, <code class="docutils literal notranslate"><span class="pre">cuda-toolkit</span></code> is also required. We
+recommend installing with conda:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;nvidia/label/cuda-11.8.0&quot;</span><span class="w"> </span>cuda-toolkit
+</pre></div>
+</div>
+</div>
+<input id="7108871b-b8a9-4a1e-8cc7-ed339ea1ee6b" name="36abf305-8936-4f66-9dae-3a27735b4060" type="radio">
+</input><label class="sd-tab-label" for="7108871b-b8a9-4a1e-8cc7-ed339ea1ee6b">
+Torch 2.0.1 with CUDA 11.7</label><div class="sd-tab-content docutils">
+<p>Install PyTorch 2.0.1 with CUDA 11.7:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">2</span>.0.1+cu117<span class="w"> </span><span class="nv">torchvision</span><span class="o">==</span><span class="m">0</span>.15.2+cu117<span class="w"> </span>--extra-index-url<span class="w"> </span>https://download.pytorch.org/whl/cu117
+</pre></div>
+</div>
+<p>To build the necessary CUDA extensions, <code class="docutils literal notranslate"><span class="pre">cuda-toolkit</span></code> is also required. We
+recommend installing with conda:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;nvidia/label/cuda-11.7.1&quot;</span><span class="w"> </span>cuda-toolkit
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="install-tiny-cuda-nn">
+<h3>Install tiny-cuda-nn<a class="headerlink" href="#install-tiny-cuda-nn" title="Permalink to this heading">#</a></h3>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="ecb311b2-41a7-4db4-8c53-d484eda82153" name="f72d1308-2fbc-4609-914b-a97859421cf1" type="radio">
+</input><label class="sd-tab-label" for="ecb311b2-41a7-4db4-8c53-d484eda82153">
+Linux</label><div class="sd-tab-content docutils">
+<p>After pytorch and ninja, install the torch bindings for tiny-cuda-nn:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ninja<span class="w"> </span>git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory<span class="o">=</span>bindings/torch
+</pre></div>
+</div>
+</div>
+<input id="455a6a08-d87d-442a-be5c-b2978a9547e3" name="f72d1308-2fbc-4609-914b-a97859421cf1" type="radio">
+</input><label class="sd-tab-label" for="455a6a08-d87d-442a-be5c-b2978a9547e3">
+Windows</label><div class="sd-tab-content docutils">
+<p>Install the torch bindings for tiny-cuda-nn:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory<span class="o">=</span>bindings/torch
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="installing-nerfstudio">
+<h2>Installing nerfstudio<a class="headerlink" href="#installing-nerfstudio" title="Permalink to this heading">#</a></h2>
+<p><strong>From pip</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>nerfstudio
+</pre></div>
+</div>
+<p><strong>From source</strong>
+Optional, use this command if you want the latest development version.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/nerfstudio-project/nerfstudio.git
+<span class="nb">cd</span><span class="w"> </span>nerfstudio
+pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip<span class="w"> </span>setuptools
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p>Below are optional installations, but makes developing with nerfstudio much more convenient.</p>
+</div>
+<p><strong>Tab completion (bash &amp; zsh)</strong></p>
+<p>This needs to be rerun when the CLI changes, for example if nerfstudio is updated.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-install-cli
+</pre></div>
+</div>
+<p><strong>Development packages</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>dev<span class="o">]</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>docs<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="using-pixi">
+<h2>Using Pixi<a class="headerlink" href="#using-pixi" title="Permalink to this heading">#</a></h2>
+<p><a class="reference external" href="https://pixi.sh/latest/">Pixi</a> is a fast software package manager built on top of the existing conda ecosystem. Spins up development environments quickly on Windows, macOS and Linux. (Currently only linux is supported for nerfstudio)</p>
+<section id="id2">
+<h3>Prerequisites<a class="headerlink" href="#id2" title="Permalink to this heading">#</a></h3>
+<p>Make sure to have pixi installed, detailed instructions <a class="reference external" href="https://pixi.sh/latest/">here</a></p>
+<p>TLDR for linux:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://pixi.sh/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
+</pre></div>
+</div>
+</section>
+<section id="install-pixi-environmnent">
+<h3>Install Pixi Environmnent<a class="headerlink" href="#install-pixi-environmnent" title="Permalink to this heading">#</a></h3>
+<p>After Pixi is installed, you can run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/nerfstudio-project/nerfstudio.git
+<span class="nb">cd</span><span class="w"> </span>nerfstudio
+pixi<span class="w"> </span>run<span class="w"> </span>post-install
+pixi<span class="w"> </span>shell
+</pre></div>
+</div>
+<p>This will fetch the latest Nerfstudio code, install all enviroment dependencies including colmap, tinycudann and hloc, and then activate the pixi environment (similar to conda).<br />
+From now on, each time you want to run Nerfstudio in a new shell, you have to navigate to the nerfstudio folder and run <code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">shell</span></code> again.</p>
+<p>You could also run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pixi<span class="w"> </span>run<span class="w"> </span>post-install
+pixi<span class="w"> </span>run<span class="w"> </span>train-example-nerf
+</pre></div>
+</div>
+<p>to download an example dataset and run nerfacto straight away.</p>
+<p>Note that this method gets you the very latest upstream Nerfstudio version, if you want to use a specific release, you have to first checkout a specific version or commit in the nerfstudio folder, i.e.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="n">tags</span><span class="o">/</span><span class="n">v1</span><span class="mf">.1.3</span>
+</pre></div>
+</div>
+<p>Similarly, if you want to update, you want to update the git repo in your nerfstudio folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">pull</span>
+</pre></div>
+</div>
+<p>Remember that if you ran a checkout on a specific tag before, you have to manually specify a new tag or <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">main</span></code> to see the new changes.</p>
+</section>
+</section>
+<section id="use-docker-image">
+<h2>Use docker image<a class="headerlink" href="#use-docker-image" title="Permalink to this heading">#</a></h2>
+<p>Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided.</p>
+<section id="id3">
+<h3>Prerequisites<a class="headerlink" href="#id3" title="Permalink to this heading">#</a></h3>
+<p>Docker (<a class="reference external" href="https://docs.docker.com/get-docker/">get docker</a>) and nvidia GPU drivers (<a class="reference external" href="https://www.nvidia.de/Download/index.aspx?lang=de">get nvidia drivers</a>), capable of working with CUDA 11.8, must be installed.
+The docker image can then either be pulled from <a class="reference external" href="https://github.com/nerfstudio-project/nerfstudio/pkgs/container/nerfstudio">here</a> (<code class="docutils literal notranslate"><span class="pre">latest</span></code> can be replaced with a fixed version, e.g., <code class="docutils literal notranslate"><span class="pre">1.1.3</span></code>)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/nerfstudio-project/nerfstudio:latest
+</pre></div>
+</div>
+<p>or be built from the repository using</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>build<span class="w"> </span>--tag<span class="w"> </span>nerfstudio<span class="w"> </span>-f<span class="w"> </span>Dockerfile<span class="w"> </span>.
+</pre></div>
+</div>
+<p>To restrict to only CUDA architectures that you have available locally, use the <code class="docutils literal notranslate"><span class="pre">CUDA_ARCHITECTURES</span></code>
+build arg and look up <a class="reference external" href="https://developer.nvidia.com/cuda-gpus">the compute capability for your GPU</a>.
+For example, here’s how to build with support for GeForce 30xx series GPUs:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>build<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--build-arg<span class="w"> </span><span class="nv">CUDA_ARCHITECTURES</span><span class="o">=</span><span class="m">86</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--tag<span class="w"> </span>nerfstudio-86<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--file<span class="w"> </span>Dockerfile<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="using-an-interactive-container">
+<h3>Using an interactive container<a class="headerlink" href="#using-an-interactive-container" title="Permalink to this heading">#</a></h3>
+<p>The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly recommended for usage as following:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span><span class="se">\ </span><span class="w">                                        </span><span class="c1"># Give the container access to nvidia GPU (required).</span>
+<span class="w">            </span>-u<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="w"> </span><span class="se">\ </span><span class="w">                                      </span><span class="c1"># To prevent abusing of root privilege, please use custom user privilege to start.</span>
+<span class="w">            </span>-v<span class="w"> </span>/folder/of/your/data:/workspace/<span class="w"> </span><span class="se">\ </span><span class="w">              </span><span class="c1"># Mount a folder from the local machine into the container to be able to process them (required).</span>
+<span class="w">            </span>-v<span class="w"> </span>/home/&lt;YOUR_USER&gt;/.cache/:/home/user/.cache/<span class="w"> </span><span class="se">\ </span><span class="w">  </span><span class="c1"># Mount cache folder to avoid re-downloading of models everytime (recommended).</span>
+<span class="w">            </span>-p<span class="w"> </span><span class="m">7007</span>:7007<span class="w"> </span><span class="se">\ </span><span class="w">                                     </span><span class="c1"># Map port from local machine to docker container (required to access the web interface/UI).</span>
+<span class="w">            </span>--rm<span class="w"> </span><span class="se">\ </span><span class="w">                                             </span><span class="c1"># Remove container after it is closed (recommended).</span>
+<span class="w">            </span>-it<span class="w"> </span><span class="se">\ </span><span class="w">                                              </span><span class="c1"># Start container in interactive mode.</span>
+<span class="w">            </span>--shm-size<span class="o">=</span>12gb<span class="w"> </span><span class="se">\ </span><span class="w">                                  </span><span class="c1"># Increase memory assigned to container to avoid memory limitations, default is 64 MB (recommended).</span>
+<span class="w">            </span>ghcr.io/nerfstudio-project/nerfstudio:&lt;tag&gt;<span class="w">         </span><span class="c1"># Docker image name if you pulled from GitHub.</span>
+<span class="w">            </span>&lt;---<span class="w"> </span>OR<span class="w"> </span>---&gt;
+<span class="w">            </span>nerfstudio<span class="w">                                          </span><span class="c1"># Docker image tag if you built the image from the Dockerfile by yourself using the command from above.</span>
+</pre></div>
+</div>
+</section>
+<section id="call-nerfstudio-commands-directly">
+<h3>Call nerfstudio commands directly<a class="headerlink" href="#call-nerfstudio-commands-directly" title="Permalink to this heading">#</a></h3>
+<p>Besides, the container can also directly be used by adding the nerfstudio command to the end.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>-u<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="w"> </span>-v<span class="w"> </span>/folder/of/your/data:/workspace/<span class="w"> </span>-v<span class="w"> </span>/home/&lt;YOUR_USER&gt;/.cache/:/home/user/.cache/<span class="w"> </span>-p<span class="w"> </span><span class="m">7007</span>:7007<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>--shm-size<span class="o">=</span>12gb<span class="w">  </span><span class="c1"># Parameters.</span>
+<span class="w">            </span>ghcr.io/nerfstudio-project/nerfstudio:&lt;tag&gt;<span class="w"> </span><span class="se">\ </span><span class="w">      </span><span class="c1"># Docker image name if you pulled from GitHub.</span>
+<span class="w">            </span>ns-process-data<span class="w"> </span>video<span class="w"> </span>--data<span class="w"> </span>/workspace/video.mp4<span class="w">   </span><span class="c1"># Smaple command of nerfstudio.</span>
+</pre></div>
+</div>
+</section>
+<section id="note">
+<h3>Note<a class="headerlink" href="#note" title="Permalink to this heading">#</a></h3>
+<ul class="simple">
+<li><p>The container works on Linux and Windows, depending on your OS some additional setup steps might be required to provide access to your GPU inside containers.</p></li>
+<li><p>Paths on Windows use backslash ‘' while unix based systems use a frontslash ‘/’ for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\folder1\folder2…). Alternatively, mounts can be quoted (e.g. <code class="docutils literal notranslate"><span class="pre">-v</span> <span class="pre">'C:\local_folder:/docker_folder'</span></code>). Ensure to use the correct paths when mounting folders or providing paths as parameters.</p></li>
+<li><p>Always use full paths, relative paths are known to create issues when being used in mounts into docker.</p></li>
+<li><p>Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!</p></li>
+<li><p>The container currently is based on nvidia/cuda:11.8.0-devel-ubuntu22.04, consequently it comes with CUDA 11.8 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.</p></li>
+<li><p>The docker image (respectively Ubuntu 22.04) comes with Python3.10, no older version of Python is installed.</p></li>
+<li><p>If you call the container with commands directly, you still might want to add the interactive terminal (‘-it’) flag to get live log outputs of the nerfstudio scripts. In case the container is used in an automated environment the flag should be discarded.</p></li>
+<li><p>The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture(s) must be defined at build time for Colmap and tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line <code class="docutils literal notranslate"><span class="pre">ARG</span> <span class="pre">CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37</span></code> to your specific architecture. It also is a good idea to remove all architectures but yours (e.g. <code class="docutils literal notranslate"><span class="pre">ARG</span> <span class="pre">CUDA_ARCHITECTURES=86</span></code>) to speedup the docker build process a lot.</p></li>
+<li><p>To avoid memory issues or limitations during processing, it is recommended to use either <code class="docutils literal notranslate"><span class="pre">--shm-size=12gb</span></code> or <code class="docutils literal notranslate"><span class="pre">--ipc=host</span></code> to increase the memory available to the docker container. 12gb as in the example is only a suggestion and may be replaced by other values depending on your hardware and requirements.</p></li>
+</ul>
+<p><strong>Currently supported CUDA architectures in the docker image</strong></p>
+<div class="table-wrapper colwidths-auto docutils container" id="tiny-cuda-arch-list">
+<table class="docutils align-default" id="tiny-cuda-arch-list">
+<thead>
+<tr class="row-odd"><th class="head"><p>GPU</p></th>
+<th class="head"><p>CUDA arch</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>H100</p></td>
+<td><p>90</p></td>
+</tr>
+<tr class="row-odd"><td><p>40X0</p></td>
+<td><p>89</p></td>
+</tr>
+<tr class="row-even"><td><p>30X0</p></td>
+<td><p>86</p></td>
+</tr>
+<tr class="row-odd"><td><p>A100</p></td>
+<td><p>80</p></td>
+</tr>
+<tr class="row-even"><td><p>20X0</p></td>
+<td><p>75</p></td>
+</tr>
+<tr class="row-odd"><td><p>TITAN V / V100</p></td>
+<td><p>70</p></td>
+</tr>
+<tr class="row-even"><td><p>10X0 / TITAN Xp</p></td>
+<td><p>61</p></td>
+</tr>
+<tr class="row-odd"><td><p>9X0</p></td>
+<td><p>52</p></td>
+</tr>
+<tr class="row-even"><td><p>K80</p></td>
+<td><p>37</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="installation-faq">
+<h2>Installation FAQ<a class="headerlink" href="#installation-faq" title="Permalink to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="#tiny-cuda-mismatch-arch"><span class="std std-ref">ImportError: DLL load failed while importing _89_C</span></a></p></li>
+<li><p><a class="reference internal" href="#tiny-cuda-mismatch-error"><span class="std std-ref">tiny-cuda-nn installation errors out with cuda mismatch</span></a></p></li>
+<li><p><a class="reference internal" href="#tiny-cuda-integration-error"><span class="std std-ref">tiny-cuda-nn installation errors out with no CUDA toolset found</span></a></p></li>
+<li><p><a class="reference internal" href="#pip-install-error"><span class="std std-ref">Installation errors, File “setup.py” not found</span></a></p></li>
+<li><p><a class="reference internal" href="#cuda-sources-error"><span class="std std-ref">Runtime errors, “len(sources) &gt; 0”.</span></a></p></li>
+</ul>
+ <br />
+<p id="tiny-cuda-mismatch-arch"><strong>ImportError: DLL load failed while importing _89_C</strong></p>
+<p>This occurs with certain GPUs that have CUDA architecture versions (89 in the example above) for which tiny-cuda-nn does not automatically compile support.</p>
+<p><strong>Solution</strong>:</p>
+<p>Reinstall tiny-cuda-nn with the following command:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="0dc112e9-0095-401d-93f8-254452430067" name="1c9e439c-98d4-400f-b511-26f447b1d6d9" type="radio">
+</input><label class="sd-tab-label" for="0dc112e9-0095-401d-93f8-254452430067">
+Linux</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">TCNN_CUDA_ARCHITECTURES</span><span class="o">=</span>XX<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory<span class="o">=</span>bindings/torch
+</pre></div>
+</div>
+</div>
+<input id="015f706e-6ab2-4aa1-90a6-586cdb1a4341" name="1c9e439c-98d4-400f-b511-26f447b1d6d9" type="radio">
+</input><label class="sd-tab-label" for="015f706e-6ab2-4aa1-90a6-586cdb1a4341">
+Windows</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span><span class="w"> </span><span class="nv">TCNN_CUDA_ARCHITECTURES</span><span class="o">=</span>XX
+pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory<span class="o">=</span>bindings/torch
+</pre></div>
+</div>
+</div>
+</div>
+<p>Where XX is the architecture version listed <a class="reference internal" href="#tiny-cuda-arch-list"><span class="std std-ref">here</span></a>. Ie. for a 4090 GPU use <code class="docutils literal notranslate"><span class="pre">TCNN_CUDA_ARCHITECTURES=89</span></code></p>
+ <br />
+<p id="tiny-cuda-mismatch-error"><strong>tiny-cuda-nn installation errors out with cuda mismatch</strong></p>
+<p>While installing tiny-cuda, you run into: <code class="docutils literal notranslate"><span class="pre">The</span> <span class="pre">detected</span> <span class="pre">CUDA</span> <span class="pre">version</span> <span class="pre">mismatches</span> <span class="pre">the</span> <span class="pre">version</span> <span class="pre">that</span> <span class="pre">was</span> <span class="pre">used</span> <span class="pre">to</span> <span class="pre">compile</span> <span class="pre">PyTorch</span> <span class="pre">(10.2).</span> <span class="pre">Please</span> <span class="pre">make</span> <span class="pre">sure</span> <span class="pre">to</span> <span class="pre">use</span> <span class="pre">the</span> <span class="pre">same</span> <span class="pre">CUDA</span> <span class="pre">versions.</span></code></p>
+<p><strong>Solution</strong>:</p>
+<p>Reinstall PyTorch with the correct CUDA version.
+See <a class="reference internal" href="#pytorch"><span class="std std-ref">pytorch</span></a> under Dependencies, above.</p>
+ <br />
+<p id="tiny-cuda-integration-error"><strong>(Windows) tiny-cuda-nn installation errors out with no CUDA toolset found</strong></p>
+<p>While installing tiny-cuda on Windows, you run into: <code class="docutils literal notranslate"><span class="pre">No</span> <span class="pre">CUDA</span> <span class="pre">toolset</span> <span class="pre">found.</span></code></p>
+<p><strong>Solution</strong>:</p>
+<p>Confirm that you have Visual Studio installed.</p>
+<p>Make sure CUDA Visual Studio integration is enabled. This should be done automatically by the CUDA installer if it is run after Visual Studio is installed. You can also manually enable integration.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="5488307a-7ad0-4264-8c51-c0a71f09805e" name="1134da40-ac49-44fd-9a82-532f6fcb746e" type="radio">
+</input><label class="sd-tab-label" for="5488307a-7ad0-4264-8c51-c0a71f09805e">
+Visual Studio 2019</label><div class="sd-tab-content docutils">
+<p>To manually enable integration for Visual Studio 2019, copy all 4 files from</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span> <span class="n">Files</span>\<span class="n">NVIDIA</span> <span class="n">GPU</span> <span class="n">Computing</span> <span class="n">Toolkit</span>\<span class="n">CUDA</span>\<span class="n">v11</span><span class="mf">.8</span>\<span class="n">extras</span>\<span class="n">visual_studio_integration</span>\<span class="n">MSBuildExtensions</span>
+</pre></div>
+</div>
+<p>to</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span> <span class="n">Files</span> <span class="p">(</span><span class="n">x86</span><span class="p">)</span>\<span class="n">Microsoft</span> <span class="n">Visual</span> <span class="n">Studio</span>\<span class="mi">2019</span>\<span class="n">BuildTools</span>\<span class="n">MSBuild</span>\<span class="n">Microsoft</span>\<span class="n">VC</span>\<span class="n">v160</span>\<span class="n">BuildCustomizations</span>
+</pre></div>
+</div>
+</div>
+<input id="14e20cf3-3e10-45a5-b3d7-cfad5807009e" name="1134da40-ac49-44fd-9a82-532f6fcb746e" type="radio">
+</input><label class="sd-tab-label" for="14e20cf3-3e10-45a5-b3d7-cfad5807009e">
+Visual Studio 2022</label><div class="sd-tab-content docutils">
+<p>To manually enable integration for Visual Studio 2022, copy all 4 files from</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span> <span class="n">Files</span>\<span class="n">NVIDIA</span> <span class="n">GPU</span> <span class="n">Computing</span> <span class="n">Toolkit</span>\<span class="n">CUDA</span>\<span class="n">v11</span><span class="mf">.8</span>\<span class="n">extras</span>\<span class="n">visual_studio_integration</span>\<span class="n">MSBuildExtensions</span>
+</pre></div>
+</div>
+<p>to</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span><span class="p">:</span>\<span class="n">Program</span> <span class="n">Files</span>\<span class="n">Microsoft</span> <span class="n">Visual</span> <span class="n">Studio</span>\<span class="mi">2022</span>\<span class="p">[</span><span class="n">Community</span><span class="p">,</span> <span class="n">Professional</span><span class="p">,</span> <span class="n">Enterprise</span><span class="p">,</span> <span class="ow">or</span> <span class="n">BuildTools</span><span class="p">]</span>\<span class="n">MSBuild</span>\<span class="n">Microsoft</span>\<span class="n">VC</span>\<span class="n">v160</span>\<span class="n">BuildCustomizations</span>
+</pre></div>
+</div>
+</div>
+</div>
+ <br />
+<p id="pip-install-error"><strong>Installation errors, File “setup.py” not found</strong></p>
+<p>When installing dependencies and nerfstudio with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code>, you run into: <code class="docutils literal notranslate"><span class="pre">ERROR:</span> <span class="pre">File</span> <span class="pre">&quot;setup.py&quot;</span> <span class="pre">not</span> <span class="pre">found.</span> <span class="pre">Directory</span> <span class="pre">cannot</span> <span class="pre">be</span> <span class="pre">installed</span> <span class="pre">in</span> <span class="pre">editable</span> <span class="pre">mode</span></code></p>
+<p><strong>Solution</strong>:
+This can be fixed by upgrading pip to the latest version:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">upgrade</span> <span class="n">pip</span>
+</pre></div>
+</div>
+ <br />
+<p id="cuda-sources-error"><strong>Runtime errors: “len(sources) &gt; 0”, “ctype = _C.ContractionType(type.value) ; TypeError: ‘NoneType’ object is not callable”.</strong></p>
+<p>When running <code class="docutils literal notranslate"><span class="pre">train.py</span> </code>, an error occurs when installing cuda files in the backend code.</p>
+<p><strong>Solution</strong>:
+This is a problem with not being able to detect the correct CUDA version, and can be fixed by updating the CUDA path environment variables:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export CUDA_HOME=/usr/local/cuda
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+export PATH=$PATH:$CUDA_HOME/bin
+</pre></div>
+</div>
+<p><strong>Other errors</strong></p>
+<p>(Windows) A lot of errors on Windows can be caused by not having the Visual Studio environment loaded.<br />
+If you run into errors you can’t figure out, please try re-activating the Visual Studio environment (as outlined at the top of the Windows instructions on this page) and try again.<br />
+This activation only lasts within your current terminal session and does not extend to other terminals, but this should only be needed on first run and on updates.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="first_nerf.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Training your first model</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Home</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Installation</a><ul>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a class="reference internal" href="#create-environment">Create environment</a></li>
+<li><a class="reference internal" href="#dependencies">Dependencies</a><ul>
+<li><a class="reference internal" href="#pytorch">PyTorch</a></li>
+<li><a class="reference internal" href="#install-tiny-cuda-nn">Install tiny-cuda-nn</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#installing-nerfstudio">Installing nerfstudio</a></li>
+<li><a class="reference internal" href="#using-pixi">Using Pixi</a><ul>
+<li><a class="reference internal" href="#id2">Prerequisites</a></li>
+<li><a class="reference internal" href="#install-pixi-environmnent">Install Pixi Environmnent</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#use-docker-image">Use docker image</a><ul>
+<li><a class="reference internal" href="#id3">Prerequisites</a></li>
+<li><a class="reference internal" href="#using-an-interactive-container">Using an interactive container</a></li>
+<li><a class="reference internal" href="#call-nerfstudio-commands-directly">Call nerfstudio commands directly</a></li>
+<li><a class="reference internal" href="#note">Note</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#installation-faq">Installation FAQ</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>

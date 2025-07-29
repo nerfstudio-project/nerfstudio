@@ -1,0 +1,1083 @@
+<!doctype html>
+<html class="no-js"  lang="en" >
+
+<head><meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+<meta property="og:title" content="Using custom data" />
+  
+<meta property="og:type" content="website" />
+  
+<meta property="og:url" content="http://docs.nerf.studio/quickstart/custom_dataset.html" />
+  
+<meta property="og:description" content="Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into the nerfstudio format. Specifically we need to know the c..." />
+  
+<meta property="og:image" content="https://assets.nerf.studio/opg.png" />
+  
+<meta property="og:image:alt" content="Using custom data" />
+  <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Using the viewer" href="viewer_quickstart.html" /><link rel="prev" title="Using existing data" href="existing_dataset.html" />
+
+    <meta name="generator" content="sphinx-5.2.1, furo 2022.09.29" />
+    <title>Using custom data - nerfstudio</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f9fb;
+  --color-code-foreground: black;
+  --color-brand-primary: #d34600;
+  --color-brand-content: #ff6f00;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #282C34;
+  --color-code-foreground: #ABB2BF;
+  --color-brand-primary: #fdd06c;
+  --color-brand-content: ##fea96a;
+  
+      }
+    }
+  }
+</style><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    <script src="../_static/clipboard.min.js"></script>
+    <script src="../_static/copybutton.js"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown, .tag_hide_input div.cell_input, .tag_hide-input div.cell_input, .tag_hide_output div.cell_output, .tag_hide-output div.cell_output, .tag_hide_cell.cell, .tag_hide-cell.cell';</script>
+    <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/require.min.js"></script>
+    <script src="../_static/custom.js"></script>
+    </head>
+
+<body>
+    
+    <script>
+        document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">nerfstudio</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a
+  class="sidebar-brand"
+  href="../index.html"
+>
+  
+  <div class="sidebar-logo-container">
+    <img
+      class="sidebar-logo only-light"
+      src="../_static/imgs/logo.png"
+      alt="Light Logo"
+    />
+    <img
+      class="sidebar-logo only-dark"
+      src="../_static/imgs/logo-dark.png"
+      alt="Dark Logo"
+    />
+  </div>
+</a>
+
+<div style="text-align: center">
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <!-- Place this tag where you want the button to render. -->
+  <a
+    class="github-button"
+    href="https://github.com/nerfstudio-project/nerfstudio/"
+    data-color-scheme="no-preference: light; light: light; dark: light;"
+    data-size="large"
+    data-show-count="true"
+    aria-label="Download buttons/github-buttons on GitHub"
+  >
+    Github
+  </a>
+  <br />
+  <a
+    href="https://colab.research.google.com/github/nerfstudio-project/nerfstudio/blob/main/colab/demo.ipynb"
+    style="
+      background-color: #ebf0f4;
+      background-image: linear-gradient(180deg, #f6f8fa, #ebf0f4 90%);
+      border-radius: 3px;
+      border: 1px solid #1b1f2426;
+      display: inline-flex;
+      cursor: pointer;
+      color: #0d0d0d;
+      font-family: Arial;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 41px;
+      line-height: 16px;
+      text-decoration: none;
+    "
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      class="octicon octicon-mark-github"
+    >
+      <g>
+        <path
+          d="M4.54,9.46,2.19,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36A3.59,3.59,0,0,1,4.54,9.46Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+        <path
+          d="M2.19,7.1,4.54,9.46a3.59,3.59,0,0,1,5.08,0l1.71-2.93h0l-.1-.08h0A6.93,6.93,0,0,0,2.19,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M11.34,17.46h0L9.62,14.54a3.59,3.59,0,0,1-5.08,0L2.19,16.9a6.93,6.93,0,0,0,9,.65l.11-.09"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M12,7.1a6.93,6.93,0,0,0,0,9.79l2.36-2.36a3.59,3.59,0,1,1,5.08-5.08L21.81,7.1A6.93,6.93,0,0,0,12,7.1Z"
+          style=""
+          fill="#F9AB00"
+        ></path>
+        <path
+          d="M21.81,7.1,19.46,9.46a3.59,3.59,0,0,1-5.08,5.08L12,16.9A6.93,6.93,0,0,0,21.81,7.1Z"
+          style=""
+          fill="#E8710A"
+        ></path>
+      </g>
+    </svg>
+    <span>&nbspcolab</span></a
+  >
+</div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="first_nerf.html">Training your first model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="existing_dataset.html">Using existing data</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Using custom data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="viewer_quickstart.html">Using the viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="export_geometry.html">Export geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_conventions.html">Data conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/contributing.html">Contributing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/blender_addon.html">Blender VFX add-on</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/maya_plugin.html">Autodesk Maya Plug-in</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/unreal_engine.html">Exporting to Unreal Engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../extensions/sdfstudio.html">SDFStudio</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">NeRFology</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/methods/index.html">Methods</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/instant_ngp.html">    Instant-NGP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splat.html">    Splatfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/splatw.html">    Splatfacto-W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/in2n.html">    Instruct-NeRF2NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/igs2gs.html">    Instruct-GS2GS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/signerf.html">    SIGNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/kplanes.html">    K-Planes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/lerf.html">    LERF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/livescene.html">    LiveScene</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/feature_splatting.html">    Feature-Splatting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/mipnerf.html">    Mip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf.html">    NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfacto.html">    Nerfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfbusters.html">    Nerfbusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerfplayer.html">    NeRFPlayer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tetranerf.html">    Tetra-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/tensorf.html">    TensoRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/generfacto.html">    Generfacto</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/pynerf.html">    PyNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/seathru_nerf.html">    SeaThru-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/zipnerf.html">    Zip-NeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/bionerf.html">    BioNeRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/nerf2gs2nerf.html">    NeRFtoGSandBack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/methods/opennerf.html">    OpenNeRF</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../nerfology/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_cameras.html">    Cameras models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samples.html">    Sample representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_samplers.html">    Ray samplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_spatial_distortions.html">    Spatial distortions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../nerfology/model_components/visualize_encoders.html">    Encoders</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/new_methods.html">Adding a New Method</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/pipelines/index.html">Pipelines overview</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../developer_guides/pipelines/dataparsers.html">DataParsers</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/datamanagers.html">DataManagers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/fields.html">Fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/pipelines/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/viewer/index.html">Viewer</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/custom_gui.html">Custom GUI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/viewer_control.html">Python Viewer Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/viewer/local_viewer.html">(Legacy Viewer) Local Server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_guides/config.html">Customizable configs</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../developer_guides/debugging_tools/index.html">Debugging tools</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/local_logger.html">Local writer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/profiling.html">Code profiling support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../developer_guides/debugging_tools/benchmarking.html">Benchmarking workflow</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/cli/index.html">CLI</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_install_cli.html">ns-install-cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_process_data.html">ns-process-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_download_data.html">ns-download-data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_train.html">ns-train</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_render.html">ns-render</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_viewer.html">ns-viewer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_export.html">ns-export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/cli/ns_eval.html">ns-eval</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../reference/api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/cameras.html">Cameras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/config.html">Configs</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/data/index.html">Data</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/dataparsers.html">Data Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datamanagers.html">Datamanagers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/datasets.html">Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/data/utils.html">Utils</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/fields.html">Fields</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/field_components/index.html">Field Modules</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/encodings.html">Encodings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/embeddings.html">Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/field_heads.html">Field Heads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/mlp.html">MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/field_components/spatial_distortions.html">Spatial Distortions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/models.html">Models</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/model_components/index.html">Model components</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/ray_sampler.html">Ray Sampler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/losses.html">Losses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/model_components/renderers.html">Renderers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/optimizers.html">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/plugins.html">Plugins</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../reference/api/utils/index.html">Utils</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colors.html">Colors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/math.html">Math</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/colormaps.html">Colormaps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../reference/api/utils/tensor_dataclass.html">TensorDataclass</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../reference/api/viewer.html">Viewer</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="using-custom-data">
+<h1>Using custom data<a class="headerlink" href="#using-custom-data" title="Permalink to this heading">#</a></h1>
+<p>Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into the nerfstudio format. Specifically we need to know the camera poses for each image.</p>
+<p>To process your own data run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span><span class="o">{</span>video,images,polycam,record3d<span class="o">}</span><span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>DATA_PATH<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>PROCESSED_DATA_DIR<span class="o">}</span>
+</pre></div>
+</div>
+<p>A full set of arguments can be found <a class="reference internal" href="../reference/cli/ns_process_data.html"><span class="doc">here</span></a>.</p>
+<p>We currently support the following custom data types:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Data</p></th>
+<th class="head"><p>Capture Device</p></th>
+<th class="head"><p>Requirements</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">ns-process-data</span></code> Speed</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>📷 <a class="reference internal" href="#images-and-video"><span class="std std-ref">Images</span></a></p></td>
+<td><p>Any</p></td>
+<td><p><a class="reference external" href="https://colmap.github.io/install.html">COLMAP</a></p></td>
+<td><p>🐢</p></td>
+</tr>
+<tr class="row-odd"><td><p>📹 <a class="reference internal" href="#images-and-video"><span class="std std-ref">Video</span></a></p></td>
+<td><p>Any</p></td>
+<td><p><a class="reference external" href="https://colmap.github.io/install.html">COLMAP</a></p></td>
+<td><p>🐢</p></td>
+</tr>
+<tr class="row-even"><td><p>🌎 <a class="reference internal" href="#data"><span class="std std-ref">360 Data</span></a></p></td>
+<td><p>Any</p></td>
+<td><p><a class="reference external" href="https://colmap.github.io/install.html">COLMAP</a></p></td>
+<td><p>🐢</p></td>
+</tr>
+<tr class="row-odd"><td><p>📱 <a class="reference internal" href="#polycam"><span class="std std-ref">Polycam</span></a></p></td>
+<td><p>IOS with LiDAR</p></td>
+<td><p><a class="reference external" href="https://poly.cam/">Polycam App</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-even"><td><p>📱 <a class="reference internal" href="#kiri"><span class="std std-ref">KIRI Engine</span></a></p></td>
+<td><p>IOS or Android</p></td>
+<td><p><a class="reference external" href="https://www.kiriengine.com/">KIRI Engine App</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-odd"><td><p>📱 <a class="reference internal" href="#record3d"><span class="std std-ref">Record3D</span></a></p></td>
+<td><p>IOS with LiDAR</p></td>
+<td><p><a class="reference external" href="https://record3d.app/">Record3D app</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-even"><td><p>📱 <a class="reference internal" href="#spectacularai"><span class="std std-ref">Spectacular AI</span></a></p></td>
+<td><p>IOS, OAK, others</p></td>
+<td><p><a class="reference external" href="https://apps.apple.com/us/app/spectacular-rec/id6473188128">App</a> / <a class="reference external" href="https://www.spectacularai.com/mapping"><code class="docutils literal notranslate"><span class="pre">sai-cli</span></code></a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-odd"><td><p>🖥 <a class="reference internal" href="#metashape"><span class="std std-ref">Metashape</span></a></p></td>
+<td><p>Any</p></td>
+<td><p><a class="reference external" href="https://www.agisoft.com/">Metashape</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-even"><td><p>🖥 <a class="reference internal" href="#realitycapture"><span class="std std-ref">RealityCapture</span></a></p></td>
+<td><p>Any</p></td>
+<td><p><a class="reference external" href="https://www.capturingreality.com/realitycapture">RealityCapture</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-odd"><td><p>🖥 <a class="reference internal" href="#odm"><span class="std std-ref">ODM</span></a></p></td>
+<td><p>Any</p></td>
+<td><p><a class="reference external" href="https://github.com/OpenDroneMap/ODM">ODM</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+<tr class="row-even"><td><p>👓 <a class="reference internal" href="#aria"><span class="std std-ref">Aria</span></a></p></td>
+<td><p>Aria glasses</p></td>
+<td><p><a class="reference external" href="https://projectaria.com/">Project Aria</a></p></td>
+<td><p>🐇</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="images-or-video">
+<span id="images-and-video"></span><h2>Images or Video<a class="headerlink" href="#images-or-video" title="Permalink to this heading">#</a></h2>
+<p>To assist running on custom data we have a script that will process a video or folder of images into a format that is compatible with nerfstudio. We use <a class="reference external" href="https://colmap.github.io">COLMAP</a> and <a class="reference external" href="https://ffmpeg.org/download.html">FFmpeg</a> in our data processing script, please have these installed. We have provided a quickstart to installing COLMAP below, FFmpeg can be downloaded from <a class="reference external" href="https://ffmpeg.org/download.html">here</a></p>
+<div class="info admonition">
+<p class="admonition-title">Tip</p>
+<ul class="simple">
+<li><p>COLMAP can be finicky. Try your best to capture overlapping, non-blurry images.</p></li>
+</ul>
+</div>
+<section id="processing-data">
+<h3>Processing Data<a class="headerlink" href="#processing-data" title="Permalink to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span><span class="o">{</span>images,<span class="w"> </span>video<span class="o">}</span><span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>DATA_PATH<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>PROCESSED_DATA_DIR<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="training-on-your-data">
+<h3>Training on your data<a class="headerlink" href="#training-on-your-data" title="Permalink to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>PROCESSED_DATA_DIR<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="training-and-evaluation-on-separate-data">
+<h3>Training and evaluation on separate data<a class="headerlink" href="#training-and-evaluation-on-separate-data" title="Permalink to this heading">#</a></h3>
+<p>For <code class="docutils literal notranslate"><span class="pre">ns-process-data</span> <span class="pre">{images,</span> <span class="pre">video}</span></code>, you can optionally use a separate image directory or video for training and evaluation, as suggested in <a class="reference external" href="https://ethanweber.me/nerfbusters/">Nerfbusters</a>. To do this, run <code class="docutils literal notranslate"><span class="pre">ns-process-data</span> <span class="pre">{images,</span> <span class="pre">video}</span> <span class="pre">--data</span> <span class="pre">{DATA_PATH}</span> <span class="pre">--eval-data</span> <span class="pre">{EVAL_DATA_PATH}</span> <span class="pre">--output-dir</span> <span class="pre">{PROCESSED_DATA_DIR}</span></code>. Then when running nerfacto, run <code class="docutils literal notranslate"><span class="pre">ns-train</span> <span class="pre">nerfacto</span> <span class="pre">--data</span> <span class="pre">{PROCESSED_DATA_DIR}</span> <span class="pre">nerfstudio-data</span> <span class="pre">--eval-mode</span> <span class="pre">filename</span></code>.</p>
+</section>
+<section id="installing-colmap">
+<h3>Installing COLMAP<a class="headerlink" href="#installing-colmap" title="Permalink to this heading">#</a></h3>
+<p>There are many ways to install COLMAP, unfortunately it can sometimes be a bit finicky. If the following commands do not work, please refer to the <a class="reference external" href="https://colmap.github.io/install.html">COLMAP installation guide</a> for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our <a class="reference external" href="https://discord.gg/uMbNqcraFc">Discord</a>.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="e5aac0a5-51a4-4e4e-9942-e205a61ab8a7" name="2efe96eb-7504-43d7-8b8b-776d9961da53" type="radio">
+</input><label class="sd-tab-label" for="e5aac0a5-51a4-4e4e-9942-e205a61ab8a7">
+Linux</label><div class="sd-tab-content docutils">
+<p>We recommend trying <code class="docutils literal notranslate"><span class="pre">conda</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">colmap</span>
+</pre></div>
+</div>
+<p>Check that COLMAP 3.8 with CUDA is successfully installed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">colmap</span> <span class="o">-</span><span class="n">h</span>
+</pre></div>
+</div>
+<p>If that doesn’t work, you can try VKPG:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="688dfd2c-d036-4429-93e3-698560ddf548" name="058b7fee-651a-47ee-a79d-1a75e40077f6" type="radio">
+</input><label class="sd-tab-label" for="688dfd2c-d036-4429-93e3-698560ddf548">
+CUDA</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/microsoft/vcpkg
+<span class="nb">cd</span><span class="w"> </span>vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg<span class="w"> </span>install<span class="w"> </span>colmap<span class="o">[</span>cuda<span class="o">]</span>:x64-linux
+</pre></div>
+</div>
+</div>
+<input id="638f4385-922f-4fdb-b6f1-74225c47cf6a" name="058b7fee-651a-47ee-a79d-1a75e40077f6" type="radio">
+</input><label class="sd-tab-label" for="638f4385-922f-4fdb-b6f1-74225c47cf6a">
+CPU</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/microsoft/vcpkg
+<span class="nb">cd</span><span class="w"> </span>vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg<span class="w"> </span>install<span class="w"> </span>colmap:x64-linux
+</pre></div>
+</div>
+</div>
+</div>
+<p>If that doesn’t work, you will need to build from source. Refer to the <a class="reference external" href="https://colmap.github.io/install.html">COLMAP installation guide</a> for details.</p>
+</div>
+<input id="3d7fd79e-2612-4906-8ebd-1a080f6647b9" name="2efe96eb-7504-43d7-8b8b-776d9961da53" type="radio">
+</input><label class="sd-tab-label" for="3d7fd79e-2612-4906-8ebd-1a080f6647b9">
+OSX</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/microsoft/vcpkg
+<span class="nb">cd</span><span class="w"> </span>vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg<span class="w"> </span>install<span class="w"> </span>colmap
+</pre></div>
+</div>
+</div>
+<input id="c1af30a6-c2ff-4b04-9ae0-5fe50ed74c6f" name="2efe96eb-7504-43d7-8b8b-776d9961da53" type="radio">
+</input><label class="sd-tab-label" for="c1af30a6-c2ff-4b04-9ae0-5fe50ed74c6f">
+Windows</label><div class="sd-tab-content docutils">
+<div class="sd-tab-set docutils">
+<input checked="checked" id="f1becac8-022c-4623-8339-3c883ec44d23" name="06fa0d6b-7bd5-4c52-8327-8ac3a738b979" type="radio">
+</input><label class="sd-tab-label" for="f1becac8-022c-4623-8339-3c883ec44d23">
+CUDA</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/microsoft/vcpkg
+<span class="nb">cd</span><span class="w"> </span>vcpkg
+.<span class="se">\b</span>ootstrap-vcpkg.bat
+.<span class="se">\v</span>cpkg<span class="w"> </span>install<span class="w"> </span>colmap<span class="o">[</span>cuda<span class="o">]</span>:x64-windows
+</pre></div>
+</div>
+</div>
+<input id="109a31bc-df10-48cc-aaaf-e1a372e9a129" name="06fa0d6b-7bd5-4c52-8327-8ac3a738b979" type="radio">
+</input><label class="sd-tab-label" for="109a31bc-df10-48cc-aaaf-e1a372e9a129">
+CPU</label><div class="sd-tab-content docutils">
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/microsoft/vcpkg
+<span class="nb">cd</span><span class="w"> </span>vcpkg
+.<span class="se">\b</span>ootstrap-vcpkg.sh
+.<span class="se">\v</span>cpkg<span class="w"> </span>install<span class="w"> </span>colmap:x64-windows
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="polycam-capture">
+<span id="polycam"></span><h2>Polycam Capture<a class="headerlink" href="#polycam-capture" title="Permalink to this heading">#</a></h2>
+<p>Nerfstudio can also be trained directly from captures from the <a class="reference external" href="https://poly.cam//">Polycam app</a>. This avoids the need to use COLMAP. Polycam’s poses are globally optimized which make them more robust to drift (an issue with ARKit or SLAM methods).</p>
+<p>To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoints as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.</p>
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p>A LiDAR enabled iPhone or iPad is necessary.</p>
+</div>
+<section id="setting-up-polycam">
+<h3>Setting up Polycam<a class="headerlink" href="#setting-up-polycam" title="Permalink to this heading">#</a></h3>
+<a class="reference internal image-reference" href="../_images/polycam_settings.png"><img alt="polycam settings" class="align-center" src="../_images/polycam_settings.png" style="width: 200px;" /></a>
+<p>Developer settings must be enabled in Polycam. To do this, navigate to the settings screen and select <code class="docutils literal notranslate"><span class="pre">Developer</span> <span class="pre">mode</span></code>. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.</p>
+</section>
+<section id="process-data">
+<h3>Process data<a class="headerlink" href="#process-data" title="Permalink to this heading">#</a></h3>
+<a class="reference internal image-reference" href="../_images/polycam_export.png"><img alt="polycam export options" class="align-center" src="../_images/polycam_export.png" style="width: 400px;" /></a>
+<ol class="arabic simple" start="0">
+<li><p>Capture data in LiDAR or Room mode.</p></li>
+<li><p>Tap <code class="docutils literal notranslate"><span class="pre">Process</span></code> to process the data in the Polycam app.</p></li>
+<li><p>Navigate to the export app pane.</p></li>
+<li><p>Select <code class="docutils literal notranslate"><span class="pre">raw</span> <span class="pre">data</span></code> to export a <code class="docutils literal notranslate"><span class="pre">.zip</span></code> file.</p></li>
+<li><p>Convert the Polycam data into the nerfstudio format using the following command:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>polycam<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>OUTPUT_FILE.zip<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="5">
+<li><p>Train with nerfstudio!</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="kiri-engine-capture">
+<span id="kiri"></span><h2>KIRI Engine Capture<a class="headerlink" href="#kiri-engine-capture" title="Permalink to this heading">#</a></h2>
+<p>Nerfstudio can trained from data processed by the <a class="reference external" href="https://www.kiriengine.com/">KIRI Engine app</a>. This works for both Android and iPhone and does not require a LiDAR supported device.</p>
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">ns-process-data</span></code> does not need to be run when using KIRI Engine.</p>
+</div>
+<section id="setting-up-kiri-engine">
+<h3>Setting up KIRI Engine<a class="headerlink" href="#setting-up-kiri-engine" title="Permalink to this heading">#</a></h3>
+<a class="reference internal image-reference" href="../_images/kiri_setup.png"><img alt="KIRI Engine setup" class="align-center" src="../_images/kiri_setup.png" style="width: 400px;" /></a>
+<p>After downloading the app, <code class="docutils literal notranslate"><span class="pre">Developer</span> <span class="pre">Mode</span></code> needs to be enabled. A toggle can be found in the settings menu.</p>
+</section>
+<section id="id1">
+<h3>Process data<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h3>
+<a class="reference internal image-reference" href="../_images/kiri_capture.png"><img alt="KIRI Engine setup" class="align-center" src="../_images/kiri_capture.png" style="width: 400px;" /></a>
+<ol class="arabic simple">
+<li><p>Navigate to captures window.</p></li>
+<li><p>Select <code class="docutils literal notranslate"><span class="pre">Dev.</span></code> tab.</p></li>
+<li><p>Tap the <code class="docutils literal notranslate"><span class="pre">+</span></code> button to create a new capture.</p></li>
+<li><p>Choose <code class="docutils literal notranslate"><span class="pre">Camera</span> <span class="pre">pose</span></code> as the capture option.</p></li>
+<li><p>Capture the scene and provide a name.</p></li>
+<li><p>After processing is complete, export the scene. It will be sent to your email.</p></li>
+<li><p>Unzip the file and run the training script (<code class="docutils literal notranslate"><span class="pre">ns-process-data</span></code> is not necessary).</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>kiri<span class="w"> </span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="record3d-capture">
+<span id="record3d"></span><h2>Record3D Capture<a class="headerlink" href="#record3d-capture" title="Permalink to this heading">#</a></h2>
+<p>Nerfstudio can be trained directly from &gt;=iPhone 12 Pro captures from the <a class="reference external" href="https://record3d.app/">Record3D app</a>. This uses the iPhone’s LiDAR sensors to calculate camera poses, so COLMAP is not needed.</p>
+<p>Click on the image down below 👇 for a 1-minute tutorial on how to run nerfstudio with Record3D from start to finish.</p>
+<p><a class="reference external" href="https://youtu.be/XwKq7qDQCQk"><img alt="How to easily use nerfstudio with Record3D" src="../_images/record3d_promo.png" /></a></p>
+<p>At a high level, you can follow these 3 steps:</p>
+<ol class="arabic simple">
+<li><p>Record a video and export with the EXR + JPG sequence format.</p></li>
+</ol>
+<a class="reference internal image-reference" href="../_images/record_3d_video_selection.png"><img alt="../_images/record_3d_video_selection.png" src="../_images/record_3d_video_selection.png" style="width: 150px;" /></a>
+<a class="reference internal image-reference" href="../_images/record_3d_export_selection.png"><img alt="../_images/record_3d_export_selection.png" src="../_images/record_3d_export_selection.png" style="width: 150px;" /></a>
+<ol class="arabic simple" start="2">
+<li><p>Then, move the exported capture folder from your iPhone to your computer.</p></li>
+<li><p>Convert the data to the nerfstudio format.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>record3d<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Train with nerfstudio!</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<section id="adding-a-point-cloud">
+<h3>Adding a Point Cloud<a class="headerlink" href="#adding-a-point-cloud" title="Permalink to this heading">#</a></h3>
+<p>Adding a point cloud is useful for avoiding random initialization when training gaussian splats. To add a point cloud using Record3D follow these steps:</p>
+<ol class="arabic simple">
+<li><p>Export a Zipped sequence of PLY point clouds from Record3D.</p></li>
+</ol>
+<a class="reference internal image-reference" href="../_images/record_3d_video_example.png"><img alt="../_images/record_3d_video_example.png" src="../_images/record_3d_video_example.png" style="width: 150px;" /></a>
+<a class="reference internal image-reference" href="../_images/record_3d_export_button.png"><img alt="../_images/record_3d_export_button.png" src="../_images/record_3d_export_button.png" style="width: 150px;" /></a>
+<a class="reference internal image-reference" href="../_images/record_3d_ply_selection.png"><img alt="../_images/record_3d_ply_selection.png" src="../_images/record_3d_ply_selection.png" style="width: 150px;" /></a>
+<ol class="arabic simple" start="2">
+<li><p>Move the exported zip file to your computer from your iPhone.</p></li>
+<li><p>Unzip the file and move all extracted <code class="docutils literal notranslate"><span class="pre">.ply</span></code> files to a directory.</p></li>
+<li><p>Convert the data to nerfstudio format with the <code class="docutils literal notranslate"><span class="pre">--ply</span></code> flag and the directory from step 3.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>record3d<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--ply<span class="w"> </span><span class="o">{</span>ply<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<p>Additionally you can specify <code class="docutils literal notranslate"><span class="pre">--voxel-size</span> <span class="pre">{float}</span></code> which determines the level of sparsity when downsampling from the dense point clouds generated by Record3D to the sparse point cloud used in Nerfstudio. The default value is 0.8, lower is less sparse, higher is more sparse.</p>
+</section>
+</section>
+<section id="spectacular-ai">
+<span id="spectacularai"></span><h2>Spectacular AI<a class="headerlink" href="#spectacular-ai" title="Permalink to this heading">#</a></h2>
+<p>Spectacular AI SDK and apps can be used to capture data from various devices:</p>
+<ul class="simple">
+<li><p>iPhones (with LiDAR)</p></li>
+<li><p>OAK-D cameras</p></li>
+<li><p>RealSense D455/D435i</p></li>
+<li><p>Azure Kinect DK</p></li>
+</ul>
+<p>The SDK also records IMU data, which is fused with camera and (if available) LiDAR/ToF data when computing the camera poses. This approach, VISLAM, is more robust than purely image based methods (e.g., COLMAP) and can work better and faster for difficult data (monotonic environments, fast motions, narrow FoV, etc.).</p>
+<p>Instructions:</p>
+<ol class="arabic simple">
+<li><p>Installation. With the Nerfstudio Conda environment active, first install the Spectacular AI Python library</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>spectacularAI<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Install FFmpeg. Linux: <code class="docutils literal notranslate"><span class="pre">apt</span> <span class="pre">install</span> <span class="pre">ffmpeg</span></code> (or similar, if using another package manager). Windows: <a class="reference external" href="https://www.editframe.com/guides/how-to-install-and-start-using-ffmpeg-in-under-10-minutes">see here</a>. FFmpeg must be in your <code class="docutils literal notranslate"><span class="pre">PATH</span></code> so that <code class="docutils literal notranslate"><span class="pre">ffmpeg</span></code> works on the command line.</p></li>
+<li><p>Data capture. See <a class="reference external" href="https://github.com/SpectacularAI/sdk-examples/tree/main/python/mapping#recording-data">here for specific instructions for each supported device</a>.</p></li>
+<li><p>Process and export. Once you have recorded a dataset in Spectacular AI format and have it stored in <code class="docutils literal notranslate"><span class="pre">{data</span> <span class="pre">directory}</span></code> it can be converted into a Nerfstudio supported format with:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sai-cli<span class="w"> </span>process<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--preview3d<span class="w"> </span>--key_frame_distance<span class="o">=</span><span class="m">0</span>.05<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<p>The optional <code class="docutils literal notranslate"><span class="pre">--preview3d</span></code> flag shows a 3D preview of the point cloud and estimated trajectory live while VISLAM is running. The <code class="docutils literal notranslate"><span class="pre">--key_frame_distance</span></code> argument can be tuned based on the recorded scene size: 0.05 (5cm) is good for small scans and 0.15 for room-sized scans. If the processing gets slow, you can also try adding a –fast flag to <code class="docutils literal notranslate"><span class="pre">sai-cli</span> <span class="pre">process</span></code> to trade off quality for speed.</p>
+<ol class="arabic simple" start="5">
+<li><p>Train. No separate <code class="docutils literal notranslate"><span class="pre">ns-process-data</span></code> step is needed. The data in <code class="docutils literal notranslate"><span class="pre">{output</span> <span class="pre">directory}</span></code> can now be trained with Nerfstudio:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="metashape">
+<span id="id2"></span><h2>Metashape<a class="headerlink" href="#metashape" title="Permalink to this heading">#</a></h2>
+<p>All images must use the same sensor type (but multiple sensors are supported).</p>
+<ol class="arabic simple">
+<li><p>Align your images using Metashape. <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">-&gt;</span> <span class="pre">Workflow</span> <span class="pre">-&gt;</span> <span class="pre">Align</span> <span class="pre">Photos...</span></code></p></li>
+</ol>
+<a class="reference internal image-reference" href="https://user-images.githubusercontent.com/3310961/203389662-12760210-2b52-49d4-ab21-4f23bfa4a2b3.png"><img alt="metashape alignment" class="align-center" src="https://user-images.githubusercontent.com/3310961/203389662-12760210-2b52-49d4-ab21-4f23bfa4a2b3.png" style="width: 400px;" /></a>
+<ol class="arabic simple" start="2">
+<li><p>Export the camera alignment as a <code class="docutils literal notranslate"><span class="pre">xml</span></code> file. <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">-&gt;</span> <span class="pre">Export</span> <span class="pre">-&gt;</span> <span class="pre">Export</span> <span class="pre">Cameras...</span></code></p></li>
+</ol>
+<a class="reference internal image-reference" href="https://user-images.githubusercontent.com/3310961/203385691-74565704-e4f6-4034-867e-5d8b940fc658.png"><img alt="metashape export" class="align-center" src="https://user-images.githubusercontent.com/3310961/203385691-74565704-e4f6-4034-867e-5d8b940fc658.png" style="width: 400px;" /></a>
+<ol class="arabic simple" start="3">
+<li><p>Convert the data to the nerfstudio format.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>metashape<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--xml<span class="w"> </span><span class="o">{</span>xml<span class="w"> </span>file<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Train with nerfstudio!</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="realitycapture">
+<span id="id3"></span><h2>RealityCapture<a class="headerlink" href="#realitycapture" title="Permalink to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Align your images using RealityCapture. <code class="docutils literal notranslate"><span class="pre">ALIGNMENT</span> <span class="pre">-&gt;</span> <span class="pre">Align</span> <span class="pre">Images</span></code></p></li>
+<li><p>Export the camera alignment as a <code class="docutils literal notranslate"><span class="pre">csv</span></code> file. Choose <code class="docutils literal notranslate"><span class="pre">Internal/External</span> <span class="pre">camera</span> <span class="pre">parameters</span></code></p></li>
+<li><p>Convert the data to the nerfstudio format.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>realitycapture<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--csv<span class="w"> </span><span class="o">{</span>csv<span class="w"> </span>file<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Train with nerfstudio!</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="odm">
+<span id="id4"></span><h2>ODM<a class="headerlink" href="#odm" title="Permalink to this heading">#</a></h2>
+<p>All images/videos must be captured with the same camera.</p>
+<ol class="arabic simple">
+<li><p>Process a dataset using <a class="reference external" href="https://github.com/OpenDroneMap/ODM#quickstart">ODM</a></p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>ls<span class="w"> </span>/path/to/dataset
+images
+odm_report
+odm_orthophoto
+...
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Convert to nerfstudio format.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>odm<span class="w"> </span>--data<span class="w"> </span>/path/to/dataset<span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Train!</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="aria">
+<span id="id5"></span><h2>Aria<a class="headerlink" href="#aria" title="Permalink to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Install projectaria_tools:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>nerfstudio
+pip<span class="w"> </span>install<span class="w"> </span>projectaria-tools<span class="s1">&#39;[all]&#39;</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p>Download a VRS file from Project Aria glasses, and run Machine Perception Services to extract poses.</p></li>
+<li><p>Convert to nerfstudio format.</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>aria<span class="w"> </span>--vrs-file<span class="w"> </span>/path/to/vrs/file<span class="w"> </span>--mps-data-dir<span class="w"> </span>/path/to/mps/data<span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Train!</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-train<span class="w"> </span>nerfacto<span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="data-equirectangular">
+<span id="data"></span><h2>360 Data (Equirectangular)<a class="headerlink" href="#data-equirectangular" title="Permalink to this heading">#</a></h2>
+<p>Equirectangular data is data that has been taken by a 360 camera such as Insta360. Both equirectangular image sets and videos can be processed by nerfstudio.</p>
+<section id="images">
+<h3>Images<a class="headerlink" href="#images" title="Permalink to this heading">#</a></h3>
+<p>For a set of equirectangular images, process the data using the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>images<span class="w"> </span>--camera-type<span class="w"> </span>equirectangular<span class="w"> </span>--images-per-equirect<span class="w"> </span><span class="o">{</span><span class="m">8</span>,<span class="w"> </span>or<span class="w"> </span><span class="m">14</span><span class="o">}</span><span class="w"> </span>--crop-factor<span class="w"> </span><span class="o">{</span>top<span class="w"> </span>bottom<span class="w"> </span>left<span class="w"> </span>right<span class="o">}</span><span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<p>The images-per-equirect argument is the number of images that will be sampled from each equirectangular image. We have found that 8 images per equirectangular image is sufficient for most use cases so it defaults to that. However, if you find that there isn’t enough detail in the nerf or that colmap is having trouble aligning the images, you can try increasing the number of images per equirectangular image to 14. See the video section below for details on cropping.</p>
+</section>
+<section id="videos">
+<h3>Videos<a class="headerlink" href="#videos" title="Permalink to this heading">#</a></h3>
+<p>For videos we recommend taking a video with the camera held on top of your head. This will result in any unwanted capturer to just be in the bottom of each frame image and therefore can be cropped out.</p>
+<p>For a video, process the data using the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ns-process-data<span class="w"> </span>video<span class="w"> </span>--camera-type<span class="w"> </span>equirectangular<span class="w"> </span>--images-per-equirect<span class="w"> </span><span class="o">{</span><span class="m">8</span>,<span class="w"> </span>or<span class="w"> </span><span class="m">14</span><span class="o">}</span><span class="w"> </span>--num-frames-target<span class="w"> </span><span class="o">{</span>num<span class="w"> </span>equirectangular<span class="w"> </span>frames<span class="w"> </span>to<span class="w"> </span>sample<span class="w"> </span>from<span class="o">}</span><span class="w"> </span>--crop-factor<span class="w"> </span><span class="o">{</span>top<span class="w"> </span>bottom<span class="w"> </span>left<span class="w"> </span>right<span class="o">}</span><span class="w"> </span>--data<span class="w"> </span><span class="o">{</span>data<span class="w"> </span>directory<span class="o">}</span><span class="w"> </span>--output-dir<span class="w"> </span><span class="o">{</span>output<span class="w"> </span>directory<span class="o">}</span>
+</pre></div>
+</div>
+<p>See the equirectangular images section above for a description of the <code class="docutils literal notranslate"><span class="pre">--images-per-equirect</span></code> argument.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">num-frames-target</span></code> argument is optional but it is recommended to set it to 3*(seconds of video) frames. For example, if you have a 30 second video, you would use <code class="docutils literal notranslate"><span class="pre">--num-frames-target</span> <span class="pre">90</span></code> (3*30=90). This number was chosen from a bit of experimentation and seems to work well for most videos. It is by no means a hard rule and you can experiment with different values.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">crop-factor</span></code> argument is optional but often very helpful. This is because equirectangular videos taken by 360 cameras tend to have a portion of the bottom of the image that is the person who was holding the camera over their head.</p>
+<img alt="../_images/equirect_crop.jpg" src="../_images/equirect_crop.jpg" />
+<p>The pixels representing the distorted hand and head are obviously not useful in training a nerf so we can remove it by cropping the bottom 20% of the image. This can be done by using the <code class="docutils literal notranslate"><span class="pre">--crop-factor</span> <span class="pre">0</span> <span class="pre">0.2</span> <span class="pre">0</span> <span class="pre">0</span></code> argument.</p>
+<p>If cropping only needs to be done from the bottom, you can use the <code class="docutils literal notranslate"><span class="pre">--crop-bottom</span> <span class="pre">[num]</span></code> argument which would be the same as doing <code class="docutils literal notranslate"><span class="pre">--crop-factor</span> <span class="pre">0.0</span> <span class="pre">[num]</span> <span class="pre">0.0</span> <span class="pre">0.0</span></code></p>
+</section>
+</section>
+<section id="render-vr-video">
+<h2>🥽 Render VR Video<a class="headerlink" href="#render-vr-video" title="Permalink to this heading">#</a></h2>
+<p>Stereo equirectangular rendering for VR video is supported as VR180 and omni-directional stereo (360 VR) Nerfstudio camera types for video and image rendering.</p>
+<section id="omni-directional-stereo-360-vr">
+<h3>Omni-directional Stereo (360 VR)<a class="headerlink" href="#omni-directional-stereo-360-vr" title="Permalink to this heading">#</a></h3>
+<p>This outputs two equirectangular renders vertically stacked, one for each eye. Omni-directional stereo (ODS) is a method to render VR 3D 360 videos, and may introduce slight depth distortions for close objects. For additional information on how ODS works, refer to this <a class="reference external" href="https://developers.google.com/vr/jump/rendering-ods-content.pdf">writeup</a>.</p>
+<center>
+<img img width="300" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/255423390-ff0710f1-29ce-47b2-85f9-922084cab297.jpg">
+</center>
+</section>
+<section id="vr180">
+<h3>VR180<a class="headerlink" href="#vr180" title="Permalink to this heading">#</a></h3>
+<p>This outputs two 180 deg equirectangular renders horizontally stacked, one for each eye. VR180 is a video format for VR 3D 180 videos. Unlike in omnidirectional stereo, VR180 content only displays front facing content.</p>
+<center>
+<img img width="375" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/255379444-b90f5b3c-5021-4659-8732-17725669914e.jpeg">
+</center>
+</section>
+<section id="setup-instructions">
+<h3>Setup instructions<a class="headerlink" href="#setup-instructions" title="Permalink to this heading">#</a></h3>
+<p>To render for VR video it is essential to adjust the NeRF to have an approximately true-to-life real world scale (adjustable in the camera path) to ensure that the scene depth and IPD (distance between the eyes) is appropriate for the render to be viewable in VR. You can adjust the scene scale with the <a class="reference external" href="https://docs.nerf.studio/extensions/blender_addon.html">Nerfstudio Blender Add-on</a> by appropriately scaling a point cloud representation of the NeRF.
+Results may be unviewable if the scale is not set appropriately. The IPD is set at 64mm by default but only is accurate when the NeRF scene is true to scale.</p>
+<p>For good quality renders, it is recommended to render at high resolutions (For ODS: 4096x2048 per eye, or 2048x1024 per eye. For VR180: 4096x4096 per eye or 2048x2048 per eye). Render resolutions for a single eye are specified in the camera path. For VR180, resolutions must be in a 1:1 aspect ratio. For ODS, resolutions must be in a 2:1 aspect ratio. The final stacked render output will automatically be constructed (with aspect ratios for VR180 as 2:1 and ODS as 1:1).</p>
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p>If you are rendering an image sequence, it is recommended to render as png instead of jpeg, since the png will appear clearer. However, file sizes can be significantly larger with png.</p>
+</div>
+<p>To render with the VR videos camera:</p>
+<ol class="arabic">
+<li><p>Use the <a class="reference external" href="https://docs.nerf.studio/extensions/blender_addon.html">Nerfstudio Blender Add-on</a> to set the scale of the NeRF scene and create the camera path</p>
+<ul class="simple">
+<li><p>Export a point cloud representation of the NeRF</p></li>
+<li><p>Import the point cloud representation in Blender and enable the Nerfstudio Blender Add-on</p></li>
+<li><p>Create a reference object such as a cube which may be 1x1x1 meter. You could also create a cylinder and scale it to an appropriate height of a viewer.</p></li>
+<li><p>Now scale the point cloud representation accordingly to match the reference object. This is to ensure that the NeRF scene is scaled as close to real life.</p></li>
+<li><p>To place the camera at the correct height from the ground in the scene, you can create a cylinder representing the viewer vertically scaled to the viewer’s height, and place the camera at eye level.</p></li>
+<li><p>Animate the camera movement as needed</p></li>
+<li><p>Create the camera path JSON file with the Nerfstudio Blender Add-on</p></li>
+</ul>
+</li>
+<li><p>Edit the JSON camera path file</p>
+<p><strong>Omni-directional Stereo (360 VR)</strong></p>
+<ul>
+<li><p>Open the camera path JSON file and specify the <code class="docutils literal notranslate"><span class="pre">camera_type</span></code> as <code class="docutils literal notranslate"><span class="pre">omnidirectional</span></code></p></li>
+<li><p>Specify the <code class="docutils literal notranslate"><span class="pre">render_height</span></code> and <code class="docutils literal notranslate"><span class="pre">render_width</span></code> to the resolution of a single eye. The width:height aspect ratio must be 2:1. Recommended resolutions are 4096x2048 or 2048x1024.</p>
+<center>
+<img img width="250" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/240530527-22d14276-ac2c-46a5-a4b0-4785b7413241.png">
+</center>
+</li>
+</ul>
+<p><strong>VR180</strong></p>
+<ul class="simple">
+<li><p>Open the camera path JSON file and specify the <code class="docutils literal notranslate"><span class="pre">camera_type</span></code> as <code class="docutils literal notranslate"><span class="pre">vr180</span></code></p></li>
+<li><p>Specify the <code class="docutils literal notranslate"><span class="pre">render_height</span></code> and <code class="docutils literal notranslate"><span class="pre">render_width</span></code> to the resolution of a single eye. The width:height aspect ratio must be 1:1. Recommended resolutions are 4096x4096 or 2048x2048.</p></li>
+</ul>
+   <center>
+   <img img width="190" src="https://github-production-user-asset-6210df.s3.amazonaws.com/9502341/255379889-83b7fd09-ce8f-4868-8838-7be9b63f01b4.png">
+   </center>
+<ul class="simple">
+<li><p>Save the camera path and render the NeRF</p></li>
+</ul>
+</li>
+</ol>
+<div class="info admonition">
+<p class="admonition-title">Note</p>
+<p>If the depth of the scene is unviewable and looks too close or expanded when viewing the render in VR, the scale of the NeRF may be set too small. If there is almost no discernible depth, the scale of the NeRF may be too large. Getting the right scale may take some experimentation, so it is recommended to either render at a much lower resolution or just one frame to ensure the depth and render is viewable in the VR headset.</p>
+</div>
+<section id="additional-notes">
+<h4>Additional Notes<a class="headerlink" href="#additional-notes" title="Permalink to this heading">#</a></h4>
+<ul class="simple">
+<li><p>Rendering with VR180 or ODS can take significantly longer than traditional renders due to higher resolutions and needing to render a left and right eye view for each frame. Render times may grow exponentially with larger resolutions.</p></li>
+<li><p>When rendering VR180 or ODS content, Nerfstudio will first render the left eye, then the right eye, and finally vertically stack the renders. During this process, Nerfstudio will create a temporary folder to store the left and right eye renders and delete this folder once the final renders are stacked.</p></li>
+<li><p>If rendering content where the camera is stationary for many frames, it is recommended to only render once at that position and extend the time in a video editor since ODS renders can take a lot of time to render.</p></li>
+<li><p>It is recommended to render a preliminary render at a much lower resolution or frame rate to test and ensure that the depth and camera position look accurate in VR.</p></li>
+<li><p>The IPD can be modified in the <code class="docutils literal notranslate"><span class="pre">cameras.py</span></code> script as the variable <code class="docutils literal notranslate"><span class="pre">vr_ipd</span></code> (default is 64 mm).</p></li>
+<li><p>Compositing with Blender Objects and VR180 or ODS Renders</p>
+<ul>
+<li><p>Configure the Blender camera as panoramic and equirectangular. For the VR180 Blender camera, set the panoramic longitude min and max to -90 and 90.</p></li>
+<li><p>Change the Stereoscopy mode to “Parallel” set the Interocular Distance to 0.064 m.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="viewer_quickstart.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Using the viewer</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="existing_dataset.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Using existing data</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, nerfstudio Team
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Using custom data</a><ul>
+<li><a class="reference internal" href="#images-or-video">Images or Video</a><ul>
+<li><a class="reference internal" href="#processing-data">Processing Data</a></li>
+<li><a class="reference internal" href="#training-on-your-data">Training on your data</a></li>
+<li><a class="reference internal" href="#training-and-evaluation-on-separate-data">Training and evaluation on separate data</a></li>
+<li><a class="reference internal" href="#installing-colmap">Installing COLMAP</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#polycam-capture">Polycam Capture</a><ul>
+<li><a class="reference internal" href="#setting-up-polycam">Setting up Polycam</a></li>
+<li><a class="reference internal" href="#process-data">Process data</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kiri-engine-capture">KIRI Engine Capture</a><ul>
+<li><a class="reference internal" href="#setting-up-kiri-engine">Setting up KIRI Engine</a></li>
+<li><a class="reference internal" href="#id1">Process data</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#record3d-capture">Record3D Capture</a><ul>
+<li><a class="reference internal" href="#adding-a-point-cloud">Adding a Point Cloud</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#spectacular-ai">Spectacular AI</a></li>
+<li><a class="reference internal" href="#metashape">Metashape</a></li>
+<li><a class="reference internal" href="#realitycapture">RealityCapture</a></li>
+<li><a class="reference internal" href="#odm">ODM</a></li>
+<li><a class="reference internal" href="#aria">Aria</a></li>
+<li><a class="reference internal" href="#data-equirectangular">360 Data (Equirectangular)</a><ul>
+<li><a class="reference internal" href="#images">Images</a></li>
+<li><a class="reference internal" href="#videos">Videos</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#render-vr-video">🥽 Render VR Video</a><ul>
+<li><a class="reference internal" href="#omni-directional-stereo-360-vr">Omni-directional Stereo (360 VR)</a></li>
+<li><a class="reference internal" href="#vr180">VR180</a></li>
+<li><a class="reference internal" href="#setup-instructions">Setup instructions</a><ul>
+<li><a class="reference internal" href="#additional-notes">Additional Notes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div></body>
+
+</html>
