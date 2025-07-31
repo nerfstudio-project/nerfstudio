@@ -554,7 +554,6 @@ else:
         ],
     ]
 
-
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")

@@ -712,3 +712,80 @@ def create_ply_from_colmap(
             x, y, z = coord
             r, g, b = color
             f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
+
+
+def save_colmap_files(
+    output_dir: Path,
+    quaternions: np.ndarray,
+    translations: np.ndarray,
+    points3D: list,
+    image_points2D: list,
+    image_names: list,
+    intrinsic: np.ndarray,
+    width: int,
+    height: int,
+):
+    """Save COLMAP-compatible reconstruction files in both text and binary formats.
+
+    Args:
+        output_dir: Path to save the COLMAP files
+        quaternions: Camera orientations as quaternions (Nx4)
+        translations: Camera positions (Nx3)
+        points3D: List of 3D points with rgb and observation info
+        image_points2D: 2D point observations for each image
+        image_names: Names of the images
+        intrinsic: Camera intrinsic matrix
+        width: Image width
+        height: Image height
+    """
+    import sys
+    sys.path.append(str(Path(__file__).parent.parent.parent / "vggt"))
+    from vggt_to_colmap import (
+        write_colmap_cameras_txt,
+        write_colmap_images_txt,
+        write_colmap_points3D_txt,
+        write_colmap_cameras_bin,
+        write_colmap_images_bin,
+        write_colmap_points3D_bin,
+    )
+
+    sparse_dir = output_dir / "colmap" / "sparse" / "0"
+    sparse_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save text format
+    write_colmap_cameras_txt(
+        sparse_dir / "cameras.txt",
+        intrinsic,
+        width,
+        height,
+    )
+    write_colmap_images_txt(
+        sparse_dir / "images.txt",
+        quaternions,
+        translations,
+        image_points2D,
+        image_names,
+    )
+    write_colmap_points3D_txt(
+        sparse_dir / "points3D.txt",
+        points3D,
+    )
+
+    # Save binary format
+    write_colmap_cameras_bin(
+        sparse_dir / "cameras.bin",
+        intrinsic,
+        width,
+        height,
+    )
+    write_colmap_images_bin(
+        sparse_dir / "images.bin",
+        quaternions,
+        translations,
+        image_points2D,
+        image_names,
+    )
+    write_colmap_points3D_bin(
+        sparse_dir / "points3D.bin",
+        points3D,
+    )

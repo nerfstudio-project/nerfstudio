@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """Base class to processes a video or image sequence to a nerfstudio compatible dataset."""
+import sys
+sys.path.append('./vggt')
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,7 +37,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
     should only be used for videos."""
-    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    sfm_tool: Literal["any", "colmap", "hloc", "vggt"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use
     many modern methods such as superpoint features and superglue matcher"""
     refine_pixsfm: bool = False
@@ -237,6 +239,34 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 matcher_type=matcher_type,
                 refine_pixsfm=self.refine_pixsfm,
                 use_single_camera_mode=self.use_single_camera_mode,
+            )
+        elif sfm_tool == "vggt":
+            from vggt_to_colmap import load_model, process_images, extrinsic_to_colmap_format, filter_and_prepare_points
+
+            model, device = load_model()
+            predictions, image_names = process_images(image_dir, model, device)
+
+            quaternions, translations = extrinsic_to_colmap_format(predictions["extrinsic"])
+            points3D, image_points2D = filter_and_prepare_points(
+                predictions,
+                conf_threshold=50.0,
+                mask_sky=False,
+                mask_black_bg=True,
+                mask_white_bg=True,
+                stride=1,
+            )
+
+            # Save COLMAP-compatible files
+            colmap_utils.save_colmap_files(
+                self.output_dir,
+                quaternions,
+                translations,
+                points3D,
+                image_points2D,
+                image_names,
+                predictions["intrinsic"],
+                predictions["images"].shape[2],
+                predictions["images"].shape[1],
             )
         else:
             raise RuntimeError("Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
