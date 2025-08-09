@@ -83,6 +83,12 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    mapper: Literal["colmap", "glomap"] = "colmap"
+    """Binary to use for the mapping stage.
+
+    Only the COLMAP ``mapper`` command is affected by this flag, allowing the
+    use of :command:`glomap` if installed. Defaults to ``colmap``.
+    """
     images_per_equirect: Literal[8, 14] = 8
     """Number of samples per image to take from each equirectangular image.
        Used only when camera-type is equirectangular.
@@ -104,6 +110,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     use_single_camera_mode: bool = True
     """Whether to assume all images taken with the same camera characteristics, set to False for multiple cameras in colmap (only works with hloc sfm_tool).
     """
+    estimate_affine_shape: bool = False
+    """If True, enable affine shape estimation during SIFT feature extraction."""
+    domain_size_pooling: bool = False
+    """If True, enable domain size pooling during SIFT feature extraction."""
 
     @staticmethod
     def default_colmap_path() -> Path:
@@ -219,6 +229,9 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 matching_method=self.matching_method,
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
+                mapper=self.mapper,
+                estimate_affine_shape=self.estimate_affine_shape,
+                domain_size_pooling=self.domain_size_pooling,
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
@@ -245,6 +258,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
         super().__post_init__()
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed(self.colmap_cmd)
+        if self.mapper == "glomap":
+            install_checks.check_colmap_installed("glomap")
 
         if self.crop_bottom < 0.0 or self.crop_bottom > 1:
             raise RuntimeError("crop_bottom must be set between 0 and 1.")
