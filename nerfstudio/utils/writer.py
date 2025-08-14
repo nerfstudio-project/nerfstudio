@@ -207,6 +207,7 @@ def setup_event_writer(
     log_dir: Path,
     experiment_name: str,
     project_name: str = "nerfstudio-project",
+    workspace_name: Optional[str] = None,
 ) -> None:
     """Initialization of all event writers specified in config
     Args:
@@ -217,11 +218,15 @@ def setup_event_writer(
     using_event_writer = False
 
     if is_comet_enabled:
-        curr_writer = CometWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
+        curr_writer = CometWriter(
+            log_dir=log_dir, experiment_name=experiment_name, project_name=project_name, workspace_name=workspace_name
+        )
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_wandb_enabled:
-        curr_writer = WandbWriter(log_dir=log_dir, experiment_name=experiment_name, project_name=project_name)
+        curr_writer = WandbWriter(
+            log_dir=log_dir, experiment_name=experiment_name, project_name=project_name, workspace_name=workspace_name
+        )
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
     if is_tensorboard_enabled:
@@ -305,15 +310,26 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+    def __init__(
+        self,
+        log_dir: Path,
+        experiment_name: str,
+        project_name: str = "nerfstudio-project",
+        workspace_name: Optional[str] = None,
+    ):
         import wandb  # wandb is slow to import, so we only import it if we need it.
 
-        wandb.init(
-            project=os.environ.get("WANDB_PROJECT", project_name),
-            dir=os.environ.get("WANDB_DIR", str(log_dir)),
-            name=os.environ.get("WANDB_NAME", experiment_name),
-            reinit=True,
-        )
+        opt_args = {
+            "project": os.environ.get("WANDB_PROJECT", project_name),
+            "dir": os.environ.get("WANDB_DIR", str(log_dir)),
+            "name": os.environ.get("WANDB_NAME", experiment_name),
+            "reinit": True,
+        }
+
+        if workspace_name is not None:
+            opt_args["entity"] = os.environ.get("WANDB_ENTITY", workspace_name)
+
+        wandb.init(**opt_args)
 
     def write_image(self, name: str, image: Float[Tensor, "H W C"], step: int) -> None:
         import wandb  # wandb is slow to import, so we only import it if we need it.
@@ -364,11 +380,17 @@ class TensorboardWriter(Writer):
 class CometWriter(Writer):
     """Comet_ML Writer Class"""
 
-    def __init__(self, log_dir: Path, experiment_name: str, project_name: str = "nerfstudio-project"):
+    def __init__(
+        self,
+        log_dir: Path,
+        experiment_name: str,
+        project_name: str = "nerfstudio-project",
+        workspace_name: Optional[str] = None,
+    ):
         # comet_ml is slow to import, so we only do it if we need it.
         import comet_ml
 
-        self.experiment = comet_ml.Experiment(project_name=project_name)
+        self.experiment = comet_ml.Experiment(project_name=project_name, workspace=workspace_name)
         if experiment_name != "unnamed":
             self.experiment.set_name(experiment_name)
 
