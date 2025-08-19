@@ -107,7 +107,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self,
         config: FullImageDatamanagerConfig,
         device: Union[torch.device, str] = "cpu",
-        test_mode: Literal["test", "val", "inference"] = "val",
+        test_mode: Literal["test", "val", "inference", "train"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
         **kwargs,
@@ -123,7 +123,12 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.local_rank = local_rank
         self.sampler = None
         self.test_mode = test_mode
-        self.test_split = "test" if test_mode in ["test", "inference"] else "val"
+        if test_mode in ["test", "inference"]:
+            self.test_split = "test"
+        elif test_mode == "train":
+            self.test_split = "train"
+        else:
+            self.test_split = "val"
         self.dataparser_config = self.config.dataparser
         if self.config.data is not None:
             self.config.dataparser.data = Path(self.config.data)

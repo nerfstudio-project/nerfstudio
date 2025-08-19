@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import tyro
 
@@ -40,10 +40,12 @@ class ComputePSNR:
     output_path: Path = Path("output.json")
     # Optional path to save rendered outputs to.
     render_output_path: Optional[Path] = None
+    # Split to test the data on
+    test_mode: Optional[Literal["test", "val", "inference", "train"]] = "test"
 
     def main(self) -> None:
         """Main function."""
-        config, pipeline, checkpoint_path, _ = eval_setup(self.load_config)
+        config, pipeline, checkpoint_path, _ = eval_setup(self.load_config, test_mode=self.test_mode)
         assert self.output_path.suffix == ".json"
         if self.render_output_path is not None:
             self.render_output_path.mkdir(parents=True, exist_ok=True)

@@ -243,7 +243,7 @@ class VanillaPipeline(Pipeline):
         self,
         config: VanillaPipelineConfig,
         device: str,
-        test_mode: Literal["test", "val", "inference"] = "val",
+        test_mode: Literal["test", "val", "inference", "train"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
         grad_scaler: Optional[GradScaler] = None,
