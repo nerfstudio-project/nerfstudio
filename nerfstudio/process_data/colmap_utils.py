@@ -98,6 +98,7 @@ def run_colmap(
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     refine_intrinsics: bool = True,
+    use_best_sparse_model: bool = True,
     colmap_cmd: str = "colmap",
 ) -> None:
     """Runs COLMAP on the images.
@@ -111,6 +112,7 @@ def run_colmap(
         verbose: If True, logs the output of the command.
         matching_method: Matching method to use.
         refine_intrinsics: If True, refine intrinsics.
+        use_best_sparse_model: If True, refine intrinsics of the best sparse model.
         colmap_cmd: Path to the COLMAP executable.
     """
 
@@ -173,11 +175,13 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
 
     if refine_intrinsics:
+        sparse_model = "0" if not use_best_sparse_model else BestSparseModel.get_model(colmap_dir)
+
         with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
             bundle_adjuster_cmd = [
                 f"{colmap_cmd} bundle_adjuster",
-                f"--input_path {sparse_dir}/0",
-                f"--output_path {sparse_dir}/0",
+                f"--input_path {sparse_dir}/{sparse_model}",
+                f"--output_path {sparse_dir}/{sparse_model}",
                 "--BundleAdjustment.refine_principal_point 1",
             ]
             run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
@@ -712,3 +716,64 @@ def create_ply_from_colmap(
             x, y, z = coord
             r, g, b = color
             f.write(f"{x:8f} {y:8f} {z:8f} {r} {g} {b}\n")
+
+
+class BestSparseModel:
+    """
+    Utility class to find and cache the best COLMAP sparse model
+    from a given directory. Provides both the model name and full path.
+
+    The best model is defined as the one with the largest number of registered images.
+    """
+
+    _cached_model = None  # Cached name of the best sparse model
+
+    @staticmethod
+    def _find_best_model(colmap_dir: Path) -> str:
+        """
+        Find the best sparse model in the COLMAP directory.
+
+        Args:
+            colmap_dir (Path): Path to the COLMAP project directory containing 'sparse/'.
+
+        Returns:
+            str: Name of the best sparse model directory.
+
+        Raises:
+            ValueError: If no valid sparse models are found.
+        """
+        sparse_dir = colmap_dir / "sparse"
+        models = [m for m in sorted(sparse_dir.glob("*")) if (m / "images.bin").exists()]
+        if not models:
+            raise ValueError(f"No valid COLMAP sparse models found in {sparse_dir}")
+
+        best_model = max(models, key=lambda m: len(read_images_binary(m / "images.bin")))
+        return best_model.name
+
+    @staticmethod
+    def get_model(colmap_dir: Path) -> str:
+        """
+        Get the name of the best sparse model, using cache if available.
+
+        Args:
+            colmap_dir (Path): Path to the COLMAP project directory containing 'sparse/'.
+
+        Returns:
+            str: Name of the best sparse model.
+        """
+        if not BestSparseModel._cached_model:
+            BestSparseModel._cached_model = BestSparseModel._find_best_model(colmap_dir)
+        return BestSparseModel._cached_model
+
+    @staticmethod
+    def get_model_path(colmap_dir: Path) -> Path:
+        """
+        Get the full path to the best sparse model, using cache if available.
+
+        Args:
+            colmap_dir (Path): Path to the COLMAP project directory containing 'sparse/'.
+
+        Returns:
+            Path: Full path to the best sparse model directory.
+        """
+        return colmap_dir / "sparse" / BestSparseModel.get_model(colmap_dir)

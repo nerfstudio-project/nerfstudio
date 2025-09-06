@@ -44,6 +44,9 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     refine_intrinsics: bool = True
     """If True, do bundle adjustment to refine intrinsics.
     Only works with colmap sfm_tool"""
+    use_best_sparse_model: bool = True
+    """If True, use the best sparse model to refine intrinsics and save the camera transformations.
+    Only works with colmap sfm_tool"""
     feature_type: Literal[
         "any",
         "sift",
@@ -111,6 +114,8 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
     @property
     def absolute_colmap_model_path(self) -> Path:
+        if not self.skip_colmap and self.use_best_sparse_model:
+            return colmap_utils.BestSparseModel.get_model_path(self.absolute_colmap_path)
         return self.output_dir / self.colmap_model_path
 
     @property
@@ -218,6 +223,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 verbose=self.verbose,
                 matching_method=self.matching_method,
                 refine_intrinsics=self.refine_intrinsics,
+                use_best_sparse_model=self.use_best_sparse_model,
                 colmap_cmd=self.colmap_cmd,
             )
         elif sfm_tool == "hloc":
