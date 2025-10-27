@@ -394,7 +394,7 @@ def colmap_to_json(
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
     ply_filename="sparse_pc.ply",
-    keep_original_world_coordinate: bool = False,
+    keep_original_world_coordinate: bool = True,
     use_single_camera_mode: bool = True,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
