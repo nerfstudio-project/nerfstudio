@@ -384,7 +384,7 @@ class Viewer:
             # both are numpy arrays
             c2w_orig = self.original_c2w[key]
             c2w_delta = c2ws_delta[i, ...]
-            c2w = c2w_orig @ np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0)
+            c2w = np.concatenate((c2w_delta, np.array([[0, 0, 0, 1]])), axis=0) @ np.concatenate((c2w_orig, np.array([[0, 0, 0, 1]])), axis=0)
             R = vtf.SO3.from_matrix(c2w[:3, :3])  # type: ignore
             R = R @ vtf.SO3.from_x_radians(np.pi)
             self.camera_handles[key].position = c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
