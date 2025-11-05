@@ -59,7 +59,9 @@ def polycam_to_json(
     skipped_frames = 0
     for i, image_filename in enumerate(image_filenames):
         json_filename = cameras_dir / f"{image_filename.stem}.json"
+        orig_json_filename = cameras_dir.parent / "cameras" / f"{image_filename.stem}.json"
         frame_json = io.load_from_json(json_filename)
+        orig_frame_json = io.load_from_json(orig_json_filename)
         if "blur_score" in frame_json and frame_json["blur_score"] < min_blur_score:
             skipped_frames += 1
             continue
@@ -68,8 +70,12 @@ def polycam_to_json(
         frame["fl_y"] = frame_json["fy"]
         frame["cx"] = frame_json["cx"] - crop_border_pixels
         frame["cy"] = frame_json["cy"] - crop_border_pixels
-        frame["w"] = frame_json["width"] - crop_border_pixels * 2
-        frame["h"] = frame_json["height"] - crop_border_pixels * 2
+        if "width" in frame_json:
+            frame["w"] = frame_json["width"] - crop_border_pixels * 2
+            frame["h"] = frame_json["height"] - crop_border_pixels * 2
+        else:
+            frame["w"] = orig_frame_json["width"] - crop_border_pixels * 2
+            frame["h"] = orig_frame_json["height"] - crop_border_pixels * 2
         frame["file_path"] = f"./images/frame_{i + 1:05d}{image_filename.suffix}"
         if use_depth:
             frame["depth_file_path"] = f"./depth/frame_{i + 1:05d}{depth_filenames[i].suffix}"
