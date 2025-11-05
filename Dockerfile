@@ -81,7 +81,7 @@ RUN git clone https://github.com/colmap/colmap.git && \
 
 # Upgrade pip and install dependencies.
 # pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cu118 && \
-RUN pip install --no-cache-dir --upgrade pip 'setuptools<70.0.0' && \
+RUN pip install --no-cache-dir --upgrade pip==25.2 'setuptools<70.0.0' && \
     pip install --no-cache-dir torch==2.1.2+cu118 torchvision==0.16.2+cu118 'numpy<2.0.0' --extra-index-url https://download.pytorch.org/whl/cu118 && \
     git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git /opt/hloc && \
     cd /opt/hloc && git checkout v1.4 && python3.10 -m pip install --no-cache-dir . && cd ~ && \

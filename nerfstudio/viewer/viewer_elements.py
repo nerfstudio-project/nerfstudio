@@ -589,7 +589,7 @@ class ViewerDropdown(ViewerParameter[TString], Generic[TString]):
         self.gui_handle = viser_server.gui.add_dropdown(
             self.name,
             self.options,
-            self.default_value,
+            initial_value=self.default_value,
             disabled=self.disabled,
             visible=self.visible,
             hint=self.hint,  # type: ignore
