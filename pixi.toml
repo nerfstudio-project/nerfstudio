@@ -28,7 +28,7 @@ pytorch-cuda = {version = "11.8.*", channel="pytorch"}
 pytorch = {version = ">=2.2.0,<2.3", channel="pytorch"}
 torchvision = {version = ">=0.17.0,<0.18", channel="pytorch"}
 pyarrow = ">=15.0.2,<15.1"
-colmap = ">=3.9.1,<3.10"
+colmap = ">=3.13.0"
 
 
 [pypi-dependencies]
