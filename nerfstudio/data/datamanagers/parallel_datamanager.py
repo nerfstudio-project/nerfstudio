@@ -248,7 +248,7 @@ class ParallelDataManager(DataManager, Generic[TDataset]):
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
-        ray_bundle, batch = next(self.iter_train_raybundles)[0]
+        ray_bundle, batch = next(self.iter_eval_raybundles)[0]
         ray_bundle = ray_bundle.to(self.device)
         batch = get_dict_to_torch(batch, self.device)
         return ray_bundle, batch
