@@ -281,6 +281,7 @@ def undistort_view(
         cy=torch.Tensor([[float(K[1, 2])]]),
         width=torch.Tensor([[image.shape[1]]]).to(torch.int32),
         height=torch.Tensor([[image.shape[0]]]).to(torch.int32),
+        metadata=camera.metadata,
     )
     return new_camera, data
 
