@@ -46,6 +46,8 @@ from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.utils.hashgrid_psf import compute_psf_guided_hashgrid_params, growth_factor_to_max_res
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
@@ -75,6 +77,14 @@ class NerfactoModelConfig(ModelConfig):
     """Size of the hashmap for the base mlp"""
     features_per_level: int = 2
     """How many hashgrid features per level"""
+    psf_guided_hashgrid: bool = False
+    """If True, solve hash growth factor from PSF target FWHM and dataset scale instead of sweeping."""
+    psf_target_fwhm_pixels: float = 0.5
+    """Target empirical PSF FWHM measured in image pixels."""
+    psf_broadening: float = 3.0
+    """Empirical broadening factor used to map idealized to observed PSF width."""
+    psf_adjust_proposal_nets: bool = True
+    """If True, apply the solved growth factor to proposal hash pyramids as well."""
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for each proposal network."""
     num_nerf_samples_per_ray: int = 48
@@ -145,6 +155,46 @@ class NerfactoModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
+        active_max_res = int(self.config.max_res)
+        proposal_net_args_list = [dict(args) for args in self.config.proposal_net_args_list]
+        if self.config.psf_guided_hashgrid:
+            train_cameras = self.kwargs.get("train_cameras")
+            if train_cameras is not None and not hasattr(train_cameras, "camera_to_worlds"):
+                train_cameras = None
+            psf_params = compute_psf_guided_hashgrid_params(
+                train_cameras=train_cameras,
+                scene_aabb=self.scene_box.aabb,
+                base_resolution=self.config.base_res,
+                num_levels=self.config.num_levels,
+                target_fwhm_pixels=self.config.psf_target_fwhm_pixels,
+                dim=3,
+                broadening=self.config.psf_broadening,
+            )
+            if psf_params is None:
+                CONSOLE.print(
+                    "[bold yellow]PSF-guided hashgrid could not compute parameters; "
+                    f"falling back to max_res={active_max_res}[/bold yellow]"
+                )
+            else:
+                growth_factor = float(psf_params["growth_factor"])
+                active_max_res = int(psf_params["max_res"])
+                self.config.max_res = active_max_res
+                if self.config.psf_adjust_proposal_nets:
+                    for proposal_args in proposal_net_args_list:
+                        proposal_levels = int(proposal_args.get("num_levels", self.config.num_levels))
+                        proposal_base_res = int(proposal_args.get("base_res", self.config.base_res))
+                        proposal_args["max_res"] = growth_factor_to_max_res(
+                            base_resolution=proposal_base_res,
+                            num_levels=proposal_levels,
+                            growth_factor=growth_factor,
+                        )
+                source = "scene-scale fallback" if psf_params["used_scene_scale_fallback"] > 0.5 else "camera scale"
+                CONSOLE.print(
+                    "[green]PSF-guided hashgrid[/green] "
+                    f"b={growth_factor:.4f} max_res={active_max_res} "
+                    f"target_fwhm_world={psf_params['target_fwhm_world']:.4e} ({source})"
+                )
+
         if self.config.disable_scene_contraction:
             scene_contraction = None
         else:
@@ -157,7 +207,7 @@ class NerfactoModel(Model):
             self.scene_box.aabb,
             hidden_dim=self.config.hidden_dim,
             num_levels=self.config.num_levels,
-            max_res=self.config.max_res,
+            max_res=active_max_res,
             base_res=self.config.base_res,
             features_per_level=self.config.features_per_level,
             log2_hashmap_size=self.config.log2_hashmap_size,
@@ -180,8 +230,8 @@ class NerfactoModel(Model):
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
-            prop_net_args = self.config.proposal_net_args_list[0]
+            assert len(proposal_net_args_list) == 1, "Only one proposal network is allowed."
+            prop_net_args = proposal_net_args_list[0]
             network = HashMLPDensityField(
                 self.scene_box.aabb,
                 spatial_distortion=scene_contraction,
@@ -193,7 +243,7 @@ class NerfactoModel(Model):
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
             for i in range(num_prop_nets):
-                prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
+                prop_net_args = proposal_net_args_list[min(i, len(proposal_net_args_list) - 1)]
                 network = HashMLPDensityField(
                     self.scene_box.aabb,
                     spatial_distortion=scene_contraction,

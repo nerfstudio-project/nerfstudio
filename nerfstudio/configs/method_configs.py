@@ -67,6 +67,7 @@ from nerfstudio.plugins.registry import discover_methods
 method_configs: Dict[str, Union[TrainerConfig, ExternalMethodDummyTrainerConfig]] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
+    "nerfacto-psf": "Nerfacto with PSF-guided hashgrid selection (no b/grid sweep needed).",
     "nerfacto-huge": "Larger version of Nerfacto with higher quality.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
@@ -99,6 +100,45 @@ method_configs["nerfacto"] = TrainerConfig(
         model=NerfactoModelConfig(
             eval_num_rays_per_chunk=1 << 15,
             average_init_density=0.01,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
+        },
+        "camera_opt": {
+            "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-4, max_steps=5000),
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["nerfacto-psf"] = TrainerConfig(
+    method_name="nerfacto-psf",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=ParallelDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+        ),
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            average_init_density=0.01,
+            psf_guided_hashgrid=True,
+            psf_target_fwhm_pixels=0.5,
+            psf_broadening=3.0,
             camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
         ),
     ),
