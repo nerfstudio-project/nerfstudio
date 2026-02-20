@@ -35,6 +35,8 @@ from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
+from nerfstudio.utils.hashgrid_psf import compute_psf_guided_hashgrid_params
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 @dataclass
@@ -53,10 +55,20 @@ class InstantNGPModelConfig(ModelConfig):
     """Resolution of the grid used for the field."""
     grid_levels: int = 4
     """Levels of the grid used for the field."""
+    num_levels: int = 16
+    """Number of levels of the hashgrid encoding."""
+    base_res: int = 16
+    """Resolution of the base level of the hashgrid encoding."""
     max_res: int = 2048
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
     """Size of the hashmap for the base mlp"""
+    psf_guided_hashgrid: bool = False
+    """If True, solve hash growth factor from PSF target FWHM and dataset scale instead of sweeping."""
+    psf_target_fwhm_pixels: float = 0.5
+    """Target empirical PSF FWHM measured in image pixels."""
+    psf_broadening: float = 3.0
+    """Empirical broadening factor used to map idealized to observed PSF width."""
     alpha_thre: float = 0.01
     """Threshold for opacity skipping."""
     cone_angle: float = 0.004
@@ -97,6 +109,36 @@ class NGPModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
+        active_max_res = int(self.config.max_res)
+        if self.config.psf_guided_hashgrid:
+            train_cameras = self.kwargs.get("train_cameras")
+            if train_cameras is not None and not hasattr(train_cameras, "camera_to_worlds"):
+                train_cameras = None
+            psf_params = compute_psf_guided_hashgrid_params(
+                train_cameras=train_cameras,
+                scene_aabb=self.scene_box.aabb,
+                base_resolution=self.config.base_res,
+                num_levels=self.config.num_levels,
+                target_fwhm_pixels=self.config.psf_target_fwhm_pixels,
+                dim=3,
+                broadening=self.config.psf_broadening,
+            )
+            if psf_params is None:
+                CONSOLE.print(
+                    "[bold yellow]PSF-guided hashgrid could not compute parameters; "
+                    f"falling back to max_res={active_max_res}[/bold yellow]"
+                )
+            else:
+                active_max_res = int(psf_params["max_res"])
+                self.config.max_res = active_max_res
+                growth_factor = float(psf_params["growth_factor"])
+                source = "scene-scale fallback" if psf_params["used_scene_scale_fallback"] > 0.5 else "camera scale"
+                CONSOLE.print(
+                    "[green]PSF-guided hashgrid[/green] "
+                    f"b={growth_factor:.4f} max_res={active_max_res} "
+                    f"target_fwhm_world={psf_params['target_fwhm_world']:.4e} ({source})"
+                )
+
         if self.config.disable_scene_contraction:
             scene_contraction = None
         else:
@@ -106,8 +148,10 @@ class NGPModel(Model):
             aabb=self.scene_box.aabb,
             appearance_embedding_dim=0 if self.config.use_appearance_embedding else 32,
             num_images=self.num_train_data,
+            num_levels=self.config.num_levels,
+            base_res=self.config.base_res,
             log2_hashmap_size=self.config.log2_hashmap_size,
-            max_res=self.config.max_res,
+            max_res=active_max_res,
             spatial_distortion=scene_contraction,
         )
 
