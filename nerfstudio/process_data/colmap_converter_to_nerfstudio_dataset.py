@@ -31,10 +31,10 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
     camera_type: Literal["perspective", "fisheye", "equirectangular", "pinhole", "simple_pinhole"] = "perspective"
     """Camera model to use."""
-    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree", "spatial"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed
     and accuracy. Exhaustive is slower but more accurate. Sequential is faster but
-    should only be used for videos."""
+    should only be used for videos. Spatial can leverage EXIF GPS priors for pairing."""
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use
     many modern methods such as superpoint features and superglue matcher"""
@@ -104,6 +104,26 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     use_single_camera_mode: bool = True
     """Whether to assume all images taken with the same camera characteristics, set to False for multiple cameras in colmap (only works with hloc sfm_tool).
     """
+    # New options for pose priors and alignment
+    use_pose_prior: bool = False
+    """If True, use EXIF pose priors by running pose_prior_mapper and optionally align to priors."""
+    prior_position_std: float = 2.0
+    """Standard deviation (meters) for x/y/z prior used by pose_prior_mapper."""
+    overwrite_priors_covariance: bool = True
+    """Whether to overwrite priors covariance in database when running pose_prior_mapper."""
+    align_model_to_priors: bool = False
+    """If True, run model_aligner to align the reconstruction to GPS priors (writes back into sparse/0)."""
+    alignment_max_error: Optional[float] = None
+    """Max alignment error for model_aligner. Defaults to prior_position_std if not set."""
+    # Normalization options
+    normalize_model: bool = False
+    """If True, apply model_transformer to center and scale the reconstructed model for numeric stability."""
+    normalization_center: Literal["bbox", "mean"] = "bbox"
+    """How to compute the model center for normalization (bbox center or mean point)."""
+    normalization_target_diagonal: float = 4.0
+    """Target diagonal length (meters) for the normalized model if no explicit scale is provided."""
+    normalization_scale: Optional[float] = None
+    """Explicit normalization scale; if set, overrides normalization_target_diagonal."""
 
     @staticmethod
     def default_colmap_path() -> Path:
@@ -219,6 +239,15 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
                 matching_method=self.matching_method,
                 refine_intrinsics=self.refine_intrinsics,
                 colmap_cmd=self.colmap_cmd,
+                use_pose_prior=self.use_pose_prior,
+                prior_position_std=self.prior_position_std,
+                overwrite_priors_covariance=self.overwrite_priors_covariance,
+                align_model_to_priors=self.align_model_to_priors,
+                alignment_max_error=self.alignment_max_error,
+                normalize_model=self.normalize_model,
+                normalization_center=self.normalization_center,
+                normalization_target_diagonal=self.normalization_target_diagonal,
+                normalization_scale=self.normalization_scale,
             )
         elif sfm_tool == "hloc":
             if mask_path is not None:
@@ -227,12 +256,14 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             assert feature_type is not None
             assert matcher_type is not None
             assert matcher_type != "NN"  # Only used for colmap.
+            # hloc does not support 'spatial' matching_method; map it to 'vocab_tree' for compatibility
+            hloc_matching_method = self.matching_method if self.matching_method != "spatial" else "vocab_tree"
             hloc_utils.run_hloc(
                 image_dir=image_dir,
                 colmap_dir=self.absolute_colmap_path,
                 camera_model=CAMERA_MODELS[self.camera_type],
                 verbose=self.verbose,
-                matching_method=self.matching_method,
+                matching_method=hloc_matching_method,
                 feature_type=feature_type,
                 matcher_type=matcher_type,
                 refine_pixsfm=self.refine_pixsfm,

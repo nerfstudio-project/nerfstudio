@@ -558,7 +558,7 @@ class ExportGaussianSplat(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _, _ = eval_setup(self.load_config, test_mode="inference")
+        config, pipeline, _, _ = eval_setup(self.load_config, test_mode="inference")
 
         assert isinstance(pipeline.model, SplatfactoModel)
 
@@ -647,6 +647,88 @@ class ExportGaussianSplat(Exporter):
             count = np.sum(select)
 
         ExportGaussianSplat.write_ply(str(filename), count, map_to_tensors)
+
+        # Write geo_transforms.json containing inverse dataparser and normalization transforms
+        try:
+            run_dir = Path(self.load_config).parent  # where config.yml resides
+            dp_path = run_dir / "dataparser_transforms.json"
+            geo = {}
+            if dp_path.exists():
+                with open(dp_path, "r", encoding="utf-8") as f:
+                    dp = json.load(f)
+                T_dp = np.array(dp["transform"], dtype=np.float64)  # 3x4
+                R_dp = T_dp[:, :3]
+                t_dp = T_dp[:, 3]
+                s_dp = float(dp["scale"]) if "scale" in dp else 1.0
+                R_dp_inv = (R_dp.T) / s_dp
+                t_dp_inv = -R_dp.T @ t_dp
+                M_dp_inv = np.eye(4, dtype=np.float64)
+                M_dp_inv[:3, :3] = R_dp_inv
+                M_dp_inv[:3, 3] = t_dp_inv
+                geo["dataparser_inverse"] = {"matrix": M_dp_inv.tolist(), "scale": s_dp}
+            # Normalization transform saved by processing: <dataset_root>/colmap/sparse/0/normalization_transform.txt
+            # Find dataset root from config
+            dataset_root = None
+            try:
+                dataset_root = Path(config.pipeline.datamanager.dataparser.data)  # type: ignore[attr-defined]
+            except Exception:
+                dataset_root = None
+            norm_txt = None
+            if dataset_root is not None:
+                candidate = dataset_root / "colmap" / "sparse" / "0" / "normalization_transform.txt"
+                if candidate.exists():
+                    norm_txt = candidate
+            if norm_txt is not None and norm_txt.exists():
+                vals = np.loadtxt(norm_txt).astype(np.float64).flatten().tolist()
+                if len(vals) >= 8:
+                    s0, qw, qx, qy, qz, tx, ty, tz = vals[:8]
+                    # Build R from quaternion (qw, qx, qy, qz)
+                    q = np.array([qw, qx, qy, qz], dtype=np.float64)
+                    # Normalize quaternion
+                    q = q / (np.linalg.norm(q) + 1e-12)
+                    w, x, y, z = q
+                    R = np.array(
+                        [
+                            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+                        ],
+                        dtype=np.float64,
+                    )
+                    t = np.array([tx, ty, tz], dtype=np.float64)
+                    R_norm_inv = (R.T) / s0
+                    t_norm_inv = -(R.T @ t) / s0
+                    M_norm_inv = np.eye(4, dtype=np.float64)
+                    M_norm_inv[:3, :3] = R_norm_inv
+                    M_norm_inv[:3, 3] = t_norm_inv
+                    geo["normalization_inverse"] = {
+                        "matrix": M_norm_inv.tolist(),
+                        "scale": s0,
+                        "quaternion": [qw, qx, qy, qz],
+                        "translation": [tx, ty, tz],
+                    }
+            # Composite: train -> ecef = M_norm_inv @ M_dp_inv
+            if "dataparser_inverse" in geo and "normalization_inverse" in geo:
+                M_dp_inv = np.array(geo["dataparser_inverse"]["matrix"], dtype=np.float64)
+                M_norm_inv = np.array(geo["normalization_inverse"]["matrix"], dtype=np.float64)
+                M_comp = M_norm_inv @ M_dp_inv
+                geo["composite_train_to_ecef"] = {"matrix": M_comp.tolist()}
+                # Also provide dataparser-style (transform 3x4 + scale)
+                A = M_comp[:3, :3]
+                b = M_comp[:3, 3]
+                # robust uniform scale estimation
+                row_norms = np.array([np.linalg.norm(A[i, :]) for i in range(3)])
+                s_comp = float(np.maximum(row_norms.mean(), 1e-12))
+                R_out = (A / s_comp).tolist()
+                t_out = (b / s_comp).tolist()
+                transform_3x4 = [R_out[0] + [t_out[0]], R_out[1] + [t_out[1]], R_out[2] + [t_out[2]]]
+                geo["composite_train_to_ecef_dataparser"] = {"transform": transform_3x4, "scale": s_comp}
+            out_geo = self.output_dir / "geo_transforms.json"
+            with open(out_geo, "w", encoding="utf-8") as f:
+                json.dump(geo, f, indent=2)
+            CONSOLE.print(f"[bold green]:white_check_mark: Saved geo transforms to {out_geo}")
+        except Exception as e:
+            CONSOLE.print(f"[bold yellow]Warning: Failed to write geo_transforms.json: {e}")
 
 
 Commands = tyro.conf.FlagConversionOff[

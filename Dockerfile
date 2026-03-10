@@ -21,6 +21,10 @@ ARG UBUNTU_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV QT_XCB_GL_INTEGRATION=xcb_egl
+
+RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|https://mirrors.ustc.edu.cn/ubuntu/|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.ubuntu.com/ubuntu/|https://mirrors.ustc.edu.cn/ubuntu/|g' /etc/apt/sources.list
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
         git \
@@ -43,17 +47,18 @@ RUN apt-get update && \
         libqt5opengl5-dev \
         libcgal-dev \
         libceres-dev \
+        libcurl4 \
         python3.10-dev \
         python3-pip
 
-# Build and install CMake
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.sh \
-    -q -O /tmp/cmake-install.sh \
-    && chmod u+x /tmp/cmake-install.sh \
-    && mkdir /opt/cmake-3.31.3 \
-    && /tmp/cmake-install.sh --skip-license --prefix=/opt/cmake-3.31.3 \
-    && rm /tmp/cmake-install.sh \
-    && ln -s /opt/cmake-3.31.3/bin/* /usr/local/bin
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
+curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc \
+    | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg && \
+echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' \
+    > /etc/apt/sources.list.d/kitware.list && \
+apt-get update && \
+apt-get install -y --no-install-recommends cmake && \
+rm -rf /var/lib/apt/lists/*
     
 # Build and install GLOMAP.
 RUN git clone https://github.com/colmap/glomap.git && \
@@ -70,7 +75,7 @@ RUN git clone https://github.com/colmap/glomap.git && \
 # Build and install COLMAP.
 RUN git clone https://github.com/colmap/colmap.git && \
     cd colmap && \
-    git checkout "3.9.1" && \
+    git checkout "3.12.6" && \
     mkdir build && \
     cd build && \
     mkdir -p /build && \

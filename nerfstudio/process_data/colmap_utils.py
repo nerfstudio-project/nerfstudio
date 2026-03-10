@@ -96,9 +96,18 @@ def run_colmap(
     camera_mask_path: Optional[Path] = None,
     gpu: bool = True,
     verbose: bool = False,
-    matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    matching_method: Literal["vocab_tree", "exhaustive", "sequential", "spatial"] = "vocab_tree",
     refine_intrinsics: bool = True,
     colmap_cmd: str = "colmap",
+    use_pose_prior: bool = False,
+    prior_position_std: float = 2.0,
+    overwrite_priors_covariance: bool = True,
+    align_model_to_priors: bool = False,
+    alignment_max_error: Optional[float] = None,
+    normalize_model: bool = False,
+    normalization_center: Literal["bbox", "mean"] = "bbox",
+    normalization_target_diagonal: float = 4.0,
+    normalization_scale: Optional[float] = None,
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -112,6 +121,15 @@ def run_colmap(
         matching_method: Matching method to use.
         refine_intrinsics: If True, refine intrinsics.
         colmap_cmd: Path to the COLMAP executable.
+        use_pose_prior: If True, use pose_prior_mapper to incorporate EXIF pose priors.
+        prior_position_std: Prior position standard deviation in meters for x/y/z.
+        overwrite_priors_covariance: If True, overwrite priors covariance in database when mapping.
+        align_model_to_priors: If True, run model_aligner to align the reconstruction to GPS priors.
+        alignment_max_error: Max alignment error (falls back to prior_position_std if None).
+        normalize_model: If True, apply a similarity transform to center and scale the model with model_transformer.
+        normalization_center: How to compute center (bbox center or mean point).
+        normalization_target_diagonal: Target diagonal length (meters) to scale the model to (if normalization_scale not given).
+        normalization_scale: Explicit scale factor. If provided, overrides normalization_target_diagonal.
     """
 
     colmap_version = get_colmap_version(colmap_cmd)
@@ -126,7 +144,7 @@ def run_colmap(
         f"--image_path {image_dir}",
         "--ImageReader.single_camera 1",
         f"--ImageReader.camera_model {camera_model.value}",
-        f"--SiftExtraction.use_gpu {int(gpu)}",
+        # f"--SiftExtraction.use_gpu={bool(gpu)}",
     ]
     if camera_mask_path is not None:
         feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
@@ -140,7 +158,7 @@ def run_colmap(
     feature_matcher_cmd = [
         f"{colmap_cmd} {matching_method}_matcher",
         f"--database_path {colmap_dir / 'database.db'}",
-        f"--SiftMatching.use_gpu {int(gpu)}",
+        # f"--SiftMatching.use_gpu={bool(gpu)}",
     ]
     if matching_method == "vocab_tree":
         vocab_tree_filename = get_vocab_tree()
@@ -150,19 +168,32 @@ def run_colmap(
         run_command(feature_matcher_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
 
-    # Bundle adjustment
+    # Mapping / bundle adjustment
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
-    mapper_cmd = [
-        f"{colmap_cmd} mapper",
+
+    # Choose mapper variant
+    mapper_command_name = "pose_prior_mapper" if use_pose_prior else "mapper"
+
+    mapper_cmd_parts = [
+        f"{colmap_cmd} {mapper_command_name}",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
     ]
-    if colmap_version >= Version("3.7"):
-        mapper_cmd.append("--Mapper.ba_global_function_tolerance=1e-6")
 
-    mapper_cmd = " ".join(mapper_cmd)
+    if not use_pose_prior and colmap_version >= Version("3.7"):
+        mapper_cmd_parts.append("--Mapper.ba_global_function_tolerance=1e-6")
+
+    if use_pose_prior:
+        # Set symmetric priors std for x/y/z and optionally overwrite covariance
+        mapper_cmd_parts.append(f"--prior_position_std_x {prior_position_std}")
+        mapper_cmd_parts.append(f"--prior_position_std_y {prior_position_std}")
+        mapper_cmd_parts.append(f"--prior_position_std_z {prior_position_std}")
+        if overwrite_priors_covariance:
+            mapper_cmd_parts.append("--overwrite_priors_covariance 1")
+
+    mapper_cmd = " ".join(mapper_cmd_parts)
 
     with status(
         msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
@@ -171,6 +202,64 @@ def run_colmap(
     ):
         run_command(mapper_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
+
+    # Optional alignment to GPS priors; write back into sparse/0 to keep downstream unchanged
+    if align_model_to_priors:
+        align_cmd_parts = [
+            f"{colmap_cmd} model_aligner",
+            f"--input_path {sparse_dir}/0",
+            f"--output_path {sparse_dir}/0",
+            f"--database_path {colmap_dir / 'database.db'}",
+        ]
+        max_err = alignment_max_error if alignment_max_error is not None else prior_position_std
+        align_cmd_parts.append(f"--alignment_max_error {max_err}")
+        align_cmd = " ".join(align_cmd_parts)
+        with status(msg="[bold yellow]Aligning model to pose priors...", spinner="dots", verbose=verbose):
+            run_command(align_cmd, verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done aligning model to pose priors.")
+
+    # Optional normalization to human scale and centered coordinates using model_transformer
+    if normalize_model:
+        recon_dir = sparse_dir / "0"
+        try:
+            ptid_to_info = read_points3D_binary(recon_dir / "points3D.bin")
+        except Exception as e:
+            CONSOLE.print(f"[bold yellow]Warning: Could not read points3D for normalization: {e}")
+            ptid_to_info = {}
+        if len(ptid_to_info) == 0:
+            CONSOLE.print("[bold yellow]Warning: No 3D points to estimate normalization. Skipping normalization.")
+        else:
+            import numpy as np  # local import to avoid overhead unless needed
+
+            pts = np.array([p.xyz for p in ptid_to_info.values()], dtype=np.float64)
+            if normalization_center == "mean":
+                Cx, Cy, Cz = pts.mean(axis=0).tolist()
+            else:
+                mins = pts.min(axis=0)
+                maxs = pts.max(axis=0)
+                Cx, Cy, Cz = ((mins + maxs) * 0.5).tolist()
+            diag = float(np.linalg.norm(pts.max(axis=0) - pts.min(axis=0)))
+            if normalization_scale is not None:
+                s = float(normalization_scale)
+            else:
+                eps = 1e-9
+                s = float(normalization_target_diagonal) / max(diag, eps)
+            # Forward transform desired: x' = s * (x - C) = s*x + t, with t = -s*C
+            tx, ty, tz = (-s * Cx, -s * Cy, -s * Cz)
+            # Write transform in format: scale qw qx qy qz tx ty tz (identity rotation)
+            transform_path = recon_dir / "normalization_transform.txt"
+            with open(transform_path, "w", encoding="utf-8") as f:
+                f.write(f"{s:.12g} 1 0 0 0 {tx:.12g} {ty:.12g} {tz:.12g}\n")
+            transform_cmd_parts = [
+                f"{colmap_cmd} model_transformer",
+                f"--input_path {recon_dir}",
+                f"--output_path {recon_dir}",
+                f"--transform_path {transform_path}",
+            ]
+            transform_cmd = " ".join(transform_cmd_parts)
+            with status(msg="[bold yellow]Normalizing model scale and center...", spinner="dots", verbose=verbose):
+                run_command(transform_cmd, verbose=verbose)
+            CONSOLE.log("[bold green]:tada: Done normalizing model (model_transformer).")
 
     if refine_intrinsics:
         with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):

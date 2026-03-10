@@ -294,19 +294,30 @@ def copy_images_list(
             pass
         copied_image_paths.append(copied_image_path)
 
+    # Early return: if there is no transformation/downscale requested, avoid re-encoding to preserve EXIF
+    no_transform_requested = (
+        num_downscales == 0
+        and crop_border_pixels is None
+        and (crop_factor == (0.0, 0.0, 0.0, 0.0))
+        and upscale_factor is None
+        and same_dimensions
+    )
+    if no_transform_requested:
+        if len(image_paths) == 0:
+            CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+        else:
+            CONSOLE.log(f"[bold green]:tada: Done copying images with prefix '{image_prefix}'.")
+        return copied_image_paths
+
     nn_flag = "" if not nearest_neighbor else ":flags=neighbor"
+    # Build downscale graph labels. We will decide later whether to emit [out0] (base) depending on whether base transform is needed.
     downscale_chains = [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i}]" for i in range(num_downscales + 1)]
     downscale_dirs = [Path(str(image_dir) + (f"_{2**i}" if i > 0 else "")) for i in range(num_downscales + 1)]
 
     for dir in downscale_dirs:
         dir.mkdir(parents=True, exist_ok=True)
 
-    downscale_chain = (
-        f"split={num_downscales + 1}"
-        + "".join([f"[t{i}]" for i in range(num_downscales + 1)])
-        + ";"
-        + ";".join(downscale_chains)
-    )
+    # We will construct the split size and outputs later per-frame based on whether [out0] is needed
 
     num_frames = len(image_paths)
     # ffmpeg batch commands assume all images are the same dimensions.
@@ -330,12 +341,57 @@ def copy_images_list(
         if upscale_factor is not None:
             select_cmd = f"[0:v]scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor[upscaled];[upscaled]"
 
-        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_chain}"' + "".join(
+        downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}"' + "".join(
             [
-                f' -map "[out{i}]" -q:v 2 "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
+                f' -map "[out{i}]" "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
                 for i in range(num_downscales + 1)
             ]
         )
+
+        # Decide whether to overwrite base images ([out0])
+        need_transform_base = (
+            crop_border_pixels is not None
+            or (crop_factor != (0.0, 0.0, 0.0, 0.0))
+            or upscale_factor is not None
+            or not same_dimensions
+        )
+
+        # Build filter graph: if base not needed, split only into downscaled outputs [out1..outN]; otherwise include [out0]
+        if num_downscales > 0:
+            if need_transform_base:
+                split_targets = [f"[t{i}]" for i in range(num_downscales + 1)]  # include base
+                chains = ";".join(downscale_chains)  # [out0..outN]
+                downscale_graph = f"split={num_downscales + 1}" + "".join(split_targets) + ";" + chains
+                downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_graph}"'
+                mapping_entries = [
+                    f' -map "[out0]" -map_metadata 0 -q:v 2 "{downscale_dirs[0] / f"{framename}{copied_image_paths[0].suffix}"}"'
+                ]
+                for i in range(1, num_downscales + 1):
+                    mapping_entries.append(
+                        f' -map "[out{i}]" -map_metadata 0 -q:v 2 "{downscale_dirs[i] / f"{framename}{copied_image_paths[0].suffix}"}"'
+                    )
+                downscale_cmd += "".join(mapping_entries)
+            else:
+                # Only emit downscaled outputs; reindex to start from out0 to avoid gaps and empty maps
+                # Build chains for i=1..N, then relabel [out{i}] -> [out{i-1}] via mapping labels
+                split_targets = [f"[t{i}]" for i in range(1, num_downscales + 1)]
+                chains = ";".join(
+                    [f"[t{i}]scale=iw/{2**i}:ih/{2**i}{nn_flag}[out{i - 1}]" for i in range(1, num_downscales + 1)]
+                )
+                downscale_graph = f"split={num_downscales}" + "".join(split_targets) + ";" + chains
+                downscale_cmd = f' -filter_complex "{select_cmd}{crop_cmd}{downscale_graph}"'
+                mapping_entries = []
+                for i in range(num_downscales):
+                    # map out{i} to images_{2**(i+1)}
+                    out_dir = downscale_dirs[i + 1]
+                    mapping_entries.append(
+                        f' -map "[out{i}]" -map_metadata 0 -q:v 2 "{out_dir / f"{framename}{copied_image_paths[0].suffix}"}"'
+                    )
+                downscale_cmd += "".join(mapping_entries)
+        else:
+            # No downscales requested but we got here due to other transforms; keep single output
+            downscale_graph = ""
+            downscale_cmd = ""
 
         ffmpeg_cmd += downscale_cmd
         if verbose:
