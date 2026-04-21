@@ -39,7 +39,7 @@ We provide a few additional variants:
 | `splatfacto-big` | More Gaussians, Higher Quality | ~12GB  | Slower  |
 
 
-A full evalaution of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/main/tests/eval.html).
+A full evaluation of Nerfstudio's implementation of Gaussian Splatting against the original Inria method can be found [here](https://docs.gsplat.studio/main/tests/eval.html).
 
 #### Quality and Regularization
 The default settings provided maintain a balance between speed, quality, and splat file size, but if you care more about quality than training speed or size, you can decrease the alpha cull threshold 
@@ -51,7 +51,7 @@ A common artifact in splatting is long, spikey gaussians. [PhysGaussian](https:/
 For more details on the method, see the [original paper](https://arxiv.org/abs/2308.04079). Additionally, for a detailed derivation of the gradients used in the gsplat library, see [here](https://arxiv.org/abs/2312.02121).
 
 ### Exporting splats
-Gaussian splats can be exported as a `.ply` file which are ingestable by a variety of online web viewers. You can do this via the viewer, or `ns-export gaussian-splat --load-config <config> --output-dir exports/splat`. Currently splats can only be exported from trained splats, not from nerfacto.
+Gaussian splats can be exported as a `.ply` file which are ingestible by a variety of online web viewers. You can do this via the viewer, or `ns-export gaussian-splat --load-config <config> --output-dir exports/splat`. Currently splats can only be exported from trained splats, not from nerfacto.
 
 Nerfstudio's splat export currently supports multiple third-party splat viewers:
 - [Polycam Viewer](https://poly.cam/tools/gaussian-splatting)
