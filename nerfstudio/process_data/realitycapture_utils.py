@@ -26,6 +26,25 @@ from PIL import Image
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils.rich_utils import CONSOLE
 
+COLUMN_MAP = {
+    "#name": ["#name"],
+    "x": ["x"],
+    "y": ["y"],
+    "alt": ["alt", "z"],
+    "heading": ["heading", "yaw"],
+    "pitch": ["pitch"],
+    "roll": ["roll"],
+    "f": ["f", "f_35mm"],
+    "px": ["px", "px_norm"],
+    "py": ["py", "py_norm"],
+    "k1": ["k1"],
+    "k2": ["k2"],
+    "k3": ["k3"],
+    "k4": ["k4"],
+    "t1": ["t1"],
+    "t2": ["t2"],
+}
+
 
 def realitycapture_to_json(
     image_filename_map: Dict[str, Path],
@@ -59,7 +78,7 @@ def realitycapture_to_json(
         for row in reader:
             for column, value in row.items():
                 cameras.setdefault(column, []).append(value)
-
+    cameras = _resolve_columns(cameras)
     missing_image_data = 0
 
     for i, name in enumerate(cameras["#name"]):
@@ -133,3 +152,17 @@ def _get_rotation_matrix(yaw, pitch, roll):
     rot_z = np.array([[c_yaw, -s_yaw, 0], [s_yaw, c_yaw, 0], [0, 0, 1]])
 
     return rot_z @ rot_x @ rot_y
+
+
+def _resolve_columns(cameras):
+    resolved = {}
+
+    for canonical, options in COLUMN_MAP.items():
+        for opt in options:
+            if opt in cameras:
+                resolved[canonical] = cameras[opt]
+                break
+        else:
+            raise KeyError(f"Missing required column: {canonical} (tried {options})")
+
+    return resolved
