@@ -450,7 +450,24 @@ def colmap_to_json(
 
         name = im_data.name
         if image_rename_map is not None:
-            name = image_rename_map[name]
+            # COLMAP stores im_data.name relative to the image_path it was
+            # given (e.g. "rig1/front/img.jpg"). The rename map is keyed by
+            # the source path relative to self.data, which can include an
+            # extra "images/" prefix when --data points at a parent
+            # containing an images/ subdirectory (common with --skip-colmap
+            # workflows). Try the bare name first, then the prefixed form.
+            # See https://github.com/nerfstudio-project/nerfstudio/issues/3759
+            if name in image_rename_map:
+                name = image_rename_map[name]
+            elif f"images/{name}" in image_rename_map:
+                name = image_rename_map[f"images/{name}"]
+            else:
+                raise KeyError(
+                    f"COLMAP image name {name!r} not in image_rename_map. "
+                    f"Tried {name!r} and 'images/' + {name!r}. "
+                    f"The map has {len(image_rename_map)} entries; "
+                    f"first 3 keys: {list(image_rename_map.keys())[:3]}."
+                )
         name = Path(f"./images/{name}")
 
         frame = {
