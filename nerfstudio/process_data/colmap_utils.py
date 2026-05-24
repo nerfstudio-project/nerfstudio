@@ -450,7 +450,19 @@ def colmap_to_json(
 
         name = im_data.name
         if image_rename_map is not None:
-            name = image_rename_map[name]
+            # COLMAP stores image names relative to the reconstruction directory
+            # (e.g. "images/rig1/front/imageN.jpg"), but image_rename_map keys
+            # are relative to the data directory (e.g. "rig1/front/imageN.jpg").
+            # Try the direct lookup first, then strip the "images/" prefix.
+            if name in image_rename_map:
+                name = image_rename_map[name]
+            elif name.startswith("images/") and name[7:] in image_rename_map:
+                name = image_rename_map[name[7:]]
+            else:
+                raise KeyError(
+                    f"Image name '{name}' not found in image_rename_map. "
+                    f"Available keys (first 5): {list(image_rename_map.keys())[:5]}"
+                )
         name = Path(f"./images/{name}")
 
         frame = {
