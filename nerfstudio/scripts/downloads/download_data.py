@@ -584,6 +584,32 @@ else:
     ]
 
 
+# Add mipnerf360 (Amazon S3 / S3-compatible) subcommand if boto3 is installed.
+try:
+    import boto3 as _boto3  # noqa: F401
+except ImportError:
+    _boto3 = None
+
+if _boto3 is not None:
+    from nerfstudio.scripts.downloads.mipnerf360_download import Mipnerf360Download
+
+    Commands = Union[
+        Commands,
+        Annotated[Mipnerf360Download, tyro.conf.subcommand(name="mipnerf360")],
+    ]
+else:
+    Commands = Union[
+        Commands,
+        Annotated[
+            NotInstalled,
+            tyro.conf.subcommand(
+                name="mipnerf360",
+                description="**Not installed.** Downloading the Mip-NeRF 360 dataset requires `pip install boto3`.",
+            ),
+        ],
+    ]
+
+
 def main(
     dataset: DatasetDownload,
 ):
