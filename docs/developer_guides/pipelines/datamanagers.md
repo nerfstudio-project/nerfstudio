@@ -141,7 +141,7 @@ Checkout these flowcharts for more customization on large datasets!
 :width: 600
 ```
 
-## Migrating Your DataManager to the new DataManager 
+## Migrating Your DataManager to the new DataManager
 Many methods subclass a DataManager and add extra data to it. If you would like your custom datamanager to also support new parallel features, you can migrate any custom dataloading logic to the new `custom_ray_processor()` API. This function takes in a full training batch (either image or ray bundle) and allows the user to modify or add to it. Let's take a look at an example for the LERF method, which was built on Nerfstudio's VanillaDataManager. This API provides an interface to attach new information to the RayBundle (for ray based methods), Cameras object (for splatting based methods), or ground truth dictionary. It runs in a background process if disk caching is enabled, otherwise it runs in the main process.
 
 Naively transfering code to `custom_ray_processor` may still OOM on very large datasets if initialization code requires computing something over the whole dataset. To fully take advantage of parallelization make sure your subclassed datamanager computes new information inside the `custom_ray_processor`, or caches a subset of the whole dataset. This can also still be slow if pre-computation requires GPU-heavy steps on the same GPU used for training.
@@ -151,7 +151,7 @@ Naively transfering code to `custom_ray_processor` may still OOM on very large d
 ```python
 class LERFDataManager(VanillaDataManager):
     """Subclass VanillaDataManager to add extra data processing
-    
+
     Args:
         config: the DataManagerConfig used to instantiate class
     """
@@ -197,7 +197,7 @@ class LERFDataManager(VanillaDataManager):
         return ray_bundle, batch
 ```
 
-To migrate this custom datamanager to the new datamanager, we'll subclass the new ParallelDataManager and shift the data customization process from `next_train()` to `custom_ray_processor()`. 
+To migrate this custom datamanager to the new datamanager, we'll subclass the new ParallelDataManager and shift the data customization process from `next_train()` to `custom_ray_processor()`.
 The function `custom_ray_processor()` is called with a fully populated ray bundle and ground truth batch, just like the subclassed `next_train` in the above code. This code, however, is run in a background process.
 
 ```python

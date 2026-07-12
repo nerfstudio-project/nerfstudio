@@ -30,7 +30,7 @@ You can customize the local writer by editing the attributes:
 :class: info
 
 If you want to create a new stat to track, simply add the stat name to the `EventName` enum.
-- Remember to call some put event (e.g. `put_scalar` from `utils/writer.py` to place the value in the `EVENT_STORAGE`. 
+- Remember to call some put event (e.g. `put_scalar` from `utils/writer.py` to place the value in the `EVENT_STORAGE`.
 - Remember to add the new enum to the `stats_to_track` list
   :::
 

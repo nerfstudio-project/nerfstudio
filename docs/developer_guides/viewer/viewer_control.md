@@ -63,13 +63,13 @@ class MyModel(nn.Module):  # Must inherit from nn.Module
 ```
 
 ## Scene Pointer Callbacks
-We forward user interactions with the viewer to the `ViewerControl` object, which you can use to interact with the scene. 
+We forward user interactions with the viewer to the `ViewerControl` object, which you can use to interact with the scene.
 
 We currently support:
- - `ViewerClick`: *single* clicks inside the viewer. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates. 
+ - `ViewerClick`: *single* clicks inside the viewer. The click is defined to be a ray that starts at the camera origin and passes through the click point on the screen, in world coordinates.
  - `ViewerRectSelect`: drag to select a rectangle in the viewer screen. The rectangle is defined by two points (top-left and bottom-right corners) in normalized OpenCV screen coordinates.
 
-To do this, register a callback using `register_pointer_cb()`. 
+To do this, register a callback using `register_pointer_cb()`.
 
 You can also use `unregister_pointer_cb()` to remove callbacks that are no longer needed. A good example is a "Click on Scene" button, that when pressed, would register a callback that would wait for the next click, and then unregister itself.
 
@@ -82,7 +82,7 @@ class MyModel(nn.Module):  # must inherit from nn.Module
     def __init__(self):
         # Must be a class variable
         self.viewer_control = ViewerControl()  # no arguments
-        
+
         # Listen to clicks in the viewer...
         def pointer_click_cb(click: ViewerClick):
             print(f"Click at {click.origin} in direction {click.direction}, screen position {click.screen_pos}.")
@@ -93,7 +93,7 @@ class MyModel(nn.Module):  # must inherit from nn.Module
             print(f"Rectangular selection from {rect.min_bounds} to {rect.max_bounds}.")
         self.viewer_control.register_pointer_cb("click", pointer_rect_cb)
 
-        ... 
+        ...
         # Or make a button that, once pressed, listens to clicks in the viewer.
         def button_cb(button: ViewerButton):
             def pointer_click_cb(click: ViewerClick):

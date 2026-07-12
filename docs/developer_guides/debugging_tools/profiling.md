@@ -78,7 +78,7 @@ To perform the profiling, you can either specify that you want to generate a fla
     ```bash
     py-spy top $program
     ```
-    
+
 :::{admonition} Attention
 :class: attention
 
