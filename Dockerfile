@@ -85,7 +85,7 @@ RUN pip install --no-cache-dir --upgrade pip 'setuptools<70.0.0' && \
     pip install --no-cache-dir torch==2.1.2+cu118 torchvision==0.16.2+cu118 'numpy<2.0.0' --extra-index-url https://download.pytorch.org/whl/cu118 && \
     git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git /opt/hloc && \
     cd /opt/hloc && git checkout v1.4 && python3.10 -m pip install --no-cache-dir . && cd ~ && \
-    TCNN_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" pip install --no-cache-dir "git+https://github.com/NVlabs/tiny-cuda-nn.git@b3473c81396fe927293bdfd5a6be32df8769927c#subdirectory=bindings/torch" && \
+    TCNN_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" pip install --no-cache-dir --no-build-isolation "git+https://github.com/NVlabs/tiny-cuda-nn.git@b3473c81396fe927293bdfd5a6be32df8769927c#subdirectory=bindings/torch" && \
     pip install --no-cache-dir pycolmap==0.6.1 pyceres==2.1 omegaconf==2.3.0
 
 # Install gsplat and nerfstudio.
@@ -98,7 +98,7 @@ COPY --from=source /tmp/nerfstudio/ /tmp/nerfstudio
 RUN export TORCH_CUDA_ARCH_LIST="$(echo "$CUDA_ARCHITECTURES" | tr ';' '\n' | awk '$0 > 70 {print substr($0,1,1)"."substr($0,2)}' | tr '\n' ' ' | sed 's/ $//')" && \
     export MAX_JOBS=4 && \
     GSPLAT_VERSION="$(sed -n 's/.*gsplat==\s*\([^," '"'"']*\).*/\1/p' /tmp/nerfstudio/pyproject.toml)" && \
-    pip install --no-cache-dir git+https://github.com/nerfstudio-project/gsplat.git@v${GSPLAT_VERSION} && \
+    pip install --no-cache-dir --no-build-isolation git+https://github.com/nerfstudio-project/gsplat.git@v${GSPLAT_VERSION} && \
     pip install --no-cache-dir /tmp/nerfstudio 'numpy<2.0.0' && \
     rm -rf /tmp/nerfstudio
 

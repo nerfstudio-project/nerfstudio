@@ -36,24 +36,7 @@ def pil_to_numpy(im: PILImage) -> np.ndarray:
     # Load in image completely (PIL defaults to lazy loading)
     im.load()
 
-    # Unpack data
-    e = Image._getencoder(im.mode, "raw", im.mode)
-    e.setimage(im.im)
-
-    # NumPy buffer for the result
-    shape, typestr = Image._conv_type_shape(im)
-    data = np.empty(shape, dtype=np.dtype(typestr))
-    mem = data.data.cast("B", (data.data.nbytes,))
-
-    bufsize, s, offset = 65536, 0, 0
-    while not s:
-        _, s, d = e.encode(bufsize)
-        mem[offset : offset + len(d)] = d
-        offset += len(d)
-    if s < 0:
-        raise RuntimeError("encoder error %d in tobytes" % s)
-
-    return data
+    return np.asarray(im)
 
 
 def get_image_mask_tensor_from_path(filepath: Union[Path, IO[bytes]], scale_factor: float = 1.0) -> torch.Tensor:

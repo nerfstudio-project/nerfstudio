@@ -95,6 +95,8 @@ def write_next_bytes(fid, data, format_char_sequence, endian_character="<"):
     """
     if isinstance(data, (list, tuple)):
         bytes = struct.pack(endian_character + format_char_sequence, *data)
+    elif isinstance(data, np.ndarray):
+        bytes = struct.pack(endian_character + format_char_sequence, *data.tolist())
     else:
         bytes = struct.pack(endian_character + format_char_sequence, data)
     fid.write(bytes)

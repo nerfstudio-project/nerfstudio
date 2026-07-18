@@ -8,7 +8,7 @@ version = "1.1.5"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
-requires-python = ">=3.8.0"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python",
@@ -31,7 +31,7 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.5.2",
+    "nerfacc>=0.5.3",
     "open3d>=0.16.0",
     "opencv-python-headless==4.10.0.84",
     "Pillow>=10.3.0",
@@ -64,7 +64,7 @@ dependencies = [
     "xatlas",
     "trimesh>=3.20.2",
     "timm==0.6.7",
-    "gsplat==1.4.0",
+    "gsplat==1.5.3",
     "pytorch-msssim",
     "pathos",
     "packaging",

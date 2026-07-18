@@ -22,7 +22,18 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 from torch.autograd import Function
-from torch.cuda.amp import custom_bwd, custom_fwd
+
+try:
+    # torch >= 2.4: custom_fwd/custom_bwd live in torch.amp and require device_type
+    from torch.amp import custom_bwd as _custom_bwd, custom_fwd as _custom_fwd
+
+    def custom_fwd(*args, **kwargs):
+        return _custom_fwd(*args, device_type="cuda", **kwargs)
+
+    custom_bwd = _custom_bwd(device_type="cuda")
+except ImportError:
+    # torch < 2.4: custom_fwd/custom_bwd live in torch.cuda.amp (no device_type argument)
+    from torch.cuda.amp import custom_bwd, custom_fwd  # type: ignore
 
 
 class _TruncExp(Function):

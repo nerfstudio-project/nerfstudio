@@ -5,7 +5,7 @@
 ::::::{tab-set}
 :::::{tab-item} Linux
 
-Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
+Nerfstudio requires `python >= 3.10`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
 :::::{tab-item} Windows
@@ -51,7 +51,7 @@ For example:
 When updating, or if you close your terminal before you finish the installation and run your first `splatfacto`, you have to re-do this environment activation step.
 :::
 
-Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
+Nerfstudio requires `python >= 3.10`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 :::::
 ::::::
@@ -59,7 +59,7 @@ Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependen
 ## Create environment
 
 ```bash
-conda create --name nerfstudio -y python=3.8
+conda create --name nerfstudio -y python=3.10
 conda activate nerfstudio
 python -m pip install --upgrade pip
 
@@ -79,6 +79,28 @@ pip uninstall torch torchvision functorch tinycudann
 ```
 
 ::::{tab-set}
+:::{tab-item} Torch 2.8+ with CUDA 12.8 (Blackwell / RTX 50-series)
+
+Required for NVIDIA Blackwell GPUs (RTX 50-series, compute capability sm_120), which need CUDA 12.8 or newer:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+```
+
+To build the necessary CUDA extensions, `cuda-toolkit` 12.8 is also required. We
+recommend installing with conda:
+
+```bash
+conda install -c "nvidia/label/cuda-12.8.0" cuda-toolkit
+```
+
+When building CUDA extensions (gsplat, tiny-cuda-nn, ...) for a Blackwell GPU, make sure the architecture list includes sm_120:
+
+```bash
+export TORCH_CUDA_ARCH_LIST="12.0+PTX"
+```
+
+:::
 :::{tab-item} Torch 2.1.2 with CUDA 11.8 (recommended)
 
 Install PyTorch 2.1.2 with CUDA 11.8:
@@ -243,6 +265,14 @@ docker build \
     --build-arg CUDA_ARCHITECTURES=86 \
     --tag nerfstudio-86 \
     --file Dockerfile .
+```
+
+For NVIDIA Blackwell GPUs (RTX 50-series, compute capability sm_120), use the CUDA 12.8-based
+`Dockerfile.blackwell` variant instead — the stock image targets CUDA 11.8, which does not
+support sm_120:
+
+```bash
+docker build --tag nerfstudio-blackwell -f Dockerfile.blackwell .
 ```
 
 ### Using an interactive container
