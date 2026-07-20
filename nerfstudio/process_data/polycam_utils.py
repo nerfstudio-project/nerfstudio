@@ -74,6 +74,14 @@ def polycam_to_json(
         if use_depth:
             frame["depth_file_path"] = f"./depth/frame_{i + 1:05d}{depth_filenames[i].suffix}"
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
+        # Why the rows are permuted (see nerfstudio-project/nerfstudio#2474): Polycam's raw t_ij is a
+        # camera-to-world matrix in ARKit's world frame, which is right-handed with +Y up (row 1 = world Y).
+        # Nerfstudio's world frame is also right-handed but with +Z up (row 2 = world Z). Relabeling axes
+        # (X,Y,Z)_ARKit -> (Z,X,Y)_nerfstudio is a cyclic permutation, i.e. an even permutation of a
+        # right-handed basis, so it preserves handedness with no sign flips needed -- just a row reorder:
+        #   nerfstudio row 0 (world X) <- ARKit row 2 (world Z)
+        #   nerfstudio row 1 (world Y) <- ARKit row 0 (world X)
+        #   nerfstudio row 2 (world Z, up) <- ARKit row 1 (world Y, up)
         frame["transform_matrix"] = [
             [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],
             [frame_json["t_00"], frame_json["t_01"], frame_json["t_02"], frame_json["t_03"]],
