@@ -76,6 +76,45 @@ def test_export_gaussian_splat_write_ply_mismatched_count(tmp_path: Path):
         ExportGaussianSplat.write_ply(filename, count, map_to_tensors)
 
 
+def _read_ply_header(filename: str) -> str:
+    """Return the ASCII PLY header (up to and including the end_header line)."""
+    with open(filename, "rb") as f:
+        data = f.read()
+    end = data.index(b"end_header")
+    return data[:end].decode("ascii")
+
+
+def _make_valid_tensors(count: int = 10) -> "OrderedDict[str, np.ndarray]":
+    return OrderedDict(
+        [
+            ("x", np.random.rand(count).astype(np.float32)),
+            ("y", np.random.rand(count).astype(np.float32)),
+            ("z", np.random.rand(count).astype(np.float32)),
+        ]
+    )
+
+
+def test_export_gaussian_splat_write_ply_render_mode_comment(tmp_path: Path):
+    count = 10
+
+    # antialiased=True -> mip
+    mip_file = str(tmp_path / "mip.ply")
+    ExportGaussianSplat.write_ply(mip_file, count, _make_valid_tensors(count), antialiased=True)
+    assert "comment SplatRenderMode: mip" in _read_ply_header(mip_file)
+
+    # antialiased=False -> default
+    default_file = str(tmp_path / "default.ply")
+    ExportGaussianSplat.write_ply(default_file, count, _make_valid_tensors(count), antialiased=False)
+    header = _read_ply_header(default_file)
+    assert "comment SplatRenderMode: default" in header
+    assert "comment SplatRenderMode: mip" not in header
+
+    # antialiased=None (default) -> no SplatRenderMode comment (backwards compatible)
+    none_file = str(tmp_path / "none.ply")
+    ExportGaussianSplat.write_ply(none_file, count, _make_valid_tensors(count))
+    assert "SplatRenderMode" not in _read_ply_header(none_file)
+
+
 if __name__ == "__main__":
     # Run the test
     test_export_gaussian_splat_write_ply(Path("."))

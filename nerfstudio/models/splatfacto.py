@@ -146,7 +146,9 @@ class SplatfactoModelConfig(ModelConfig):
     and apply them to the opacities of gaussians to preserve the total integrated density of splats.
 
     However, PLY exported with antialiased rasterize mode is not compatible with classic mode. Thus many web viewers that
-    were implemented for classic mode can not render antialiased mode PLY properly without modifications.
+    were implemented for classic mode can not render antialiased mode PLY properly without modifications. To help
+    compatible viewers pick the right mode, exported PLYs record this setting as a `SplatRenderMode` header comment
+    (`mip` for antialiased, `default` for classic).
     """
     camera_optimizer: CameraOptimizerConfig = field(default_factory=lambda: CameraOptimizerConfig(mode="off"))
     """Config of the camera optimizer to use"""
@@ -293,6 +295,26 @@ class SplatfactoModel(Model):
         else:
             raise ValueError(f"""Splatfacto does not support strategy {self.config.strategy}
                              Currently, the supported strategies include default and mcmc.""")
+
+        # Surface the rasterization mode (classic vs antialiased) in the viewer.
+        # The value is baked into the trained model via `rasterize_mode`, so the
+        # control is disabled/frozen: it reflects how the model was trained (and
+        # what a PLY exported from it records as its `SplatRenderMode` comment)
+        # rather than being an interactive toggle. Imported locally to keep the
+        # viewer dependency out of headless import paths.
+        from nerfstudio.viewer.viewer_elements import ViewerDropdown
+
+        self.rasterize_mode_viewer = ViewerDropdown(
+            name="Anti-Aliasing",
+            default_value=self.config.rasterize_mode,
+            options=["classic", "antialiased"],
+            disabled=True,
+            hint=(
+                "Rasterization mode this model was trained with (frozen). "
+                "'antialiased' corresponds to a 'SplatRenderMode: mip' comment "
+                "in exported PLY files; 'classic' to 'SplatRenderMode: default'."
+            ),
+        )
 
     @property
     def colors(self):
@@ -539,7 +561,7 @@ class SplatfactoModel(Model):
 
         # apply the compensation of screen space blurring to gaussians
         if self.config.rasterize_mode not in ["antialiased", "classic"]:
-            raise ValueError("Unknown rasterize_mode: %s", self.config.rasterize_mode)
+            raise ValueError(f"Unknown rasterize_mode: {self.config.rasterize_mode}")
 
         if self.config.output_depth_during_training or not self.training:
             render_mode = "RGB+ED"
