@@ -96,6 +96,11 @@ def write_next_bytes(fid, data, format_char_sequence, endian_character="<"):
     if isinstance(data, (list, tuple)):
         bytes = struct.pack(endian_character + format_char_sequence, *data)
     else:
+        # NumPy 2.x no longer implicitly converts a size-1 ndarray (or a NumPy
+        # scalar) to a Python scalar inside struct.pack, which raises
+        # "required argument is not a float/integer". Coerce explicitly.
+        if isinstance(data, (np.ndarray, np.generic)):
+            data = data.item()
         bytes = struct.pack(endian_character + format_char_sequence, data)
     fid.write(bytes)
 
