@@ -598,6 +598,8 @@ class RenderInterpolated(BaseRender):
     """Number of interpolation steps between eval dataset cameras."""
     order_poses: bool = False
     """Whether to order camera poses by proximity."""
+    fixed_intrinsics: bool = False
+    """Use intrinsics from the first camera for the whole interpolated sequence."""
     frame_rate: int = 24
     """Frame rate of the output video."""
     output_format: Literal["images", "video"] = "video"
@@ -625,6 +627,7 @@ class RenderInterpolated(BaseRender):
             cameras=cameras,
             steps=self.interpolation_steps,
             order_poses=self.order_poses,
+            fixed_intrinsics=self.fixed_intrinsics,
         )
 
         if self.camera_idx is not None:

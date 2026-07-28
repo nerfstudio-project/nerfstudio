@@ -21,7 +21,7 @@ from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
-from jaxtyping import Float
+from jaxtyping import Float, Shaped
 from numpy.typing import NDArray
 from torch import Tensor
 
@@ -225,88 +225,181 @@ def get_interpolated_time(
     return times
 
 
-def get_ordered_poses_and_k_and_time(
-    poses: Float[Tensor, "num_poses 3 4"],
-    Ks: Float[Tensor, "num_poses 3 3"],
-    times: Optional[Float[Tensor, "num_poses 1"]] = None,
-) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"], Optional[Float[Tensor, "num_poses 1"]]]:
+def get_interpolated_dist_coeffs(
+    dist_coeffs_a: Float[Tensor, "6"], dist_coeffs_b: Float[Tensor, "6"], steps: int = 10
+) -> List[Float[Tensor, "6"]]:
     """
-    Returns ordered poses and intrinsics by euclidian distance between poses.
+    Returns interpolated distortion coefficients with specified number of steps.
+
+    Args:
+        dist_coeffs_a: distortion coefficients 1
+        dist_coeffs_b: distortion coefficients 2
+        steps: number of steps the interpolated distortion coefficients should contain
+
+    Returns:
+        List of interpolated distortion coefficients
+    """
+    dist_coeffs: List[Float[Tensor, "6"]] = []
+    ts = np.linspace(0, 1, steps)
+    for t in ts:
+        new_dist_coeffs = dist_coeffs_a * (1.0 - t) + dist_coeffs_b * t
+        dist_coeffs.append(new_dist_coeffs)
+    return dist_coeffs
+
+
+def get_interpolated_sizes(size_a: int, size_b: int, steps: int = 10) -> List[int]:
+    """
+    Returns interpolated sizes with specified number of steps.
+
+    Args:
+        size_a: sizes 1
+        size_b: sizes 2
+        steps: number of steps the output sizes should contain
+
+    Returns:
+        List of interpolated sizes
+    """
+    if size_a == size_b:
+        return [size_a] * steps
+    sizes: List[int] = []
+    ts = np.linspace(0, 1, steps)
+    for t in ts:
+        new_size = size_a * (1.0 - t) + size_b * t
+        sizes.append(int(new_size))
+    return sizes
+
+
+def get_ordered_pose_indices(
+    poses: Float[Tensor, "num_poses 3 4"],
+) -> List[int]:
+    """
+    Returns ordered pose indices by euclidian distance between poses.
 
     Args:
         poses: list of camera poses
-        Ks: list of camera intrinsics
-        times: list of camera times
 
     Returns:
-        tuple of ordered poses, intrinsics and times
-
+        indices of ordered poses
     """
 
     poses_num = len(poses)
 
     ordered_poses = torch.unsqueeze(poses[0], 0)
-    ordered_ks = torch.unsqueeze(Ks[0], 0)
-    ordered_times = torch.unsqueeze(times[0], 0) if times is not None else None
+    ordered_idx = [0]
 
     # remove the first pose from poses
     poses = poses[1:]
-    Ks = Ks[1:]
-    times = times[1:] if times is not None else None
+    poses_indices = list(range(1, poses_num))
 
     for _ in range(poses_num - 1):
         distances = torch.norm(ordered_poses[-1][:, 3] - poses[:, :, 3], dim=1)
         idx = torch.argmin(distances)
         ordered_poses = torch.cat((ordered_poses, torch.unsqueeze(poses[idx], 0)), dim=0)
-        ordered_ks = torch.cat((ordered_ks, torch.unsqueeze(Ks[idx], 0)), dim=0)
-        ordered_times = torch.cat((ordered_times, torch.unsqueeze(times[idx], 0)), dim=0) if times is not None else None  # type: ignore
+        ordered_idx.append(poses_indices[idx])
         poses = torch.cat((poses[0:idx], poses[idx + 1 :]), dim=0)
-        Ks = torch.cat((Ks[0:idx], Ks[idx + 1 :]), dim=0)
-        times = torch.cat((times[0:idx], times[idx + 1 :]), dim=0) if times is not None else None
+        poses_indices = poses_indices[0:idx] + poses_indices[idx + 1 :]
 
-    return ordered_poses, ordered_ks, ordered_times
+    assert len(ordered_idx) == poses_num
+    return ordered_idx
 
 
 def get_interpolated_poses_many(
     poses: Float[Tensor, "num_poses 3 4"],
     Ks: Float[Tensor, "num_poses 3 3"],
     times: Optional[Float[Tensor, "num_poses 1"]] = None,
+    widths: Optional[Shaped[Tensor, "num_poses"]] = None,
+    heights: Optional[Shaped[Tensor, "num_poses"]] = None,
+    dist_coeffs: Optional[Float[Tensor, "num_poses 6"]] = None,
     steps_per_transition: int = 10,
     order_poses: bool = False,
-) -> Tuple[Float[Tensor, "num_poses 3 4"], Float[Tensor, "num_poses 3 3"], Optional[Float[Tensor, "num_poses 1"]]]:
+) -> Tuple[
+    Float[Tensor, "num_poses 3 4"],
+    Float[Tensor, "num_poses 3 3"],
+    Optional[Float[Tensor, "num_poses 1"]],
+    Optional[Shaped[Tensor, "num_poses"]],
+    Optional[Shaped[Tensor, "num_poses"]],
+    Optional[Float[Tensor, "num_poses 6"]],
+]:
     """Return interpolated poses for many camera poses.
 
     Args:
         poses: list of camera poses
         Ks: list of camera intrinsics
+        times: list of camera times
+        widths: list of image widths
+        heights: list of image heights
+        dist_coeffs: list of distortion coefficients
         steps_per_transition: number of steps per transition
         order_poses: whether to order poses by euclidian distance
 
     Returns:
-        tuple of new poses and intrinsics
+        tuple of new poses, intrinsics, times, widths, heights and distortion coefficients
     """
     traj = []
     k_interp = []
     time_interp = [] if times is not None else None
+    widths_interp = [] if widths is not None else None
+    heights_interp = [] if heights is not None else None
+    dist_coeffs_interp = [] if dist_coeffs is not None else None
 
     if order_poses:
-        poses, Ks, times = get_ordered_poses_and_k_and_time(poses, Ks, times)
+        pose_indices = get_ordered_pose_indices(poses)
+        poses = poses[pose_indices]
+        Ks = Ks[pose_indices]
+        if times is not None:
+            times = times[pose_indices]
+        if widths is not None:
+            widths = widths[pose_indices]
+        if heights is not None:
+            heights = heights[pose_indices]
+        if dist_coeffs is not None:
+            dist_coeffs = dist_coeffs[pose_indices]
 
     for idx in range(poses.shape[0] - 1):
         pose_a = poses[idx].cpu().numpy()
         pose_b = poses[idx + 1].cpu().numpy()
         traj += get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
         k_interp += get_interpolated_k(Ks[idx], Ks[idx + 1], steps=steps_per_transition)
-        if times is not None:
-            time_interp += get_interpolated_time(times[idx], times[idx + 1], steps=steps_per_transition)  # type: ignore
+        if time_interp is not None:
+            time_interp += get_interpolated_time(times[idx], times[idx + 1], steps=steps_per_transition)
+        if widths_interp is not None:
+            widths_interp += get_interpolated_sizes(
+                int(widths[idx].item()), int(widths[idx + 1].item()), steps=steps_per_transition
+            )
+        if heights_interp is not None:
+            heights_interp += get_interpolated_sizes(
+                int(heights[idx].item()), int(heights[idx + 1].item()), steps=steps_per_transition
+            )
+        if dist_coeffs_interp is not None:
+            dist_coeffs_interp += get_interpolated_dist_coeffs(
+                dist_coeffs[idx], dist_coeffs[idx + 1], steps=steps_per_transition
+            )
 
-    traj = np.stack(traj, axis=0)
+    # add last pose
+    traj.append(poses[-1])
+    k_interp.append(Ks[-1])
+    if time_interp is not None:
+        time_interp.append(times[-1])
+    if widths_interp is not None:
+        widths_interp.append(widths[-1].item())
+    if heights_interp is not None:
+        heights_interp.append(heights[-1].item())
+    if dist_coeffs_interp is not None:
+        dist_coeffs_interp.append(dist_coeffs[-1])
+
+    traj = torch.tensor(np.stack(traj, axis=0), dtype=torch.float32)
     k_interp = torch.stack(k_interp, dim=0)
     time_interp = torch.stack(time_interp, dim=0) if time_interp is not None else None
+    widths_interp = torch.tensor(widths_interp, dtype=torch.int32) if widths_interp is not None else None
+    heights_interp = torch.tensor(heights_interp, dtype=torch.int32) if heights_interp is not None else None
+    dist_coeffs_interp = torch.stack(dist_coeffs_interp, dim=0) if dist_coeffs_interp is not None else None
     return (
         torch.tensor(traj, dtype=torch.float32),
         torch.tensor(k_interp, dtype=torch.float32),
         torch.tensor(time_interp, dtype=torch.float32) if time_interp is not None else None,
+        widths_interp,
+        heights_interp,
+        dist_coeffs_interp,
     )
 
 
