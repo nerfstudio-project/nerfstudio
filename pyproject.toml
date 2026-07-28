@@ -58,7 +58,7 @@ dependencies = [
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==0.2.7",
+    "viser==1.0.0",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
@@ -93,7 +93,7 @@ dev = [
     "pre-commit==3.3.2",
     "pytest==7.1.2",
     "pytest-xdist==2.5.0",
-    "ruff>=0.6.1",
+    "ruff==0.12.2",
     "sshconf==0.2.5",
     "pycolmap>=0.3.0",  # NOTE: pycolmap==0.3.0 is not available on newer python versions
     "diffusers==0.16.1",
@@ -103,8 +103,7 @@ dev = [
     # NOTE: Disabling projectaria-tools because it doesn't have prebuilt windows wheels
     # Syntax comes from here: https://pip.pypa.io/en/stable/reference/requirement-specifiers/
     "projectaria-tools>=1.3.1; sys_platform != 'win32'",
-    # pin torch to <=2.1 to fix https://github.com/pytorch/pytorch/issues/118736
-    "torch>=1.13.1,<2.2",
+    "torch==2.7.1",
     "awscli==1.33.18"
 ]
 
@@ -161,7 +160,6 @@ reportMissingImports = "warning"
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 
-pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 [tool.ruff]
@@ -185,6 +183,7 @@ lint.ignore = [
     "PLR0915",  # Too many statements.
     "PLR0913",  # Too many arguments.
     "PLC0414",  # Import alias does not rename variable. (this is used for exporting names)
+    "PLC0415",  # `import` should be at the top-level of a file
     "PLC1901",  # Use falsey strings.
     "PLR5501",  # Use `elif` instead of `else if`.
     "PLR0911",  # Too many return statements.

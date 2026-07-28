@@ -291,7 +291,7 @@ class SplatfactoModel(Model):
             )
             self.strategy_state = self.strategy.initialize_state()
         else:
-            raise ValueError(f"""Splatfacto does not support strategy {self.config.strategy} 
+            raise ValueError(f"""Splatfacto does not support strategy {self.config.strategy}
                              Currently, the supported strategies include default and mcmc.""")
 
     @property
@@ -552,7 +552,7 @@ class SplatfactoModel(Model):
             colors_crop = torch.sigmoid(colors_crop).squeeze(1)  # [N, 1, 3] -> [N, 3]
             sh_degree_to_use = None
 
-        render, alpha, self.info = rasterization(
+        render, alpha, self.info = rasterization(  # type: ignore[reportPossiblyUnboundVariable]
             means=means_crop,
             quats=quats_crop,  # rasterization does normalization internally
             scales=torch.exp(scales_crop),

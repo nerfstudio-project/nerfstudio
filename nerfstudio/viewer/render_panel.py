@@ -367,7 +367,9 @@ class CameraPath:
         points_array = self._position_spline.evaluate(
             self.spline_t_from_t_sec(np.linspace(0, transition_times_cumsum[-1], num_frames))
         )
-        colors_array = np.array([colorsys.hls_to_rgb(h, 0.5, 1.0) for h in np.linspace(0.0, 1.0, len(points_array))])
+        colors_array = np.array(
+            [colorsys.hls_to_rgb(float(h), 0.5, 1.0) for h in np.linspace(0.0, 1.0, len(points_array))],
+        )
 
         # Clear prior spline nodes.
         for node in self._spline_nodes:
@@ -377,7 +379,7 @@ class CameraPath:
         self._spline_nodes.append(
             self._server.scene.add_spline_catmull_rom(
                 "/render_camera_spline",
-                positions=points_array,
+                points=points_array,
                 color=(220, 220, 220),
                 closed=self.loop,
                 line_width=1.0,

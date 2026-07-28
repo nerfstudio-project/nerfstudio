@@ -328,6 +328,7 @@ class SDFField(Field):
         )  # always non-positive
 
         # Estimate signed distances at section points
+        assert ray_samples.deltas is not None, "Ray samples must have deltas for alpha computation."
         estimated_next_sdf = sdf + iter_cos * ray_samples.deltas * 0.5
         estimated_prev_sdf = sdf - iter_cos * ray_samples.deltas * 0.5
 

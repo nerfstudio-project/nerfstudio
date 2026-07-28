@@ -215,6 +215,7 @@ def launch(
             process_context.join()
         except KeyboardInterrupt:
             for i, process in enumerate(process_context.processes):
+                assert process is not None
                 if process.is_alive():
                     CONSOLE.log(f"Terminating process {i}...")
                     process.terminate()

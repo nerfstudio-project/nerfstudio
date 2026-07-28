@@ -136,6 +136,7 @@ class RaySamples(TensorDataclass):
             Weights for each sample
         """
 
+        assert self.deltas is not None, "Deltas must be set to compute weights"
         delta_density = self.deltas * densities
         alphas = 1 - torch.exp(-delta_density)
 

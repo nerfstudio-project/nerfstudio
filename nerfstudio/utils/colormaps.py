@@ -111,7 +111,10 @@ def apply_float_colormap(image: Float[Tensor, "*bs 1"], colormap: Colormaps = "v
     image_long_max = torch.max(image_long)
     assert image_long_min >= 0, f"the min value is {image_long_min}"
     assert image_long_max <= 255, f"the max value is {image_long_max}"
-    return torch.tensor(matplotlib.colormaps[colormap].colors, device=image.device)[image_long[..., 0]]
+    return torch.tensor(
+        matplotlib.colormaps[colormap].colors,  # type: ignore
+        device=image.device,
+    )[image_long[..., 0]]
 
 
 def apply_depth_colormap(

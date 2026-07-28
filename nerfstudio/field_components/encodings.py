@@ -45,11 +45,6 @@ class Encoding(FieldComponent):
             raise ValueError("Input dimension should be greater than zero")
         super().__init__(in_dim=in_dim)
 
-    @classmethod
-    def get_tcnn_encoding_config(cls) -> dict:
-        """Get the encoding configuration for tcnn if implemented"""
-        raise NotImplementedError("Encoding does not have a TCNN implementation")
-
     @abstractmethod
     def forward(self, in_tensor: Shaped[Tensor, "*bs input_dim"]) -> Shaped[Tensor, "*bs output_dim"]:
         """Call forward and returns and processed tensor
@@ -217,6 +212,7 @@ class FFEncoding(Encoding):
         self.min_freq = min_freq_exp
         self.max_freq = max_freq_exp
         self.register_buffer(name="b_matrix", tensor=basis)
+        self.b_matrix: Tensor
         self.include_input = include_input
 
     def get_out_dim(self) -> int:

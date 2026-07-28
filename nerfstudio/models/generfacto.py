@@ -19,7 +19,7 @@ Nerfstudio's Text to 3D model.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, cast
 
 import numpy as np
 import torch
@@ -444,7 +444,7 @@ class GenerfactoModel(Model):
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         if self.train_normals:
             # orientation loss for computed normals
-            loss_dict["orientation_loss"] = self.orientation_loss_mult * torch.mean(
+            loss_dict["orientation_loss"] = cast(float, self.orientation_loss_mult) * torch.mean(
                 outputs["rendered_orientation_loss"]
             )
         else:

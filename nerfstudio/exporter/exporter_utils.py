@@ -345,6 +345,7 @@ def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]
     camera_optimizer = None
     if hasattr(pipeline.model, "camera_optimizer"):
         camera_optimizer = pipeline.model.camera_optimizer
+        assert isinstance(camera_optimizer, CameraOptimizer)
 
     train_frames = collect_camera_poses_for_dataset(train_dataset, camera_optimizer)
     # Note: returning original poses, even if --eval-mode=all
