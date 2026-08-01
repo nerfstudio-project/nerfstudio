@@ -64,16 +64,31 @@ def get_colmap_version(colmap_cmd: str, default_version: str = "3.8") -> Version
     return Version(default_version)
 
 
-def get_vocab_tree() -> Path:
+def get_vocab_tree(colmap_version: Version) -> Path:
     """Return path to vocab tree. Downloads vocab tree if it doesn't exist.
 
+    COLMAP switched from FLANN to faiss for vocabulary tree indexing in 3.12.0
+    (June 2025). FLANN- and faiss-based trees are mutually incompatible, so the
+    correct tree format is selected based on the detected COLMAP version, and
+    each format is cached under a distinct filename so that upgrading COLMAP
+    never silently serves a stale tree of the wrong format.
+
+    Args:
+        colmap_version: The detected COLMAP version, used to choose the tree format.
     Returns:
         The path to the vocab tree.
     """
-    vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
+    if colmap_version >= Version("3.12.0"):
+        vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree_faiss_words32K.bin"
+        vocab_tree_url = (
+            "https://github.com/colmap/colmap/releases/download/3.11.1/vocab_tree_faiss_flickr100K_words32K.bin"
+        )
+    else:
+        vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
+        vocab_tree_url = "https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin"
 
     if not vocab_tree_filename.exists():
-        r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)
+        r = requests.get(vocab_tree_url, stream=True)
         vocab_tree_filename.parent.mkdir(parents=True, exist_ok=True)
         with open(vocab_tree_filename, "wb") as f:
             total_length = r.headers.get("content-length")
@@ -143,7 +158,7 @@ def run_colmap(
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
     if matching_method == "vocab_tree":
-        vocab_tree_filename = get_vocab_tree()
+        vocab_tree_filename = get_vocab_tree(colmap_version)
         feature_matcher_cmd.append(f'--VocabTreeMatching.vocab_tree_path "{vocab_tree_filename}"')
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
     with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):

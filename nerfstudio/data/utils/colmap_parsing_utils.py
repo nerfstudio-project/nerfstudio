@@ -399,7 +399,7 @@ def write_points3D_binary(points3D, path_to_model_file):
             write_next_bytes(fid, pt.id, "Q")
             write_next_bytes(fid, pt.xyz.tolist(), "ddd")
             write_next_bytes(fid, pt.rgb.tolist(), "BBB")
-            write_next_bytes(fid, pt.error, "d")
+            write_next_bytes(fid, float(pt.error.item()), "d")
             track_length = pt.image_ids.shape[0]
             write_next_bytes(fid, track_length, "Q")
             for image_id, point2D_id in zip(pt.image_ids, pt.point2D_idxs):
