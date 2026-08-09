@@ -110,8 +110,9 @@ def metashape_to_json(
             s["k2"] = _find_param(calib, "k2")
             s["k3"] = _find_param(calib, "k3")
             s["k4"] = _find_param(calib, "k4")
-            s["p1"] = _find_param(calib, "p1")
-            s["p2"] = _find_param(calib, "p2")
+            # Metashape and OpenCV reverse the p1 and p2 names for the same tangential terms.
+            s["p1"] = _find_param(calib, "p2")
+            s["p2"] = _find_param(calib, "p1")
 
         sensor_dict[sensor.get("id")] = s
 
