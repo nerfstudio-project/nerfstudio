@@ -184,7 +184,7 @@ TLDR for linux:
 curl -fsSL https://pixi.sh/install.sh | bash
 ```
 
-### Install Pixi Environmnent 
+### Install Pixi Environment 
 After Pixi is installed, you can run
 ```bash
 git clone https://github.com/nerfstudio-project/nerfstudio.git
@@ -192,7 +192,7 @@ cd nerfstudio
 pixi run post-install
 pixi shell
 ```
-This will fetch the latest Nerfstudio code, install all enviroment dependencies including colmap, tinycudann and hloc, and then activate the pixi environment (similar to conda).  
+This will fetch the latest Nerfstudio code, install all environment dependencies including colmap, tinycudann and hloc, and then activate the pixi environment (similar to conda).  
 From now on, each time you want to run Nerfstudio in a new shell, you have to navigate to the nerfstudio folder and run `pixi shell` again.
 
 You could also run
@@ -270,13 +270,13 @@ Besides, the container can also directly be used by adding the nerfstudio comman
 ```bash
 docker run --gpus all -u $(id -u) -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm -it --shm-size=12gb  # Parameters.
             ghcr.io/nerfstudio-project/nerfstudio:<tag> \       # Docker image name if you pulled from GitHub.
-            ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
+            ns-process-data video --data /workspace/video.mp4   # Sample command of nerfstudio.
 ```
 
 ### Note
 
 - The container works on Linux and Windows, depending on your OS some additional setup steps might be required to provide access to your GPU inside containers.
-- Paths on Windows use backslash '\\' while unix based systems use a frontslash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Alternatively, mounts can be quoted (e.g. `-v 'C:\local_folder:/docker_folder'`). Ensure to use the correct paths when mounting folders or providing paths as parameters.
+- Paths on Windows use backslash '\\' while unix based systems use a forward slash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Alternatively, mounts can be quoted (e.g. `-v 'C:\local_folder:/docker_folder'`). Ensure to use the correct paths when mounting folders or providing paths as parameters.
 - Always use full paths, relative paths are known to create issues when being used in mounts into docker.
 - Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
 - The container currently is based on nvidia/cuda:11.8.0-devel-ubuntu22.04, consequently it comes with CUDA 11.8 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
