@@ -20,19 +20,8 @@ from typing import IO, List, Tuple, Union
 import cv2
 import numpy as np
 import torch
-from packaging.version import Version
-from PIL import Image, __version__ as PILLOW_VERSION
+from PIL import Image
 from PIL.Image import Image as PILImage
-
-_PILLOW_VERSION = Version(PILLOW_VERSION)
-
-
-def _set_encoder_image(encoder, im: PILImage) -> None:
-    """Set the image on a Pillow raw encoder across supported Pillow versions."""
-    if _PILLOW_VERSION >= Version("12.2.0"):
-        encoder.setimage(im.im, (0, 0) + im.size)
-    else:
-        encoder.setimage(im.im)
 
 
 def pil_to_numpy(im: PILImage) -> np.ndarray:
@@ -49,7 +38,7 @@ def pil_to_numpy(im: PILImage) -> np.ndarray:
 
     # Unpack data
     e = Image._getencoder(im.mode, "raw", im.mode)
-    _set_encoder_image(e, im)
+    e.setimage(im.im, (0, 0) + im.size)
 
     # NumPy buffer for the result
     shape, typestr = Image._conv_type_shape(im)
