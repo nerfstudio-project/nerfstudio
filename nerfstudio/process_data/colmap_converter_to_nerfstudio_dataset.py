@@ -79,7 +79,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     """If True, skips copying and downscaling of images and only runs COLMAP if possible and enabled"""
     colmap_model_path: Path = Path("colmap/sparse/0")
     """Optionally sets the path of the colmap model. Used only when --skip-colmap is set to True. The path is relative
-       to the output directory.
+       to the output directory. Non-default model paths are preserved; the default selects the best sparse model.
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
@@ -116,6 +116,19 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
     @property
     def absolute_colmap_path(self) -> Path:
         return self.output_dir / "colmap"
+
+    def _select_colmap_model(self) -> None:
+        """Select the best generated COLMAP model when using the default path."""
+        if self.colmap_model_path != self.default_colmap_path():
+            return
+        sparse_dir = self.absolute_colmap_path / "sparse"
+        selected_model = colmap_utils.find_best_colmap_model(sparse_dir)
+        if selected_model is None:
+            return
+        relative_model_path = selected_model.relative_to(sparse_dir)
+        self.colmap_model_path = Path("colmap") / "sparse" / relative_model_path
+        num_images = colmap_utils.get_colmap_model_image_count(selected_model)
+        CONSOLE.log(f"Using COLMAP model {self.colmap_model_path} ({num_images} registered images)")
 
     def _save_transforms(
         self,
@@ -160,9 +173,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
             depth_dir = self.output_dir / "depth"
             depth_dir.mkdir(parents=True, exist_ok=True)
             image_id_to_depth_path = colmap_utils.create_sfm_depth(
-                recon_dir=self.absolute_colmap_model_path
-                if self.skip_colmap
-                else self.output_dir / self.default_colmap_path(),
+                recon_dir=self.absolute_colmap_model_path,
                 output_dir=depth_dir,
                 include_depth_debug=self.include_depth_debug,
                 input_images_dir=self.image_dir,
