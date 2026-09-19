@@ -140,6 +140,11 @@ class VideoToNerfstudioDataset(ColmapConverterToNerfstudioDataset):
         if not self.skip_colmap:
             self._run_colmap(mask_path)
 
+        # COLMAP may produce multiple disconnected sparse reconstructions.
+        # Non-default --colmap-model-path values are preserved; the default
+        # selects the best readable reconstruction before exporting anything.
+        self._select_colmap_model()
+
         # Export depth maps
         image_id_to_depth_path, log_tmp = self._export_depth()
         summary_log += log_tmp

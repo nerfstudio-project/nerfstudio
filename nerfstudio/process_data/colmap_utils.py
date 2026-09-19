@@ -17,8 +17,9 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 """
 
 import json
+import struct
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Union
 
 import appdirs
 import cv2
@@ -87,6 +88,59 @@ def get_vocab_tree() -> Path:
                     f.write(chunk)
                     f.flush()
     return vocab_tree_filename
+
+
+def _read_colmap_model(recon_dir: Path) -> Tuple[Dict[int, Any], Dict[int, Any]]:
+    """Read the binary camera and registered-image tables from a COLMAP model."""
+    cameras_path = recon_dir / "cameras.bin"
+    images_path = recon_dir / "images.bin"
+    if not cameras_path.exists() or not images_path.exists():
+        raise ValueError(f"Could not find cameras.bin and images.bin in {recon_dir}")
+    return read_cameras_binary(cameras_path), read_images_binary(images_path)
+
+
+def get_colmap_model_image_count(recon_dir: Path) -> int:
+    """Return the number of registered images in a usable COLMAP model."""
+    _, images = _read_colmap_model(recon_dir)
+    if not (recon_dir / "points3D.bin").exists():
+        raise ValueError(f"Could not find points3D.bin in {recon_dir}")
+    if not images:
+        raise ValueError(f"COLMAP model {recon_dir} contains no registered images")
+    return len(images)
+
+
+def _iter_colmap_model_paths(sparse_dir: Path):
+    """Yield direct sparse models and the known one-level HLoc nested models."""
+    for model_dir in sorted((path for path in sparse_dir.iterdir() if path.is_dir()), key=lambda path: path.name):
+        yield model_dir
+        nested_dir = model_dir / "models"
+        if nested_dir.is_dir():
+            yield from sorted((path for path in nested_dir.iterdir() if path.is_dir()), key=lambda path: path.name)
+
+
+def find_best_colmap_model(sparse_dir: Path) -> Optional[Path]:
+    """Select the best readable reconstruction in a COLMAP sparse directory.
+
+    Registered image count is the primary quality signal. Exact ties use the
+    relative model path for deterministic output. Invalid or incomplete models
+    are skipped with a warning.
+    """
+    if not sparse_dir.is_dir():
+        return None
+
+    candidates = []
+    for model_dir in _iter_colmap_model_paths(sparse_dir):
+        try:
+            num_images = get_colmap_model_image_count(model_dir)
+        except (OSError, ValueError, KeyError, IndexError, AssertionError, struct.error) as exc:
+            CONSOLE.print(f"[bold yellow]Skipping invalid COLMAP model {model_dir}: {exc}")
+            continue
+        relative_path = model_dir.relative_to(sparse_dir).as_posix()
+        candidates.append((num_images, relative_path, model_dir))
+
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda candidate: (-candidate[0], candidate[1]))[0][2]
 
 
 def run_colmap(
@@ -173,11 +227,14 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
 
     if refine_intrinsics:
+        selected_model = find_best_colmap_model(sparse_dir)
+        if selected_model is None:
+            raise RuntimeError(f"Could not find a valid COLMAP reconstruction in {sparse_dir}.")
         with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
             bundle_adjuster_cmd = [
                 f"{colmap_cmd} bundle_adjuster",
-                f"--input_path {sparse_dir}/0",
-                f"--output_path {sparse_dir}/0",
+                f"--input_path {selected_model}",
+                f"--output_path {selected_model}",
                 "--BundleAdjustment.refine_principal_point 1",
             ]
             run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
