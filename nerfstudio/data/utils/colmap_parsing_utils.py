@@ -204,7 +204,10 @@ def read_images_text(path):
                 qvec = np.array(tuple(map(float, elems[1:5])))
                 tvec = np.array(tuple(map(float, elems[5:8])))
                 camera_id = int(elems[8])
-                image_name = elems[9]
+                # COLMAP writes the image name as the rest of the line, so a space stays in the name.
+                if len(elems) < 10:
+                    raise IndexError("COLMAP image line is missing the name")
+                image_name = " ".join(elems[9:])
                 elems = fid.readline().split()
                 xys = np.column_stack([tuple(map(float, elems[0::3])), tuple(map(float, elems[1::3]))])
                 point3D_ids = np.array(tuple(map(int, elems[2::3])))
