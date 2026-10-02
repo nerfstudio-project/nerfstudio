@@ -605,11 +605,12 @@ def auto_orient_and_center_poses(
         if torch.linalg.det(eigvec) < 0:
             eigvec[:, 2] = -eigvec[:, 2]
 
-        transform = torch.cat([eigvec, eigvec @ -translation[..., None]], dim=-1)
+        rotation = eigvec.T
+        transform = torch.cat([rotation, rotation @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
 
         if oriented_poses.mean(dim=0)[2, 1] < 0:
-            oriented_poses[1:3, :] = -1 * oriented_poses[1:3, :]
+            oriented_poses[..., 1:3, :] = -1 * oriented_poses[..., 1:3, :]
             transform[1:3, :] = -1 * transform[1:3, :]
     elif method in ("up", "vertical"):
         up = torch.mean(poses[:, :3, 1], dim=0)
