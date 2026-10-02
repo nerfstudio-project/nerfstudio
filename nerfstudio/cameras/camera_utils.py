@@ -489,26 +489,34 @@ def rotation_matrix_between(a: Float[Tensor, "3"], b: Float[Tensor, "3"]) -> Flo
     """
     a = a / torch.linalg.norm(a)
     b = b / torch.linalg.norm(b)
-    v = torch.linalg.cross(a, b)  # Axis of rotation.
+    v = torch.linalg.cross(a, b)
+    cosine = torch.dot(a, b).clamp(-1, 1)
+    identity = torch.eye(3, dtype=a.dtype, device=a.device)
+    zero = a.new_zeros(())
 
-    # Handle cases where `a` and `b` are parallel.
-    eps = 1e-6
-    if torch.sum(torch.abs(v)) < eps:
-        x = torch.tensor([1.0, 0, 0]) if abs(a[0]) < eps else torch.tensor([0, 1.0, 0])
-        v = torch.linalg.cross(a, x)
+    def skew(vector):
+        x, y, z = vector.unbind()
+        return torch.stack((zero, -z, y, z, zero, -x, -y, x, zero)).reshape(3, 3)
 
-    v = v / torch.linalg.norm(v)
-    skew_sym_mat = torch.Tensor(
-        [
-            [0, -v[2], v[1]],
-            [v[2], 0, -v[0]],
-            [-v[1], v[0], 0],
-        ]
-    )
-    theta = torch.acos(torch.clip(torch.dot(a, b), -1, 1))
+    if cosine >= 0:
+        # This form retains small cross products even when the dot product
+        # rounds to one, and its denominator is bounded below by one.
+        skew_sym_mat = skew(v)
+        return identity + skew_sym_mat + (skew_sym_mat @ skew_sym_mat) / (1 + cosine)
 
-    # Rodrigues rotation formula. https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
-    return torch.eye(3) + torch.sin(theta) * skew_sym_mat + (1 - torch.cos(theta)) * (skew_sym_mat @ skew_sym_mat)
+    sine = torch.linalg.norm(v)
+    if sine > 0:
+        # atan2 remains well-conditioned as the angle approaches pi.
+        theta = torch.atan2(sine, cosine)
+        skew_sym_mat = skew(v / sine)
+        return identity + torch.sin(theta) * skew_sym_mat + (1 - torch.cos(theta)) * (skew_sym_mat @ skew_sym_mat)
+
+    # Antiparallel vectors have no unique rotation axis. Pick a well-conditioned
+    # perpendicular axis and use the exact half-turn formula.
+    basis = identity[torch.argmin(a.abs())]
+    axis = torch.linalg.cross(a, basis)
+    axis = axis / torch.linalg.norm(axis)
+    return 2 * axis[:, None] * axis[None, :] - identity
 
 
 def focus_of_attention(poses: Float[Tensor, "*num_poses 4 4"], initial_focus: Float[Tensor, "3"]) -> Float[Tensor, "3"]:
