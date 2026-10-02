@@ -539,9 +539,15 @@ def focus_of_attention(poses: Float[Tensor, "*num_poses 4 4"], initial_focus: Fl
         active_directions = active_directions[active]
         active_origins = active_origins[active]
         # https://en.wikipedia.org/wiki/Line–line_intersection#In_more_than_two_dimensions
-        m = torch.eye(3) - active_directions * torch.transpose(active_directions, -2, -1)
+        m = torch.eye(3, dtype=poses.dtype, device=poses.device) - active_directions * torch.transpose(
+            active_directions, -2, -1
+        )
         mt_m = torch.transpose(m, -2, -1) @ m
-        focus_pt = torch.linalg.inv(mt_m.mean(0)) @ (mt_m @ active_origins).mean(0)[:, 0]
+        normal = mt_m.mean(0)
+        rhs = (mt_m @ active_origins).mean(0)[:, 0]
+        # Parallel optical axes leave the focus along their direction
+        # unidentified. Choose the least-squares solution nearest the prior.
+        focus_pt = focus_pt + torch.linalg.pinv(normal, hermitian=True) @ (rhs - normal @ focus_pt)
         active = torch.sum(active_directions.squeeze(-1) * (focus_pt - active_origins.squeeze(-1)), dim=-1) > 0
         if active.all():
             # the set of active cameras did not change, so we're done.
