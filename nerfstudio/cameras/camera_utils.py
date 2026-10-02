@@ -707,11 +707,14 @@ def fisheye624_project(xyz, params):
     ab = xyz[:, :, :2] / z
     r = torch.norm(ab, dim=-1, p=2, keepdim=True)
     th = torch.atan(r)
-    th_divr = torch.where(r < eps, torch.ones_like(ab), ab / r)
     th_k = th.reshape(B, N, 1).clone()
     for i in range(6):
         th_k = th_k + params[:, -12 + i].reshape(B, 1, 1) * torch.pow(th, 3 + i * 2)
-    xr_yr = th_k * th_divr
+    # th_k / r has limit 1 on the optical axis. Keep the unselected
+    # denominator finite as well so that autograd never differentiates 0 / 0.
+    safe_r = torch.where(r > 0, r, torch.ones_like(r))
+    radial_scale = torch.where(r > 0, th_k / safe_r, torch.ones_like(r))
+    xr_yr = radial_scale * ab
     uv_dist = xr_yr
 
     # Tangential correction.
@@ -868,7 +871,9 @@ def fisheye624_unproject_helper(uv, params, max_iters: int = 5):
         th = th + step
     # Compute the ray direction using theta and xr_yr.
     close_to_zero = torch.logical_and(th.abs() < eps, xr_yr_norm.abs() < eps)
-    ray_dir = torch.where(close_to_zero, xr_yr, torch.tan(th) / xr_yr_norm * xr_yr)
+    safe_norm = torch.where(close_to_zero, torch.ones_like(xr_yr_norm), xr_yr_norm)
+    radial_scale = torch.where(close_to_zero, torch.ones_like(th), torch.tan(th) / safe_norm)
+    ray_dir = radial_scale * xr_yr
     ray = torch.cat([ray_dir, uv.new_ones(B, N, 1)], dim=2)
     return ray
 
