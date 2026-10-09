@@ -23,7 +23,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import pymeshlab
 import torch
 from jaxtyping import Float
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeRemainingColumn
@@ -41,6 +40,7 @@ if TYPE_CHECKING:
     # Importing open3d can take ~1 second, so only do it below if we actually
     # need it.
     import open3d as o3d
+    import pymeshlab
 
 
 @dataclass
@@ -71,6 +71,8 @@ def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:  # type: ignore
 
 def get_mesh_from_filename(filename: str, target_num_faces: Optional[int] = None) -> Mesh:
     """Get a Mesh from a filename."""
+    import pymeshlab
+
     ms = pymeshlab.MeshSet()  # type: ignore
     ms.load_new_mesh(filename)
     if target_num_faces is not None:

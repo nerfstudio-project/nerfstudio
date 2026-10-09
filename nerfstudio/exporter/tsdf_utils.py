@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import pymeshlab
 import torch
 import torch.nn.functional as F
 from jaxtyping import Bool, Float
@@ -50,7 +49,7 @@ class TSDF:
     weights: Float[Tensor, "xdim ydim zdim"]
     """TSDF weights for each voxel."""
     colors: Float[Tensor, "xdim ydim zdim 3"]
-    """TSDF colors for each voxel."""
+    """TSDF colors of each voxel."""
     voxel_size: Float[Tensor, "3"]
     """Size of each voxel in the TSDF. [x, y, z] size."""
     origin: Float[Tensor, "3"]
@@ -147,6 +146,8 @@ class TSDF:
             mesh: The mesh to export.
             filename: The filename to export the mesh to.
         """
+        import pymeshlab
+
         assert mesh.colors is not None
         vertex_matrix = mesh.vertices.cpu().numpy().astype("float64")
         face_matrix = mesh.faces.cpu().numpy().astype("int32")
