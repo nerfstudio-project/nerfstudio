@@ -141,9 +141,7 @@ class RaySamples(TensorDataclass):
         alphas = 1 - torch.exp(-delta_density)
 
         transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)
-        transmittance = torch.cat(
-            [torch.zeros((*transmittance.shape[:1], 1, 1), device=densities.device), transmittance], dim=-2
-        )
+        transmittance = torch.cat([torch.zeros_like(delta_density[..., :1, :]), transmittance], dim=-2)
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
 
         weights = alphas * transmittance  # [..., "num_samples"]
@@ -179,10 +177,10 @@ class RaySamples(TensorDataclass):
         """
 
         transmittance = torch.cumprod(
-            torch.cat([torch.ones((*alphas.shape[:1], 1, 1), device=alphas.device), 1.0 - alphas + 1e-7], 1), 1
+            torch.cat([alphas.new_ones((*alphas.shape[:-2], 1, 1)), 1.0 - alphas + 1e-7], dim=-2), dim=-2
         )
 
-        weights = alphas * transmittance[:, :-1, :]
+        weights = alphas * transmittance[..., :-1, :]
         if weights_only:
             return weights
         return weights, transmittance
