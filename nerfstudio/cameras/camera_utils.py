@@ -469,8 +469,10 @@ def radial_and_tangential_undistort(
         denominator = fy_x * fx_y - fx_x * fy_y
         x_numerator = fx * fy_y - fy * fx_y
         y_numerator = fy * fx_x - fx * fy_x
-        step_x = torch.where(torch.abs(denominator) > eps, x_numerator / denominator, torch.zeros_like(denominator))
-        step_y = torch.where(torch.abs(denominator) > eps, y_numerator / denominator, torch.zeros_like(denominator))
+        nonsingular = torch.abs(denominator) > eps
+        safe_denominator = torch.where(nonsingular, denominator, torch.ones_like(denominator))
+        step_x = torch.where(nonsingular, x_numerator / safe_denominator, torch.zeros_like(denominator))
+        step_y = torch.where(nonsingular, y_numerator / safe_denominator, torch.zeros_like(denominator))
 
         x = x + step_x
         y = y + step_y
