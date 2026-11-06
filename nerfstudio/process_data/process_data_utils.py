@@ -145,13 +145,6 @@ def convert_video_to_images(
         A tuple containing summary of the conversion and the number of extracted frames.
     """
 
-    # If keep_image_dir is False, then remove the output image directory and its downscaled versions
-    if not keep_image_dir:
-        for i in range(num_downscales + 1):
-            dir_to_remove = image_dir if i == 0 else f"{image_dir}_{2**i}"
-            shutil.rmtree(dir_to_remove, ignore_errors=True)
-    image_dir.mkdir(exist_ok=True, parents=True)
-
     for i in crop_factor:
         if i < 0 or i > 1:
             CONSOLE.print("[bold red]Error: Invalid crop factor. All crops must be in [0,1].")
@@ -170,6 +163,13 @@ def convert_video_to_images(
             CONSOLE.print(f"[bold red]Error: Video has no frames: {video_path}")
             sys.exit(1)
         CONSOLE.print("Number of frames in video:", num_frames)
+
+        # If keep_image_dir is False, then remove the output image directory and its downscaled versions
+        if not keep_image_dir:
+            for i in range(num_downscales + 1):
+                dir_to_remove = image_dir if i == 0 else f"{image_dir}_{2**i}"
+                shutil.rmtree(dir_to_remove, ignore_errors=True)
+        image_dir.mkdir(exist_ok=True, parents=True)
 
         ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
 
