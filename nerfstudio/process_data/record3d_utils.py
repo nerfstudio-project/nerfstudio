@@ -75,7 +75,6 @@ def record3d_to_json(
 
     # Camera intrinsics
     K = np.array(metadata_dict["K"]).reshape((3, 3)).T
-    focal_length = K[0, 0]
 
     H = metadata_dict["h"]
     W = metadata_dict["w"]
@@ -85,8 +84,8 @@ def record3d_to_json(
     cx, cy = W / 2, H / 2
 
     out = {
-        "fl_x": focal_length,
-        "fl_y": focal_length,
+        "fl_x": K[0, 0],
+        "fl_y": K[1, 1],
         "cx": cx,
         "cy": cy,
         "w": W,
