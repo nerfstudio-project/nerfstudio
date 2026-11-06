@@ -547,11 +547,6 @@ def create_sfm_depth(
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
 
-    # Only support first camera
-    CAMERA_ID = 1
-    W = cam_id_to_camera[CAMERA_ID].width
-    H = cam_id_to_camera[CAMERA_ID].height
-
     if verbose:
         iter_images = track(
             im_id_to_image.items(), total=len(im_id_to_image.items()), description="Creating depth maps ..."
@@ -561,6 +556,8 @@ def create_sfm_depth(
 
     image_id_to_depth_path = {}
     for im_id, im_data in iter_images:
+        camera = cam_id_to_camera[im_data.camera_id]
+        W, H = camera.width, camera.height
         # TODO(1480) BEGIN delete when abandoning colmap_parsing_utils
         pids = [pid for pid in im_data.point3D_ids if pid != -1]
         xyz_world = np.array([ptid_to_info[pid].xyz for pid in pids])
