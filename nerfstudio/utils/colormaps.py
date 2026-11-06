@@ -105,7 +105,7 @@ def apply_float_colormap(image: Float[Tensor, "*bs 1"], colormap: Colormaps = "v
 
     image = torch.nan_to_num(image, 0)
     if colormap == "gray":
-        return image.repeat(1, 1, 3)
+        return image.repeat_interleave(3, dim=-1)
     image_long = (image * 255).long()
     image_long_min = torch.min(image_long)
     image_long_max = torch.max(image_long)
