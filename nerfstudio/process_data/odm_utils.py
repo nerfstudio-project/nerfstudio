@@ -119,7 +119,7 @@ def cameras2nerfds(
     else:
         raise ValueError("Unsupported ODM camera model: " + projection_type)
 
-    s = {"w": int(camera["width"]), "h": int(camera["height"])}
+    s: Dict[str, float] = {"w": int(camera["width"]), "h": int(camera["height"])}
 
     if projection_type in ["spherical", "equirectangular"]:
         s["fl_x"] = s["w"] / 2.0
