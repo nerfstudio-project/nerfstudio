@@ -23,7 +23,9 @@ def test_odm_intrinsics(tmp_path, camera, expected):
     reconstruction_path = tmp_path / "reconstruction.json"
     shot = {"rotation": [0, 0, 0], "translation": [0, 0, 0]}
     reconstruction_path.write_text(json.dumps([{"shots": {"sample.jpg": shot}}]))
-    cameras2nerfds({"sample": Path("sample.jpg")}, cameras_path, tmp_path / "shots.geojson", reconstruction_path, tmp_path)
+    cameras2nerfds(
+        {"sample": Path("sample.jpg")}, cameras_path, tmp_path / "shots.geojson", reconstruction_path, tmp_path
+    )
     frame = json.loads((tmp_path / "transforms.json").read_text())["frames"][0]
     for key, value in expected.items():
         assert frame[key] == pytest.approx(value)
