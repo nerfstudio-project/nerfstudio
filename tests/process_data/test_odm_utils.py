@@ -13,6 +13,10 @@ from nerfstudio.process_data.odm_utils import cameras2nerfds
     [
         ({"projection_type": "perspective", "focal": 0.5}, {"fl_x": 400, "cx": 399.5, "cy": 299.5}),
         ({"projection_type": "brown", "focal": 0.5, "c_x": 0.1, "c_y": -0.05}, {"cx": 479.5, "cy": 259.5}),
+        (
+            {"projection_type": "brown", "width": 600, "height": 800, "focal": 0.5, "c_x": 0.1, "c_y": -0.05},
+            {"fl_x": 400, "fl_y": 400, "cx": 379.5, "cy": 359.5},
+        ),
         ({"projection_type": "fisheye_opencv", "focal": 0.5, "k4": 0.004}, {"k4": 0.004}),
         ({"projection_type": "spherical"}, {"fl_x": 400, "fl_y": 600, "cx": 400, "cy": 300}),
     ],
