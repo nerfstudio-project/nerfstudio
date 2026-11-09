@@ -104,34 +104,38 @@ def cameras2nerfds(
         cameras = json.loads(f.read())
 
     camera_ids = list(cameras.keys())
-    if len(camera_ids) > 1:
-        raise ValueError("Only one camera is supported")
+    if len(camera_ids) != 1:
+        raise ValueError("Expected exactly one ODM camera")
     camera_id = camera_ids[0]
     camera = cameras[camera_id]
     data = {}
-    if camera["projection_type"] in ["brown", "perspective"]:
+    projection_type = camera["projection_type"]
+    if projection_type in ["brown", "perspective"]:
         data["camera_model"] = CAMERA_MODELS["perspective"].value
-    elif camera["projection_type"] in ["fisheye", "fisheye_opencv"]:
+    elif projection_type in ["fisheye", "fisheye_opencv"]:
         data["camera_model"] = CAMERA_MODELS["fisheye"].value
-    elif camera["projection_type"] in ["spherical", "equirectangular"]:
+    elif projection_type in ["spherical", "equirectangular"]:
         data["camera_model"] = CAMERA_MODELS["equirectangular"].value
     else:
-        raise ValueError("Unsupported ODM camera model: " + data["camera_model"])
+        raise ValueError("Unsupported ODM camera model: " + projection_type)
 
-    sensor_dict = {}
-    s = {"w": int(camera["width"]), "h": int(camera["height"])}
+    s: Dict[str, float] = {"w": int(camera["width"]), "h": int(camera["height"])}
 
-    s["fl_x"] = camera.get("focal_x", camera.get("focal")) * max(s["w"], s["h"])
-    s["fl_y"] = camera.get("focal_y", camera.get("focal")) * max(s["w"], s["h"])
+    if projection_type in ["spherical", "equirectangular"]:
+        s["fl_x"] = s["w"] / 2.0
+        s["fl_y"] = s["h"]
+        s["cx"] = s["w"] / 2.0
+        s["cy"] = s["h"] / 2.0
+    else:
+        scale = max(s["w"], s["h"])
+        s["fl_x"] = camera.get("focal_x", camera.get("focal")) * scale
+        s["fl_y"] = camera.get("focal_y", camera.get("focal")) * scale
+        s["cx"] = camera.get("c_x", 0.0) * scale + (s["w"] - 1.0) / 2.0
+        s["cy"] = camera.get("c_y", 0.0) * scale + (s["h"] - 1.0) / 2.0
 
-    s["cx"] = camera["c_x"] + (s["w"] - 1.0) / 2.0
-    s["cy"] = camera["c_y"] + (s["h"] - 1.0) / 2.0
-
-    for p in ["k1", "k2", "p1", "p2", "k3"]:
+    for p in ["k1", "k2", "p1", "p2", "k3", "k4"]:
         if p in camera:
             s[p] = camera[p]
-
-        sensor_dict[camera_id] = s
 
     shots_dict = {}
     reconstruction = None
@@ -182,7 +186,7 @@ def cameras2nerfds(
 
         frame = {}
         frame["file_path"] = image_filename_map[fname].as_posix()
-        frame.update(sensor_dict[camera_id])
+        frame.update(s)
 
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
