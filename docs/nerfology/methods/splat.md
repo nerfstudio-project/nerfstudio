@@ -60,7 +60,7 @@ Nerfstudio's splat export currently supports multiple third-party splat viewers:
 - [Spline](https://spline.design/) 
 - [Three.js Viewer by mkkellogg](https://github.com/mkkellogg/GaussianSplats3D)
 
-Exported `.ply` files are uncompressed. To make them smaller for web delivery, you can convert them to a compressed format such as [SOG](https://developer.playcanvas.com/user-manual/gaussian-splatting/formats/sog/) with [splat-transform](https://github.com/playcanvas/splat-transform): `npx @playcanvas/splat-transform exports/splat/splat.ply exports/splat/splat.sog`.
+If you need a format other than `.ply`, you can convert the exported file with [splat-transform](https://github.com/playcanvas/splat-transform), which picks the output format from the file extension (see its [supported formats](https://github.com/playcanvas/splat-transform#supported-formats)): `npx @playcanvas/splat-transform exports/splat/splat.ply <output-file>`.
 
 ### FAQ
 - Can I export a mesh or pointcloud?
