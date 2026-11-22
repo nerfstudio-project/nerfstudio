@@ -55,10 +55,12 @@ Gaussian splats can be exported as a `.ply` file which are ingestable by a varie
 
 Nerfstudio's splat export currently supports multiple third-party splat viewers:
 - [Polycam Viewer](https://poly.cam/tools/gaussian-splatting)
-- [Playcanvas SuperSplat](https://playcanvas.com/super-splat)
+- [PlayCanvas SuperSplat](https://superspl.at/editor)
 - [WebGL Viewer by antimatter15](https://antimatter15.com/splat/) 
 - [Spline](https://spline.design/) 
 - [Three.js Viewer by mkkellogg](https://github.com/mkkellogg/GaussianSplats3D)
+
+If you need a format other than `.ply`, you can convert the exported file with [splat-transform](https://github.com/playcanvas/splat-transform), which picks the output format from the file extension (see its [supported formats](https://github.com/playcanvas/splat-transform#supported-formats)): `npx @playcanvas/splat-transform exports/splat/splat.ply <output-file>`.
 
 ### FAQ
 - Can I export a mesh or pointcloud?
