@@ -17,22 +17,22 @@ import sys
 
 class _LazyError:
     def __init__(self, data):
-        self.__data = data  # pylint: disable=unused-private-member
+        self._data = data
 
     class LazyErrorObj:
         def __init__(self, data):
-            self.__data = data  # pylint: disable=unused-private-member
+            self._data = data
 
         def __call__(self, *args, **kwds):
-            name, exc = object.__getattribute__(self, "__data")
+            name, exc = object.__getattribute__(self, "_data")
             raise RuntimeError(f"Could not load package {name}.") from exc
 
         def __getattr__(self, __name: str):
-            name, exc = object.__getattribute__(self, "__data")
-            raise RuntimeError(f"Could not load package {name}") from exc
+            name, exc = object.__getattribute__(self, "_data")
+            raise RuntimeError(f"Could not load package {name}.") from exc
 
     def __getattr__(self, __name: str):
-        return _LazyError.LazyErrorObj(object.__getattribute__(self, "__data"))
+        return _LazyError.LazyErrorObj(object.__getattribute__(self, "_data"))
 
 
 TCNN_EXISTS = False
@@ -55,4 +55,4 @@ except EnvironmentError as _exp:
     tcnn_import_exception = _exp
 
 if tcnn_import_exception is not None:
-    tcnn = _LazyError(tcnn_import_exception)
+    tcnn = _LazyError(("tinycudann", tcnn_import_exception))
